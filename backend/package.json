@@ -1,0 +1,40 @@
+{
+  "name": "chapterone-backend",
+  "version": "1.0.0",
+  "description": "Backend for ChapterOne book recommendation app",
+  "main": "dist/index.js",
+  "scripts": {
+    "start": "node dist/index.js",
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "build": "tsc",
+    "typeorm": "typeorm-ts-node-commonjs",
+    "ingest": "ts-node src/scripts/ingestData.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@types/axios": "^0.14.0",
+    "@types/bcrypt": "^5.0.2",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.5",
+    "@types/natural": "^5.1.2",
+    "@types/node": "^20.11.24",
+    "axios": "^1.6.7",
+    "bcrypt": "^5.1.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.18.3",
+    "fast-xml-parser": "^4.3.2",
+    "jsonwebtoken": "^9.0.2",
+    "natural": "^6.10.4",
+    "node-wordnet": "^0.2.0",
+    "pg": "^8.11.3",
+    "reflect-metadata": "^0.2.1",
+    "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
+    "typeorm": "^0.3.20",
+    "typescript": "^5.3.3"
+  }
+}
