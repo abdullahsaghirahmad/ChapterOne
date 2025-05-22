@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeftIcon, ChatBubbleLeftIcon, ArrowUpIcon } from '@heroicons/react/24/outline';
 import axios from 'axios';
 import { BookCard } from './BookCard';
+import { normalizeTag } from './ThreadPage';
 
 interface Thread {
   id: string;
@@ -47,7 +48,37 @@ export const ThreadDetailPage: React.FC = () => {
         setLoading(true);
         const response = await axios.get<Thread>(`http://localhost:3001/api/threads/${id}`);
         console.log('Thread details:', response.data);
-        setThread(response.data);
+        
+        // Process the thread to ensure tags are properly formatted
+        let threadData = response.data;
+        let processedTags = threadData.tags;
+        
+        // If tags is a string that looks like a stringified array, parse it
+        if (typeof threadData.tags === 'string') {
+          try {
+            processedTags = JSON.parse(threadData.tags as any);
+          } catch {
+            // If parsing fails, split by comma
+            processedTags = (threadData.tags as any).split(',').map((t: string) => t.trim());
+          }
+        }
+        
+        // Normalize each tag to extract clean string values
+        if (Array.isArray(processedTags)) {
+          processedTags = processedTags.map(normalizeTag);
+        } else if (processedTags) {
+          // If somehow not an array, make it a single-item array
+          processedTags = [normalizeTag(processedTags)];
+        } else {
+          // Default to empty array if tags is null/undefined
+          processedTags = [];
+        }
+        
+        setThread({
+          ...threadData,
+          tags: processedTags
+        });
+        
         setLoading(false);
       } catch (err) {
         console.error('Error fetching thread details:', err);

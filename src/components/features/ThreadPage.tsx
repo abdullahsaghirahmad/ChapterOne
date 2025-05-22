@@ -16,6 +16,45 @@ interface Thread {
   books?: any[];
 }
 
+// Helper function to normalize tag data - extract it to reuse in other components too
+export const normalizeTag = (tag: any): string => {
+  if (!tag) return '';
+  
+  // Handle object with value property
+  if (typeof tag === 'object' && tag !== null && 'value' in tag) {
+    return tag.value;
+  }
+  
+  // Handle stringified object format like {""value"": ""tag""}
+  if (typeof tag === 'string') {
+    if (tag.includes('{""') && tag.includes('""value""')) {
+      try {
+        const match = tag.match(/""value""\s*:\s*""([^""]+)""/);
+        if (match && match[1]) {
+          return match[1];
+        }
+      } catch (e) {
+        // Just return the original if extraction fails
+      }
+    }
+    
+    // Also try regular JSON parsing if it looks like an object
+    if (tag.startsWith('{') && tag.endsWith('}')) {
+      try {
+        const parsed = JSON.parse(tag);
+        if (parsed && typeof parsed === 'object' && 'value' in parsed) {
+          return parsed.value;
+        }
+      } catch (e) {
+        // Parsing failed, continue with other methods
+      }
+    }
+  }
+  
+  // If it's just a string or other type, return its string representation
+  return String(tag);
+};
+
 export const ThreadPage = () => {
   const [showNewThreadForm, setShowNewThreadForm] = useState(false);
   const [newThreadTitle, setNewThreadTitle] = useState('');
@@ -31,7 +70,40 @@ export const ThreadPage = () => {
         setLoading(true);
         const response = await axios.get<Thread[]>('http://localhost:3001/api/threads');
         console.log('Threads response:', response.data);
-        setThreads(response.data);
+        
+        // Process the threads to ensure tags are properly formatted
+        const processedThreads = response.data.map(thread => {
+          // Process tags to ensure they're an array of strings
+          let processedTags = thread.tags;
+          
+          // If tags is a string that looks like a stringified array, parse it
+          if (typeof thread.tags === 'string') {
+            try {
+              processedTags = JSON.parse(thread.tags as any);
+            } catch {
+              // If parsing fails, split by comma
+              processedTags = (thread.tags as any).split(',').map((t: string) => t.trim());
+            }
+          }
+          
+          // Normalize each tag to extract clean string values
+          if (Array.isArray(processedTags)) {
+            processedTags = processedTags.map(normalizeTag);
+          } else if (processedTags) {
+            // If somehow not an array, make it a single-item array
+            processedTags = [normalizeTag(processedTags)];
+          } else {
+            // Default to empty array if tags is null/undefined
+            processedTags = [];
+          }
+          
+          return {
+            ...thread,
+            tags: processedTags
+          };
+        });
+        
+        setThreads(processedThreads);
         setLoading(false);
       } catch (err) {
         console.error('Error fetching threads:', err);
@@ -52,7 +124,15 @@ export const ThreadPage = () => {
         tags: ['General', 'Books']
       });
       
-      setThreads([...threads, response.data]);
+      // Make sure to process the new thread's tags too
+      const newThread = {
+        ...response.data,
+        tags: Array.isArray(response.data.tags) 
+          ? response.data.tags.map(normalizeTag) 
+          : []
+      };
+      
+      setThreads([...threads, newThread]);
       setShowNewThreadForm(false);
       setNewThreadTitle('');
       setNewThreadDescription('');

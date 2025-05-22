@@ -10,7 +10,7 @@
 
 @layer components {
   .btn {
-    @apply px-4 py-2 rounded-lg font-medium transition-colors;
+    @apply px-4 py-2 rounded-lg font-medium transition-all duration-200;
   }
   
   .btn-primary {
@@ -30,10 +30,96 @@
   }
   
   .card {
-    @apply bg-white rounded-lg p-4 border border-primary-200;
+    @apply bg-white rounded-lg p-4 border border-primary-200 transition-all duration-200;
   }
   
   .input {
-    @apply w-full px-4 py-2 rounded-lg border border-primary-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent;
+    @apply w-full px-4 py-2 rounded-lg border border-primary-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200;
   }
+}
+
+/* Animation keyframes */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0.97);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* Animation utility classes */
+.animate-slide-down {
+  animation: slideDown 0.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.15s ease-out forwards;
+}
+
+.animate-fade-out {
+  animation: fadeOut 0.15s ease-out forwards;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Transition utility classes */
+.transition-all-200 {
+  @apply transition-all duration-200;
+}
+
+.transition-transform-200 {
+  @apply transition-transform duration-200;
+}
+
+.transition-opacity-200 {
+  @apply transition-opacity duration-200;
 } 

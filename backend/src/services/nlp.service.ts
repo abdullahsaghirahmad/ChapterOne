@@ -42,30 +42,32 @@ export class NLPService {
     if (!text) return [];
 
     // Tokenize and normalize text
-    const tokens = this.tokenizer.tokenize(text.toLowerCase());
+    const tokens = this.tokenizer.tokenize(text.toLowerCase()) || [];
     const themes = new Set<string>();
 
     // Check for direct keyword matches
     for (const [theme, keywords] of this.themeKeywords) {
-      if (keywords.some(keyword => tokens.includes(keyword))) {
+      if (Array.isArray(tokens) && keywords.some(keyword => tokens.includes(keyword))) {
         themes.add(theme);
       }
     }
 
     // Use WordNet to find related words
-    for (const token of tokens) {
-      try {
-        const synonyms = await this.wordnet.lookup(token);
-        for (const syn of synonyms) {
-          for (const [theme, keywords] of this.themeKeywords) {
-            if (keywords.some(keyword => syn.synonyms.includes(keyword))) {
-              themes.add(theme);
+    if (Array.isArray(tokens)) {
+      for (const token of tokens) {
+        try {
+          const synonyms = await this.wordnet.lookup(token);
+          for (const syn of synonyms) {
+            for (const [theme, keywords] of this.themeKeywords) {
+              if (keywords.some(keyword => syn.synonyms.includes(keyword))) {
+                themes.add(theme);
+              }
             }
           }
+        } catch (error) {
+          // Ignore WordNet lookup errors
+          continue;
         }
-      } catch (error) {
-        // Ignore WordNet lookup errors
-        continue;
       }
     }
 
@@ -88,11 +90,11 @@ export class NLPService {
       ['Inspirational', ['inspire', 'inspirational', 'motivate', 'uplift', 'encourage', 'hope']]
     ]);
 
-    const tokens = this.tokenizer.tokenize(text.toLowerCase());
+    const tokens = this.tokenizer.tokenize(text.toLowerCase()) || [];
     const detectedTones = new Set<string>();
 
     for (const [tone, keywords] of tones) {
-      if (keywords.some(keyword => tokens.includes(keyword))) {
+      if (Array.isArray(tokens) && keywords.some(keyword => tokens.includes(keyword))) {
         detectedTones.add(tone);
       }
     }
@@ -115,7 +117,7 @@ export class NLPService {
       Moderate: ['balanced', 'steady', 'moderate', 'even', 'consistent']
     };
 
-    const tokens = this.tokenizer.tokenize(text.toLowerCase());
+    const tokens = this.tokenizer.tokenize(text.toLowerCase()) || [];
     const scores = {
       Fast: 0,
       Moderate: 0,
@@ -123,9 +125,9 @@ export class NLPService {
     };
 
     for (const [pace, indicators] of Object.entries(paceIndicators)) {
-      scores[pace as keyof typeof scores] = indicators.filter(
+      scores[pace as keyof typeof scores] = Array.isArray(tokens) ? indicators.filter(
         indicator => tokens.includes(indicator)
-      ).length;
+      ).length : 0;
     }
 
     const maxScore = Math.max(...Object.values(scores));
@@ -169,27 +171,27 @@ export class NLPService {
 
     // Check text content
     if (text) {
-      const tokens = this.tokenizer.tokenize(text.toLowerCase());
+      const tokens = this.tokenizer.tokenize(text.toLowerCase()) || [];
       
-      if (tokens.some(token => 
+      if (Array.isArray(tokens) && tokens.some(token => 
         ['child', 'children', 'kid', 'kids', 'young', 'youth'].includes(token)
       )) {
         audiences.add('Children');
       }
       
-      if (tokens.some(token => 
+      if (Array.isArray(tokens) && tokens.some(token => 
         ['teen', 'teenager', 'adolescent', 'young adult'].includes(token)
       )) {
         audiences.add('Young Adults');
       }
 
-      if (tokens.some(token => 
+      if (Array.isArray(tokens) && tokens.some(token => 
         ['simple', 'easy', 'basic', 'beginner'].includes(token)
       )) {
         audiences.add('Casual Readers');
       }
 
-      if (tokens.some(token => 
+      if (Array.isArray(tokens) && tokens.some(token => 
         ['complex', 'challenging', 'advanced', 'sophisticated'].includes(token)
       )) {
         audiences.add('Avid Readers');

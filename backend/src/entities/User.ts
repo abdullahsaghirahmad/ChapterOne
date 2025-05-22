@@ -23,4 +23,13 @@ export class User {
 
   @UpdateDateColumn()
   updatedAt!: Date;
+
+  @Column({ type: 'simple-array', nullable: true })
+  favoriteGenres?: string[];
+
+  @Column({ nullable: true })
+  preferredPace?: string;
+
+  @Column({ type: 'simple-array', nullable: true })
+  favoriteThemes?: string[];
 } 
