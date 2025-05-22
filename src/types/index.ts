@@ -10,6 +10,7 @@ export interface Book {
   themes: string[];
   description: string;
   bestFor: string[];
+  professions?: string[];
   isbn?: string;
   publishedYear?: number;
   rating?: number;

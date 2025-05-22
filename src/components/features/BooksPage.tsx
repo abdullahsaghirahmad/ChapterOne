@@ -44,16 +44,112 @@ export const BooksPage = () => {
       };
       
       // Process the books to handle all fields that might be objects
-      const processedData = data.map(book => ({
-        ...book,
-        pace: (getValue(book.pace) || "Moderate") as Pace,
-        tone: Array.isArray(book.tone)
-          ? book.tone.map(t => getValue(t))
-          : [],
-        themes: Array.isArray(book.themes)
-          ? book.themes.map(t => getValue(t))
-          : [],
-      }));
+      const processedData = data.map(book => {
+        // Process any string arrays that might be returned as JSON strings or objects
+        let processedThemes = book.themes;
+        let processedTone = book.tone;
+        let processedProfessions = book.professions;
+        
+        // Handle if themes is a string (potentially a stringified array)
+        if (typeof book.themes === 'string') {
+          try {
+            // Try to parse as JSON
+            processedThemes = JSON.parse(book.themes as string);
+          } catch (e) {
+            // If not valid JSON, split by comma
+            processedThemes = (book.themes as string).split(',').map((t: string) => t.trim());
+          }
+        }
+        
+        // Process arrays that might have objects or JSON strings
+        if (Array.isArray(processedThemes)) {
+          processedThemes = processedThemes.map((t: any) => {
+            if (typeof t === 'object' && t !== null && 'value' in t) {
+              return t.value as string;
+            }
+            // Convert any string that looks like "{""value"": ""theme""}" to "theme"
+            if (typeof t === 'string' && t.includes('{""') && t.includes('""value""')) {
+              try {
+                // Try to extract value between quotes
+                const match = t.match(/""value""\s*:\s*""([^""]+)""/);
+                if (match && match[1]) {
+                  return match[1];
+                }
+              } catch (e) {
+                // Just return original if extraction fails
+              }
+            }
+            return t;
+          });
+        }
+
+        // Handle tone the same way
+        if (typeof book.tone === 'string') {
+          try {
+            processedTone = JSON.parse(book.tone as string);
+          } catch (e) {
+            processedTone = (book.tone as string).split(',').map((t: string) => t.trim());
+          }
+        }
+        
+        if (Array.isArray(processedTone)) {
+          processedTone = processedTone.map((t: any) => {
+            if (typeof t === 'object' && t !== null && 'value' in t) {
+              return t.value as string;
+            }
+            if (typeof t === 'string' && t.includes('{""') && t.includes('""value""')) {
+              try {
+                const match = t.match(/""value""\s*:\s*""([^""]+)""/);
+                if (match && match[1]) {
+                  return match[1];
+                }
+              } catch (e) {
+                // Just return original if extraction fails
+              }
+            }
+            return t;
+          });
+        }
+        
+        // Handle professions the same way
+        if (typeof book.professions === 'string') {
+          try {
+            processedProfessions = JSON.parse(book.professions as string);
+          } catch (e) {
+            processedProfessions = (book.professions as string).split(',').map((p: string) => p.trim());
+          }
+        }
+        
+        if (Array.isArray(processedProfessions)) {
+          processedProfessions = processedProfessions.map((p: any) => {
+            if (typeof p === 'object' && p !== null && 'value' in p) {
+              return p.value as string;
+            }
+            if (typeof p === 'string' && p.includes('{""') && p.includes('""value""')) {
+              try {
+                const match = p.match(/""value""\s*:\s*""([^""]+)""/);
+                if (match && match[1]) {
+                  return match[1];
+                }
+              } catch (e) {
+                // Just return original if extraction fails
+              }
+            }
+            return p;
+          });
+        }
+        
+        // Return processed book data with clean fields
+        return {
+          ...book,
+          pace: (typeof book.pace === 'object' && book.pace !== null && 'value' in (book.pace as any) 
+            ? (book.pace as any).value
+            : (book.pace || "Moderate")) as Pace,
+          tone: processedTone || [],
+          themes: processedThemes || [],
+          professions: processedProfessions || []
+        };
+      });
       
       console.log('Processed books:', processedData);
       setBooks(processedData);

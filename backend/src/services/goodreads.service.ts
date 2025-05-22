@@ -98,7 +98,11 @@ export class GoodreadsAPI {
       const result = this.parser.parse(response.data) as GoodreadsResponse;
       const books = result.GoodreadsResponse.search?.results.work || [];
 
-      return books.map((book) => ({
+      if (!Array.isArray(books)) {
+        return [];
+      }
+
+      return books.map((book: any) => ({
         title: book.best_book.title,
         author: book.best_book.author.name,
         coverImage: book.best_book.image_url,

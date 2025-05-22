@@ -4,6 +4,9 @@ import { ThreadCard } from './ThreadCard';
 import { BookCard } from './BookCard';
 import { Book, Thread, Pace } from '../../types';
 import { api } from '../../services/api';
+import { Link } from 'react-router-dom';
+import { ArrowRightIcon } from '@heroicons/react/24/outline';
+import { normalizeTag } from './ThreadPage'; // Import the normalizeTag function
 
 // Add interface for pace object
 interface PaceObject {
@@ -16,6 +19,8 @@ export const HomePage = () => {
   const [threads, setThreads] = useState<Thread[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [visibleBooks, setVisibleBooks] = useState(4); // Show 4 books initially
+  const [visibleThreads, setVisibleThreads] = useState(4); // Show 4 threads initially
 
   useEffect(() => {
     const fetchData = async () => {
@@ -42,11 +47,37 @@ export const HomePage = () => {
         }));
         
         // Process threads to match ThreadCard component props
-        const processedThreads = threadsData.map(thread => ({
-          ...thread,
-          // Convert createdAt to timestamp format
-          timestamp: new Date(thread.createdAt).toLocaleDateString()
-        }));
+        const processedThreads = threadsData.map(thread => {
+          // Process tags to ensure they're properly formatted
+          let processedTags = thread.tags;
+          
+          // If tags is a string that looks like a stringified array, parse it
+          if (typeof thread.tags === 'string') {
+            try {
+              processedTags = JSON.parse(thread.tags as any);
+            } catch {
+              // If parsing fails, split by comma
+              processedTags = (thread.tags as any).split(',').map((t: string) => t.trim());
+            }
+          }
+          
+          // Normalize each tag to extract clean string values
+          if (Array.isArray(processedTags)) {
+            processedTags = processedTags.map(normalizeTag);
+          } else if (processedTags) {
+            // If somehow not an array, make it a single-item array
+            processedTags = [normalizeTag(processedTags)];
+          } else {
+            // Default to empty array if tags is null/undefined
+            processedTags = [];
+          }
+          
+          return {
+            ...thread,
+            tags: processedTags,
+            timestamp: new Date(thread.createdAt).toLocaleDateString()
+          };
+        });
         
         setTrendingBooks(processedBooks);
         setThreads(processedThreads);
@@ -73,13 +104,13 @@ export const HomePage = () => {
       
       if (processedResults.length > 0) {
         setTrendingBooks(processedResults);
+        setVisibleBooks(4); // Reset visible books when searching
       } else {
         // If no results, show a message or keep existing books
         setError(`No books found for "${query}". Try a different search.`);
         setTimeout(() => setError(null), 3000); // Clear error after 3 seconds
       }
     } catch (err) {
-      console.error('Error searching books:', err);
       setError('Error searching for books. Please try again.');
       setTimeout(() => setError(null), 3000); // Clear error after 3 seconds
     }
@@ -118,32 +149,71 @@ export const HomePage = () => {
 
       {/* Trending Books */}
       <section>
-        <h2 className="text-2xl font-bold text-primary-900 mb-6">Trending Now</h2>
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-primary-900">Trending Now</h2>
+          {trendingBooks.length > visibleBooks && (
+            <Link 
+              to="/books" 
+              className="text-primary-600 hover:text-primary-800 flex items-center gap-1"
+            >
+              View All <ArrowRightIcon className="w-4 h-4" />
+            </Link>
+          )}
+        </div>
         <div className="grid gap-4 md:grid-cols-2">
-          {trendingBooks.map((book) => (
+          {trendingBooks.slice(0, visibleBooks).map((book) => (
             <BookCard key={book.id} {...book} />
           ))}
         </div>
+        {trendingBooks.length > visibleBooks && (
+          <div className="text-center mt-6">
+            <button
+              onClick={() => setVisibleBooks(prev => Math.min(prev + 4, trendingBooks.length))}
+              className="btn btn-secondary"
+            >
+              Show More Books
+            </button>
+          </div>
+        )}
       </section>
 
       {/* Popular Threads */}
       <section>
-        <h2 className="text-2xl font-bold text-primary-900 mb-6">Popular Threads</h2>
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-primary-900">Popular Threads</h2>
+          {threads.length > visibleThreads && (
+            <Link 
+              to="/threads" 
+              className="text-primary-600 hover:text-primary-800 flex items-center gap-1"
+            >
+              View All <ArrowRightIcon className="w-4 h-4" />
+            </Link>
+          )}
+        </div>
         <div className="grid gap-4 md:grid-cols-2">
-          {threads.map((thread) => (
-            <div key={thread.id}>
-              <ThreadCard
-                id={thread.id}
-                title={thread.title}
-                description={thread.description}
-                upvotes={thread.upvotes}
-                comments={thread.comments}
-                timestamp={thread.timestamp || new Date(thread.createdAt).toLocaleDateString()}
-                tags={thread.tags || []}
-              />
-            </div>
+          {threads.slice(0, visibleThreads).map((thread) => (
+            <ThreadCard
+              key={thread.id}
+              id={thread.id}
+              title={thread.title}
+              description={thread.description}
+              upvotes={thread.upvotes}
+              comments={thread.comments}
+              timestamp={thread.timestamp || new Date(thread.createdAt).toLocaleDateString()}
+              tags={thread.tags}
+            />
           ))}
         </div>
+        {threads.length > visibleThreads && (
+          <div className="text-center mt-6">
+            <button
+              onClick={() => setVisibleThreads(prev => Math.min(prev + 4, threads.length))}
+              className="btn btn-secondary"
+            >
+              Show More Threads
+            </button>
+          </div>
+        )}
       </section>
     </div>
   );

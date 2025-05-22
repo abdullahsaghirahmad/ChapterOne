@@ -48,6 +48,9 @@ export class Book {
   @Column('text', { array: true, nullable: true })
   categories?: string[];
 
+  @Column('text', { array: true, nullable: true })
+  professions?: string[];
+
   @Column({ nullable: true })
   pageCount?: number;
 

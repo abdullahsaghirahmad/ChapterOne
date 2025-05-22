@@ -34,7 +34,7 @@ export class BookService {
    * Search for books
    * @param query Search query
    * @param fetchExternal Whether to include results from external API
-   * @param searchType Type of search: 'all', 'title', 'author', 'mood', 'theme'
+   * @param searchType Type of search: 'all', 'title', 'author', 'mood', 'theme', 'profession'
    * @param limit Maximum number of results to return
    */
   async searchBooks(
@@ -82,6 +82,19 @@ export class BookService {
           .getMany();
         break;
         
+      case 'profession':
+        // Search by profession using array unnest and ILIKE or exact match
+        localBooks = await this.bookRepository
+          .createQueryBuilder('book')
+          .where(`EXISTS (SELECT 1 FROM unnest(book.professions) AS p WHERE p = :exactQuery OR p ILIKE :likeQuery)`, 
+            { 
+              exactQuery: query,
+              likeQuery: `%${query}%`
+            })
+          .limit(limit)
+          .getMany();
+        break;
+        
       case 'readingStyle':
       case 'pace':
         // Search by pace (reading style)
@@ -97,7 +110,7 @@ export class BookService {
         // Search across all fields, including array fields
         localBooks = await this.bookRepository
           .createQueryBuilder('book')
-          .where('book.title ILIKE :query OR book.author ILIKE :query OR EXISTS (SELECT 1 FROM unnest(book.themes) AS th WHERE th ILIKE :query) OR EXISTS (SELECT 1 FROM unnest(book.tone) AS t WHERE t ILIKE :query)',
+          .where('book.title ILIKE :query OR book.author ILIKE :query OR EXISTS (SELECT 1 FROM unnest(book.themes) AS th WHERE th ILIKE :query) OR EXISTS (SELECT 1 FROM unnest(book.tone) AS t WHERE t ILIKE :query) OR EXISTS (SELECT 1 FROM unnest(book.professions) AS p WHERE p ILIKE :query)',
             { query: `%${query}%` })
           .limit(limit)
           .getMany();
