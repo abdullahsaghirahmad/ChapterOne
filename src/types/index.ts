@@ -5,9 +5,9 @@ export interface Book {
   title: string;
   author: string;
   coverImage: string;
-  pace: Pace;
-  tone: string[];
-  themes: string[];
+  pace: Pace | { type: string; value: string };
+  tone: (string | { type: string; value: string })[];
+  themes: (string | { type: string; value: string })[];
   description: string;
   bestFor: string[];
   professions?: string[];
@@ -16,6 +16,8 @@ export interface Book {
   rating?: number;
   reviewSnippet?: string;
   isExternal?: boolean;
+  pageCount?: number;
+  categories?: string[];
 }
 
 export interface Thread {

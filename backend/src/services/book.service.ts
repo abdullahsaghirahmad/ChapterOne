@@ -12,7 +12,12 @@ export class BookService {
    * Get all books with essential data from the local database
    */
   async getAllBooks(): Promise<Book[]> {
-    return this.bookRepository.find();
+    // Don't limit the number of books returned
+    return this.bookRepository.find({
+      order: {
+        title: 'ASC' // Order by title alphabetically
+      }
+    });
   }
 
   /**
@@ -41,7 +46,7 @@ export class BookService {
     query: string, 
     fetchExternal: boolean = false,
     searchType: string = 'all',
-    limit: number = 20
+    limit: number = 100
   ): Promise<Book[]> {
     let localBooks: Book[] = [];
     

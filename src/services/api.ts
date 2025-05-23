@@ -33,7 +33,7 @@ export const api = {
     query: string, 
     searchType: string = 'all',
     includeExternal: boolean = true,
-    limit: number = 20
+    limit: number = 100
   ): Promise<Book[]> => {
     // Build query parameters
     const params = new URLSearchParams();

@@ -27,7 +27,7 @@ router.get('/search', async (req, res) => {
     
     // Get search params
     const searchType = req.query.searchType as string || req.query.type as string || 'all';
-    const limit = parseInt(req.query.limit as string) || 20;
+    const limit = parseInt(req.query.limit as string) || 100;
     
     const books = await bookService.searchBooks(query, fetchExternal, searchType, limit);
     res.json(books);
