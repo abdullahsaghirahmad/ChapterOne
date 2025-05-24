@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { MagnifyingGlassIcon, AdjustmentsHorizontalIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { debounce } from 'lodash';
 import { api } from '../../services/api';
+import { Link } from 'react-router-dom';
 
 interface SearchBarProps {
   onSearch: (query: string, type?: string) => void;
@@ -346,7 +347,8 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
     { id: 'mood', label: 'Moods' },
     { id: 'theme', label: 'Themes' },
     { id: 'pace', label: 'Reading Style' },
-    { id: 'profession', label: 'Profession' }
+    { id: 'profession', label: 'Profession' },
+    { id: 'color', label: '🎨 Search by Color', isSpecial: true }
   ];
   
   // Define moods and reading preferences
@@ -507,6 +509,13 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
     // Prevent event propagation
     if (e) {
       e.stopPropagation();
+    }
+    
+    // Special handling for color search
+    if (typeId === 'color') {
+      // Redirect to color search page
+      window.location.href = '/color-search';
+      return;
     }
     
     setSearchType(typeId);
@@ -672,11 +681,11 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
       {showFilters && (
         <div className={`absolute z-10 mt-2 w-full bg-white rounded-lg shadow-lg border border-primary-200 ${isDismissing ? 'animate-fade-out' : 'animate-slide-down'}`}>
           <div className="p-4">
-            <div className="grid grid-cols-4 gap-4">
-              {/* Moods Section */}
-              <div className="animate-fade-in" style={{ animationDelay: '50ms' }}>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Moods Section - Now with simple text list and color search link */}
+              <div className="lg:col-span-1 animate-fade-in" style={{ animationDelay: '50ms' }}>
                 <h3 className="text-sm font-medium text-primary-900 mb-2">Search by mood</h3>
-                <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto pr-1">
+                <div className="flex flex-col gap-2 max-h-[250px] overflow-y-auto pr-1">
                   {moods.map((mood) => (
                     <button
                       key={mood}
@@ -690,6 +699,20 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
                       {mood}
                     </button>
                   ))}
+                </div>
+                
+                {/* Color Search Link */}
+                <div className="mt-4 pt-4 border-t border-primary-200">
+                  <Link
+                    to="/color-search"
+                    className="flex items-center justify-center w-full p-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all duration-200 transform hover:scale-105 shadow-lg"
+                  >
+                    <span className="mr-2">🎨</span>
+                    Try Color Search
+                    <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                    </svg>
+                  </Link>
                 </div>
               </div>
               
@@ -713,43 +736,46 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
                 </div>
               </div>
               
-              {/* Reading Style Section */}
+              {/* Combined Reading Style and Professions Section */}
               <div className="animate-fade-in" style={{ animationDelay: '150ms' }}>
-                <h3 className="text-sm font-medium text-primary-900 mb-2">Search by reading style</h3>
-                <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto pr-1">
-                  {readingStyles.map((style) => (
-                    <button
-                      key={style.id}
-                      onClick={() => handleReadingStyleSelect(style.id)}
-                      className={`text-left text-sm p-2 rounded-lg transition-all duration-200 ${
-                        activeFilters.includes(style.id)
-                          ? 'bg-primary-100 text-primary-700'
-                          : 'text-primary-700 hover:bg-primary-50'
-                      }`}
-                    >
-                      {style.label}
-                    </button>
-                  ))}
+                {/* Reading Style Section */}
+                <div className="mb-6">
+                  <h3 className="text-sm font-medium text-primary-900 mb-2">Search by reading style</h3>
+                  <div className="flex flex-col gap-2">
+                    {readingStyles.map((style) => (
+                      <button
+                        key={style.id}
+                        onClick={() => handleReadingStyleSelect(style.id)}
+                        className={`text-left text-sm p-2 rounded-lg transition-all duration-200 ${
+                          activeFilters.includes(style.id)
+                            ? 'bg-primary-100 text-primary-700'
+                            : 'text-primary-700 hover:bg-primary-50'
+                        }`}
+                      >
+                        {style.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              {/* Professions Section */}
-              <div className="animate-fade-in" style={{ animationDelay: '200ms' }}>
-                <h3 className="text-sm font-medium text-primary-900 mb-2">Search by profession</h3>
-                <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto pr-1">
-                  {professions.map((profession) => (
-                    <button
-                      key={profession.id}
-                      onClick={() => handleProfessionSelect(profession.id, profession.label)}
-                      className={`text-left text-sm p-2 rounded-lg transition-all duration-200 ${
-                        activeFilters.includes(profession.label)
-                          ? 'bg-primary-100 text-primary-700'
-                          : 'text-primary-700 hover:bg-primary-50'
-                      }`}
-                    >
-                      {profession.label}
-                    </button>
-                  ))}
+                {/* Professions Section */}
+                <div>
+                  <h3 className="text-sm font-medium text-primary-900 mb-2">Search by profession</h3>
+                  <div className="flex flex-col gap-2 max-h-[200px] overflow-y-auto pr-1">
+                    {professions.map((profession) => (
+                      <button
+                        key={profession.id}
+                        onClick={() => handleProfessionSelect(profession.id, profession.label)}
+                        className={`text-left text-sm p-2 rounded-lg transition-all duration-200 ${
+                          activeFilters.includes(profession.label)
+                            ? 'bg-primary-100 text-primary-700'
+                            : 'text-primary-700 hover:bg-primary-50'
+                        }`}
+                      >
+                        {profession.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
