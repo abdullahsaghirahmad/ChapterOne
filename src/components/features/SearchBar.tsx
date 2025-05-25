@@ -3,6 +3,7 @@ import { MagnifyingGlassIcon, AdjustmentsHorizontalIcon, XMarkIcon } from '@hero
 import { debounce } from 'lodash';
 import { api } from '../../services/api';
 import { Link } from 'react-router-dom';
+import { useTheme } from '../../contexts/ThemeContext';
 
 interface SearchBarProps {
   onSearch: (query: string, type?: string) => void;
@@ -21,6 +22,7 @@ type DebouncedFunction = {
 };
 
 export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
+  const { theme } = useTheme();
   const [query, setQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [searchType, setSearchType] = useState('all');
@@ -555,18 +557,42 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
                 searchType === 'profession' ? "Search books by profession..." :
                 "Search for books, authors, or moods..."
               }
-              className="input pl-10 pr-24 w-full"
+              className={`w-full pl-10 pr-24 py-3 rounded-lg border transition-all duration-300 focus:outline-none focus:ring-2 ${
+                theme === 'light'
+                  ? 'bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus:border-primary-500 focus:ring-primary-200'
+                  : theme === 'dark'
+                  ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-blue-200'
+                  : 'bg-gradient-to-r from-pink-50 to-purple-50 border-purple-300 text-purple-900 placeholder-purple-500 focus:border-purple-500 focus:ring-purple-200'
+              }`}
             />
-            <MagnifyingGlassIcon className="w-5 h-5 text-primary-500 absolute left-3 top-1/2 -translate-y-1/2 transition-colors duration-200" />
+            <MagnifyingGlassIcon className={`w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 transition-colors duration-300 ${
+              theme === 'light'
+                ? 'text-primary-500'
+                : theme === 'dark'
+                ? 'text-gray-400'
+                : 'text-purple-500'
+            }`} />
             <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
               {isLoading && (
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-600 transition-opacity duration-200 animate-fade-in"></div>
+                <div className={`animate-spin rounded-full h-5 w-5 border-b-2 transition-opacity duration-200 animate-fade-in ${
+                  theme === 'light'
+                    ? 'border-primary-600'
+                    : theme === 'dark'
+                    ? 'border-blue-400'
+                    : 'border-purple-600'
+                }`}></div>
               )}
               {query && (
                 <button
                   type="button"
                   onClick={clearSearch}
-                  className="p-1 hover:bg-primary-50 rounded-full text-primary-400 hover:text-primary-600 transition-all duration-200 animate-fade-in"
+                  className={`p-1 rounded-full transition-all duration-300 hover:scale-110 animate-fade-in ${
+                    theme === 'light'
+                      ? 'hover:bg-primary-50 text-primary-400 hover:text-primary-600'
+                      : theme === 'dark'
+                      ? 'hover:bg-gray-700 text-gray-400 hover:text-gray-300'
+                      : 'hover:bg-purple-100 text-purple-400 hover:text-purple-600'
+                  }`}
                 >
                   <XMarkIcon className="w-5 h-5" />
                 </button>
@@ -579,7 +605,13 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
             <button
               type="button"
               onClick={handleTypeDropdownClick}
-              className={`px-3 py-2 rounded-lg border border-primary-200 hover:bg-primary-50 text-primary-500 hover:text-primary-700 transition-all duration-200 transform hover:scale-105 flex items-center justify-between min-w-[120px] ${showTypeDropdown ? 'bg-primary-50 scale-105' : ''}`}
+              className={`px-3 py-2 rounded-lg border transition-all duration-300 transform hover:scale-105 flex items-center justify-between min-w-[120px] ${
+                theme === 'light'
+                  ? `border-primary-200 text-primary-500 hover:text-primary-700 ${showTypeDropdown ? 'bg-primary-50 scale-105' : 'hover:bg-primary-50'}`
+                  : theme === 'dark'
+                  ? `border-gray-600 text-gray-300 hover:text-white ${showTypeDropdown ? 'bg-gray-700 scale-105' : 'hover:bg-gray-700'}`
+                  : `border-purple-300 text-purple-500 hover:text-purple-700 ${showTypeDropdown ? 'bg-purple-100 scale-105' : 'hover:bg-purple-100'}`
+              }`}
             >
               <span>{searchTypes.find(type => type.id === searchType)?.label || 'All'}</span>
               <svg 
@@ -594,15 +626,31 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
             </button>
             
             {showTypeDropdown && (
-              <div className={`absolute z-30 mt-1 w-full bg-white rounded-lg shadow-lg border border-primary-200 ${isDismissing ? 'animate-fade-out' : 'animate-slide-down'}`}>
+              <div className={`absolute z-30 mt-1 w-full rounded-lg shadow-lg border ${isDismissing ? 'animate-fade-out' : 'animate-slide-down'} ${
+                theme === 'light'
+                  ? 'bg-white border-primary-200'
+                  : theme === 'dark'
+                  ? 'bg-gray-800 border-gray-600'
+                  : 'bg-gradient-to-br from-pink-50 to-purple-50 border-purple-200'
+              }`}>
                 <ul className="py-1">
                   {searchTypes.map(type => (
                     <li key={type.id}>
                       <button
                         type="button"
                         onClick={(e) => handleTypeSelect(type.id, e)}
-                        className={`w-full text-left px-4 py-2 hover:bg-primary-50 transition-colors duration-200 ${
-                          searchType === type.id ? 'bg-primary-100 text-primary-700' : 'text-primary-600'
+                        className={`w-full text-left px-4 py-2 transition-colors duration-200 ${
+                          searchType === type.id 
+                            ? theme === 'light'
+                              ? 'bg-primary-100 text-primary-700'
+                              : theme === 'dark'
+                              ? 'bg-gray-700 text-white'
+                              : 'bg-purple-100 text-purple-700'
+                            : theme === 'light'
+                            ? 'text-primary-600 hover:bg-primary-50'
+                            : theme === 'dark'
+                            ? 'text-gray-300 hover:bg-gray-700'
+                            : 'text-purple-600 hover:bg-purple-50'
                         }`}
                       >
                         {type.label}
@@ -618,7 +666,13 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
             type="button"
             ref={filterButtonRef}
             onClick={handleFilterButtonClick}
-            className={`ml-2 p-2 rounded-lg border border-primary-200 hover:bg-primary-50 text-primary-500 hover:text-primary-700 transition-all duration-200 transform hover:scale-105 ${showFilters ? 'bg-primary-50 scale-105' : ''}`}
+            className={`ml-2 p-2 rounded-lg border transition-all duration-300 transform hover:scale-105 ${
+              theme === 'light'
+                ? `border-primary-200 text-primary-500 hover:text-primary-700 ${showFilters ? 'bg-primary-50 scale-105' : 'hover:bg-primary-50'}`
+                : theme === 'dark'
+                ? `border-gray-600 text-gray-300 hover:text-white ${showFilters ? 'bg-gray-700 scale-105' : 'hover:bg-gray-700'}`
+                : `border-purple-300 text-purple-500 hover:text-purple-700 ${showFilters ? 'bg-purple-100 scale-105' : 'hover:bg-purple-100'}`
+            }`}
             aria-label="Toggle filters"
           >
             <AdjustmentsHorizontalIcon className="w-5 h-5" />
