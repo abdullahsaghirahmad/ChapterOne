@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTheme } from '../../contexts/ThemeContext';
 
 interface Book {
   id: number;
@@ -215,6 +216,7 @@ interface SelectedColor {
 }
 
 export function ColorSearchPage() {
+  const { theme } = useTheme();
   const [selectedColors, setSelectedColors] = useState<SelectedColor[]>([]);
   const [recommendations, setRecommendations] = useState<Book[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -345,18 +347,52 @@ export function ColorSearchPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+    <div className={`min-h-screen transition-colors duration-300 ${
+      theme === 'light'
+        ? 'bg-gradient-to-br from-indigo-50 via-white to-purple-50'
+        : theme === 'dark'
+        ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900'
+        : 'bg-gradient-to-br from-pink-100 via-purple-50 to-indigo-100'
+    }`}>
       {/* Header */}
-      <div className="bg-white shadow-sm border-b">
+      <div className={`shadow-sm border-b transition-colors duration-300 ${
+        theme === 'light'
+          ? 'bg-white border-gray-200'
+          : theme === 'dark'
+          ? 'bg-gray-800 border-gray-700'
+          : 'bg-gradient-to-r from-pink-50 to-purple-50 border-purple-200'
+      }`}>
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Color Psychology Book Search</h1>
-              <p className="text-gray-600 mt-1">Find books that match your emotional state through color</p>
+              <h1 className={`text-2xl font-bold transition-colors duration-300 ${
+                theme === 'light'
+                  ? 'text-gray-900'
+                  : theme === 'dark'
+                  ? 'text-white'
+                  : 'bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent'
+              }`}>
+                Color Psychology Book Search
+              </h1>
+              <p className={`mt-1 transition-colors duration-300 ${
+                theme === 'light'
+                  ? 'text-gray-600'
+                  : theme === 'dark'
+                  ? 'text-gray-300'
+                  : 'text-purple-600'
+              }`}>
+                Find books that match your emotional state through color
+              </p>
             </div>
             <a 
               href="/" 
-              className="text-indigo-600 hover:text-indigo-800 font-medium flex items-center"
+              className={`font-medium flex items-center transition-all duration-300 hover:scale-105 ${
+                theme === 'light'
+                  ? 'text-indigo-600 hover:text-indigo-800'
+                  : theme === 'dark'
+                  ? 'text-blue-400 hover:text-blue-300'
+                  : 'text-purple-600 hover:text-purple-800'
+              }`}
             >
               ← Back to Home
             </a>
@@ -368,11 +404,29 @@ export function ColorSearchPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Left Panel - Color Picker */}
           <div className="space-y-6">
-            <div className="bg-white rounded-2xl shadow-lg p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">
+            <div className={`rounded-2xl shadow-lg p-6 transition-colors duration-300 ${
+              theme === 'light'
+                ? 'bg-white'
+                : theme === 'dark'
+                ? 'bg-gray-800'
+                : 'bg-gradient-to-br from-pink-50 to-purple-50'
+            }`}>
+              <h2 className={`text-xl font-semibold mb-4 transition-colors duration-300 ${
+                theme === 'light'
+                  ? 'text-gray-900'
+                  : theme === 'dark'
+                  ? 'text-white'
+                  : 'text-purple-900'
+              }`}>
                 Choose Your Colors
               </h2>
-              <p className="text-gray-600 mb-6">
+              <p className={`mb-6 transition-colors duration-300 ${
+                theme === 'light'
+                  ? 'text-gray-600'
+                  : theme === 'dark'
+                  ? 'text-gray-300'
+                  : 'text-purple-600'
+              }`}>
                 Select colors that resonate with your current mood. Click multiple times to increase intensity (1-3 dots).
               </p>
 
@@ -390,8 +444,20 @@ export function ColorSearchPage() {
                         onTouchStart={() => setHoveredColor(color.name)}
                         onTouchEnd={() => setTimeout(() => setHoveredColor(null), 1500)}
                         aria-label={`Select ${color.emotion} mood - ${color.keywords.slice(0, 2).join(', ')}`}
-                        className={`relative w-full aspect-square rounded-xl transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-blue-200 cursor-pointer ${
-                          weight > 0 ? 'ring-4 ring-white shadow-lg scale-105' : 'shadow-md hover:shadow-lg'
+                        className={`relative w-full aspect-square rounded-xl transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-4 cursor-pointer ${
+                          weight > 0 
+                            ? theme === 'light'
+                              ? 'ring-4 ring-white shadow-lg scale-105'
+                              : theme === 'dark'
+                              ? 'ring-4 ring-gray-600 shadow-lg scale-105'
+                              : 'ring-4 ring-purple-200 shadow-lg scale-105'
+                            : 'shadow-md hover:shadow-lg'
+                        } ${
+                          theme === 'light'
+                            ? 'focus:ring-blue-200'
+                            : theme === 'dark'
+                            ? 'focus:ring-blue-400'
+                            : 'focus:ring-purple-200'
                         }`}
                         style={{ backgroundColor: color.value }}
                       >
@@ -411,14 +477,32 @@ export function ColorSearchPage() {
                         {/* Instant hover tooltip */}
                         {hoveredColor === color.name && (
                           <div className="absolute -top-14 left-1/2 transform -translate-x-1/2 z-20 pointer-events-none">
-                            <div className="bg-gray-900 text-white text-sm px-3 py-2 rounded-lg shadow-xl whitespace-nowrap animate-in fade-in duration-150">
+                            <div className={`text-sm px-3 py-2 rounded-lg shadow-xl whitespace-nowrap animate-in fade-in duration-150 ${
+                              theme === 'light'
+                                ? 'bg-gray-900 text-white'
+                                : theme === 'dark'
+                                ? 'bg-gray-700 text-white'
+                                : 'bg-purple-900 text-white'
+                            }`}>
                               <div className="font-medium">{color.emotion}</div>
-                              <div className="text-xs text-gray-300 mt-1">
+                              <div className={`text-xs mt-1 ${
+                                theme === 'light'
+                                  ? 'text-gray-300'
+                                  : theme === 'dark'
+                                  ? 'text-gray-300'
+                                  : 'text-purple-200'
+                              }`}>
                                 {color.keywords.slice(0, 2).join(' • ')}
                               </div>
                               {/* Tooltip arrow */}
                               <div className="absolute top-full left-1/2 transform -translate-x-1/2">
-                                <div className="border-4 border-transparent border-t-gray-900"></div>
+                                <div className={`border-4 border-transparent ${
+                                  theme === 'light'
+                                    ? 'border-t-gray-900'
+                                    : theme === 'dark'
+                                    ? 'border-t-gray-700'
+                                    : 'border-t-purple-900'
+                                }`}></div>
                               </div>
                             </div>
                           </div>
@@ -430,12 +514,32 @@ export function ColorSearchPage() {
               </div>
 
               {selectedColors.length > 0 && (
-                <div className="mt-8 pt-6 border-t border-gray-200">
+                <div className={`mt-8 pt-6 border-t transition-colors duration-300 ${
+                  theme === 'light'
+                    ? 'border-gray-200'
+                    : theme === 'dark'
+                    ? 'border-gray-600'
+                    : 'border-purple-200'
+                }`}>
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-semibold text-gray-900">Your Color Blend</h3>
+                    <h3 className={`font-semibold transition-colors duration-300 ${
+                      theme === 'light'
+                        ? 'text-gray-900'
+                        : theme === 'dark'
+                        ? 'text-white'
+                        : 'text-purple-900'
+                    }`}>
+                      Your Color Blend
+                    </h3>
                     <button
                       onClick={clearSelection}
-                      className="text-sm text-gray-500 hover:text-red-600 transition-colors"
+                      className={`text-sm transition-colors duration-300 ${
+                        theme === 'light'
+                          ? 'text-gray-500 hover:text-red-600'
+                          : theme === 'dark'
+                          ? 'text-gray-400 hover:text-red-400'
+                          : 'text-purple-500 hover:text-red-500'
+                      }`}
                     >
                       Clear All
                     </button>
@@ -447,17 +551,53 @@ export function ColorSearchPage() {
                   />
                   
                   <div className="space-y-2">
-                    <p className="text-sm font-medium text-gray-900">Emotional Analysis:</p>
-                    <p className="text-sm text-gray-600">{getEmotionalSummary()}</p>
+                    <p className={`text-sm font-medium transition-colors duration-300 ${
+                      theme === 'light'
+                        ? 'text-gray-900'
+                        : theme === 'dark'
+                        ? 'text-white'
+                        : 'text-purple-900'
+                    }`}>
+                      Emotional Analysis:
+                    </p>
+                    <p className={`text-sm transition-colors duration-300 ${
+                      theme === 'light'
+                        ? 'text-gray-600'
+                        : theme === 'dark'
+                        ? 'text-gray-300'
+                        : 'text-purple-600'
+                    }`}>
+                      {getEmotionalSummary()}
+                    </p>
                   </div>
                 </div>
               )}
             </div>
 
             {/* How It Works */}
-            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-6">
-              <h3 className="font-semibold text-gray-900 mb-3">How Color Psychology Works</h3>
-              <div className="space-y-3 text-sm text-gray-700">
+            <div className={`rounded-2xl p-6 transition-colors duration-300 ${
+              theme === 'light'
+                ? 'bg-gradient-to-br from-blue-50 to-indigo-50'
+                : theme === 'dark'
+                ? 'bg-gradient-to-br from-gray-700 to-gray-800'
+                : 'bg-gradient-to-br from-pink-100 to-purple-100'
+            }`}>
+              <h3 className={`font-semibold mb-3 transition-colors duration-300 ${
+                theme === 'light'
+                  ? 'text-gray-900'
+                  : theme === 'dark'
+                  ? 'text-white'
+                  : 'text-purple-900'
+              }`}>
+                How Color Psychology Works
+              </h3>
+              <div className={`space-y-3 text-sm transition-colors duration-300 ${
+                theme === 'light'
+                  ? 'text-gray-700'
+                  : theme === 'dark'
+                  ? 'text-gray-300'
+                  : 'text-purple-700'
+              }`}>
                 <p>
                   <span className="font-medium">Color Psychology:</span> Colors evoke specific emotions and mental states. Our algorithm matches these emotional signatures with book themes.
                 </p>
@@ -473,59 +613,171 @@ export function ColorSearchPage() {
 
           {/* Right Panel - Recommendations */}
           <div className="space-y-6">
-            <div className="bg-white rounded-2xl shadow-lg p-6">
+            <div className={`rounded-2xl shadow-lg p-6 transition-colors duration-300 ${
+              theme === 'light'
+                ? 'bg-white'
+                : theme === 'dark'
+                ? 'bg-gray-800'
+                : 'bg-gradient-to-br from-pink-50 to-purple-50'
+            }`}>
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-gray-900">
+                <h2 className={`text-xl font-semibold transition-colors duration-300 ${
+                  theme === 'light'
+                    ? 'text-gray-900'
+                    : theme === 'dark'
+                    ? 'text-white'
+                    : 'text-purple-900'
+                }`}>
                   Book Recommendations
                 </h2>
                 {selectedColors.length > 0 && (
                   <div className="flex items-center space-x-2">
                     <div className="w-4 h-4 rounded" style={{ backgroundColor: blendedColor }} />
-                    <span className="text-sm text-gray-600">Matched to your blend</span>
+                    <span className={`text-sm transition-colors duration-300 ${
+                      theme === 'light'
+                        ? 'text-gray-600'
+                        : theme === 'dark'
+                        ? 'text-gray-300'
+                        : 'text-purple-600'
+                    }`}>
+                      Matched to your blend
+                    </span>
                   </div>
                 )}
               </div>
 
               {selectedColors.length === 0 ? (
                 <div className="text-center py-12">
-                  <div className="w-16 h-16 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full mx-auto mb-4 flex items-center justify-center">
+                  <div className={`w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center ${
+                    theme === 'light'
+                      ? 'bg-gradient-to-r from-purple-400 to-pink-400'
+                      : theme === 'dark'
+                      ? 'bg-gradient-to-r from-blue-500 to-purple-500'
+                      : 'bg-gradient-to-r from-pink-500 to-purple-500'
+                  }`}>
                     <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zM21 5a2 2 0 00-2-2h-4a2 2 0 00-2 2v12a4 4 0 004 4h4a2 2 0 002-2V5z" />
                     </svg>
                   </div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Ready to Discover?</h3>
-                  <p className="text-gray-600">Select colors that match your mood to get personalized book recommendations.</p>
+                  <h3 className={`text-lg font-medium mb-2 transition-colors duration-300 ${
+                    theme === 'light'
+                      ? 'text-gray-900'
+                      : theme === 'dark'
+                      ? 'text-white'
+                      : 'text-purple-900'
+                  }`}>
+                    Ready to Discover?
+                  </h3>
+                  <p className={`transition-colors duration-300 ${
+                    theme === 'light'
+                      ? 'text-gray-600'
+                      : theme === 'dark'
+                      ? 'text-gray-300'
+                      : 'text-purple-600'
+                  }`}>
+                    Select colors that match your mood to get personalized book recommendations.
+                  </p>
                 </div>
               ) : isAnalyzing ? (
                 <div className="text-center py-12">
                   <div className="w-16 h-16 mx-auto mb-4">
-                    <div className="w-full h-full rounded-full border-4 border-purple-200 border-t-purple-600 animate-spin" />
+                    <div className={`w-full h-full rounded-full border-4 animate-spin ${
+                      theme === 'light'
+                        ? 'border-purple-200 border-t-purple-600'
+                        : theme === 'dark'
+                        ? 'border-gray-600 border-t-blue-400'
+                        : 'border-purple-200 border-t-purple-600'
+                    }`} />
                   </div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Analyzing Your Colors...</h3>
-                  <p className="text-gray-600">Our AI is matching your emotional profile with perfect books.</p>
+                  <h3 className={`text-lg font-medium mb-2 transition-colors duration-300 ${
+                    theme === 'light'
+                      ? 'text-gray-900'
+                      : theme === 'dark'
+                      ? 'text-white'
+                      : 'text-purple-900'
+                  }`}>
+                    Analyzing Your Colors...
+                  </h3>
+                  <p className={`transition-colors duration-300 ${
+                    theme === 'light'
+                      ? 'text-gray-600'
+                      : theme === 'dark'
+                      ? 'text-gray-300'
+                      : 'text-purple-600'
+                  }`}>
+                    Our AI is matching your emotional profile with perfect books.
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-4">
                   {recommendations.map((book) => (
-                    <div key={book.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                    <div key={book.id} className={`border rounded-lg p-4 transition-all duration-300 hover:shadow-md ${
+                      theme === 'light'
+                        ? 'border-gray-200 hover:border-primary-300'
+                        : theme === 'dark'
+                        ? 'border-gray-600 hover:border-gray-500'
+                        : 'border-purple-200 hover:border-purple-300'
+                    }`}>
                       <div className="flex space-x-4">
-                        <div 
-                          className="w-16 h-20 bg-gray-300 rounded flex-shrink-0 flex items-center justify-center text-gray-500 text-xs"
-                        >
+                        <div className={`w-16 h-20 rounded flex-shrink-0 flex items-center justify-center text-xs transition-colors duration-300 ${
+                          theme === 'light'
+                            ? 'bg-gray-300 text-gray-500'
+                            : theme === 'dark'
+                            ? 'bg-gray-600 text-gray-400'
+                            : 'bg-purple-200 text-purple-600'
+                        }`}>
                           Book Cover
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-gray-900 truncate">{book.title}</h3>
-                          <p className="text-sm text-gray-600 mb-1">by {book.author}</p>
-                          <p className="text-sm text-gray-700 line-clamp-2 mb-2">{book.description}</p>
+                          <h3 className={`font-semibold truncate transition-colors duration-300 ${
+                            theme === 'light'
+                              ? 'text-gray-900'
+                              : theme === 'dark'
+                              ? 'text-white'
+                              : 'text-purple-900'
+                          }`}>
+                            {book.title}
+                          </h3>
+                          <p className={`text-sm mb-1 transition-colors duration-300 ${
+                            theme === 'light'
+                              ? 'text-gray-600'
+                              : theme === 'dark'
+                              ? 'text-gray-300'
+                              : 'text-purple-600'
+                          }`}>
+                            by {book.author}
+                          </p>
+                          <p className={`text-sm line-clamp-2 mb-2 transition-colors duration-300 ${
+                            theme === 'light'
+                              ? 'text-gray-700'
+                              : theme === 'dark'
+                              ? 'text-gray-300'
+                              : 'text-purple-700'
+                          }`}>
+                            {book.description}
+                          </p>
                           <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-1">
                               <svg className="w-4 h-4 text-yellow-400 fill-current" viewBox="0 0 20 20">
                                 <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"/>
                               </svg>
-                              <span className="text-sm text-gray-600">{book.rating}</span>
+                              <span className={`text-sm transition-colors duration-300 ${
+                                theme === 'light'
+                                  ? 'text-gray-600'
+                                  : theme === 'dark'
+                                  ? 'text-gray-300'
+                                  : 'text-purple-600'
+                              }`}>
+                                {book.rating}
+                              </span>
                             </div>
-                            <div className="text-xs text-purple-600 font-medium">
+                            <div className={`text-xs font-medium transition-colors duration-300 ${
+                              theme === 'light'
+                                ? 'text-purple-600'
+                                : theme === 'dark'
+                                ? 'text-blue-400'
+                                : 'text-purple-700'
+                            }`}>
                               {((book as any).score || 0).toFixed(1)} match
                             </div>
                           </div>

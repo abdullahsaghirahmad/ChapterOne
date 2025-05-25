@@ -685,12 +685,24 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
             {activeFilters.map((filter) => (
               <span
                 key={filter}
-                className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-primary-100 text-primary-700 animate-scale-in"
+                className={`inline-flex items-center px-3 py-1 rounded-full text-sm animate-scale-in transition-colors duration-300 ${
+                  theme === 'light'
+                    ? 'bg-primary-100 text-primary-700'
+                    : theme === 'dark'
+                    ? 'bg-gray-700 text-gray-300'
+                    : 'bg-gradient-to-r from-pink-200 to-purple-200 text-purple-800'
+                }`}
               >
                 {filter}
                 <button
                   onClick={() => removeFilter(filter)}
-                  className="ml-2 text-primary-500 hover:text-primary-700 transition-colors duration-200"
+                  className={`ml-2 transition-colors duration-200 ${
+                    theme === 'light'
+                      ? 'text-primary-500 hover:text-primary-700'
+                      : theme === 'dark'
+                      ? 'text-gray-400 hover:text-gray-300'
+                      : 'text-purple-500 hover:text-purple-700'
+                  }`}
                   aria-label={`Remove ${filter} filter`}
                 >
                   <XMarkIcon className="w-4 h-4" />
@@ -700,7 +712,13 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
             {activeFilters.length > 1 && (
               <button
                 onClick={clearSearch}
-                className="text-sm text-primary-600 hover:text-primary-800 transition-colors duration-200"
+                className={`text-sm transition-colors duration-200 ${
+                  theme === 'light'
+                    ? 'text-primary-600 hover:text-primary-800'
+                    : theme === 'dark'
+                    ? 'text-blue-400 hover:text-blue-300'
+                    : 'text-purple-600 hover:text-purple-800'
+                }`}
               >
                 Clear all
               </button>
@@ -710,17 +728,35 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
 
         {/* Suggestions dropdown */}
         {showSuggestions && suggestions.length > 0 && (
-          <div className={`absolute z-20 mt-1 w-full bg-white rounded-lg shadow-lg border border-primary-200 ${isDismissing ? 'animate-fade-out' : 'animate-slide-down'}`}>
+          <div className={`absolute z-20 mt-1 w-full rounded-lg shadow-lg border ${isDismissing ? 'animate-fade-out' : 'animate-slide-down'} ${
+            theme === 'light'
+              ? 'bg-white border-primary-200'
+              : theme === 'dark'
+              ? 'bg-gray-800 border-gray-600'
+              : 'bg-gradient-to-br from-pink-50 to-purple-50 border-purple-200'
+          }`}>
             <ul className="py-2">
               {suggestions.map((suggestion) => (
                 <li key={suggestion.id}>
                   <button
                     type="button"
                     onClick={(e) => handleSuggestionClick(suggestion, e)}
-                    className="w-full text-left px-4 py-2 hover:bg-primary-50 flex items-center transition-colors duration-200"
+                    className={`w-full text-left px-4 py-2 flex items-center transition-colors duration-200 ${
+                      theme === 'light'
+                        ? 'hover:bg-primary-50 text-gray-900'
+                        : theme === 'dark'
+                        ? 'hover:bg-gray-700 text-white'
+                        : 'hover:bg-purple-50 text-purple-900'
+                    }`}
                   >
                     <span className="flex-grow">{suggestion.title}</span>
-                    <span className="text-sm text-primary-400 ml-2">
+                    <span className={`text-sm ml-2 ${
+                      theme === 'light'
+                        ? 'text-primary-400'
+                        : theme === 'dark'
+                        ? 'text-gray-400'
+                        : 'text-purple-400'
+                    }`}>
                       {suggestion.type.charAt(0).toUpperCase() + suggestion.type.slice(1)}
                     </span>
                   </button>
@@ -733,12 +769,26 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
 
       {/* Advanced Filters */}
       {showFilters && (
-        <div className={`absolute z-10 mt-2 w-full bg-white rounded-lg shadow-lg border border-primary-200 ${isDismissing ? 'animate-fade-out' : 'animate-slide-down'}`}>
+        <div className={`absolute z-10 mt-2 w-full rounded-lg shadow-lg border ${isDismissing ? 'animate-fade-out' : 'animate-slide-down'} ${
+          theme === 'light'
+            ? 'bg-white border-primary-200'
+            : theme === 'dark'
+            ? 'bg-gray-800 border-gray-600'
+            : 'bg-gradient-to-br from-pink-50 to-purple-50 border-purple-200'
+        }`}>
           <div className="p-4">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Moods Section - Now with simple text list and color search link */}
               <div className="lg:col-span-1 animate-fade-in" style={{ animationDelay: '50ms' }}>
-                <h3 className="text-sm font-medium text-primary-900 mb-2">Search by mood</h3>
+                <h3 className={`text-sm font-medium mb-2 transition-colors duration-300 ${
+                  theme === 'light'
+                    ? 'text-primary-900'
+                    : theme === 'dark'
+                    ? 'text-white'
+                    : 'text-purple-900'
+                }`}>
+                  Search by mood
+                </h3>
                 <div className="flex flex-col gap-2 max-h-[250px] overflow-y-auto pr-1">
                   {moods.map((mood) => (
                     <button
@@ -746,8 +796,16 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
                       onClick={() => handleMoodSelect(mood)}
                       className={`text-left text-sm p-2 rounded-lg transition-all duration-200 ${
                         activeFilters.includes(mood)
-                          ? 'bg-primary-100 text-primary-700'
-                          : 'text-primary-700 hover:bg-primary-50'
+                          ? theme === 'light'
+                            ? 'bg-primary-100 text-primary-700'
+                            : theme === 'dark'
+                            ? 'bg-gray-700 text-white'
+                            : 'bg-purple-100 text-purple-700'
+                          : theme === 'light'
+                          ? 'text-primary-700 hover:bg-primary-50'
+                          : theme === 'dark'
+                          ? 'text-gray-300 hover:bg-gray-700'
+                          : 'text-purple-700 hover:bg-purple-50'
                       }`}
                     >
                       {mood}
@@ -756,10 +814,22 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
                 </div>
                 
                 {/* Color Search Link */}
-                <div className="mt-4 pt-4 border-t border-primary-200">
+                <div className={`mt-4 pt-4 border-t transition-colors duration-300 ${
+                  theme === 'light'
+                    ? 'border-primary-200'
+                    : theme === 'dark'
+                    ? 'border-gray-600'
+                    : 'border-purple-200'
+                }`}>
                   <Link
                     to="/color-search"
-                    className="flex items-center justify-center w-full p-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all duration-200 transform hover:scale-105 shadow-lg"
+                    className={`flex items-center justify-center w-full p-3 rounded-lg transition-all duration-200 transform hover:scale-105 shadow-lg ${
+                      theme === 'light'
+                        ? 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white'
+                        : theme === 'dark'
+                        ? 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white'
+                        : 'bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white'
+                    }`}
                   >
                     <span className="mr-2">🎨</span>
                     Try Color Search
@@ -772,19 +842,35 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
               
               {/* Themes Section */}
               <div className="animate-fade-in" style={{ animationDelay: '100ms' }}>
-                <h3 className="text-sm font-medium text-primary-900 mb-2">Search by theme</h3>
+                <h3 className={`text-sm font-medium mb-2 transition-colors duration-300 ${
+                  theme === 'light'
+                    ? 'text-primary-900'
+                    : theme === 'dark'
+                    ? 'text-white'
+                    : 'text-purple-900'
+                }`}>
+                  Search by theme
+                </h3>
                 <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto pr-1">
-                  {themes.map((theme) => (
+                  {themes.map((themeItem) => (
                     <button
-                      key={theme}
-                      onClick={() => handleThemeSelect(theme)}
+                      key={themeItem}
+                      onClick={() => handleThemeSelect(themeItem)}
                       className={`text-left text-sm p-2 rounded-lg transition-all duration-200 ${
-                        activeFilters.includes(theme)
-                          ? 'bg-primary-100 text-primary-700'
-                          : 'text-primary-700 hover:bg-primary-50'
+                        activeFilters.includes(themeItem)
+                          ? theme === 'light'
+                            ? 'bg-primary-100 text-primary-700'
+                            : theme === 'dark'
+                            ? 'bg-gray-700 text-white'
+                            : 'bg-purple-100 text-purple-700'
+                          : theme === 'light'
+                          ? 'text-primary-700 hover:bg-primary-50'
+                          : theme === 'dark'
+                          ? 'text-gray-300 hover:bg-gray-700'
+                          : 'text-purple-700 hover:bg-purple-50'
                       }`}
                     >
-                      {theme}
+                      {themeItem}
                     </button>
                   ))}
                 </div>
@@ -794,7 +880,15 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
               <div className="animate-fade-in" style={{ animationDelay: '150ms' }}>
                 {/* Reading Style Section */}
                 <div className="mb-6">
-                  <h3 className="text-sm font-medium text-primary-900 mb-2">Search by reading style</h3>
+                  <h3 className={`text-sm font-medium mb-2 transition-colors duration-300 ${
+                    theme === 'light'
+                      ? 'text-primary-900'
+                      : theme === 'dark'
+                      ? 'text-white'
+                      : 'text-purple-900'
+                  }`}>
+                    Search by reading style
+                  </h3>
                   <div className="flex flex-col gap-2">
                     {readingStyles.map((style) => (
                       <button
@@ -802,8 +896,16 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
                         onClick={() => handleReadingStyleSelect(style.id)}
                         className={`text-left text-sm p-2 rounded-lg transition-all duration-200 ${
                           activeFilters.includes(style.id)
-                            ? 'bg-primary-100 text-primary-700'
-                            : 'text-primary-700 hover:bg-primary-50'
+                            ? theme === 'light'
+                              ? 'bg-primary-100 text-primary-700'
+                              : theme === 'dark'
+                              ? 'bg-gray-700 text-white'
+                              : 'bg-purple-100 text-purple-700'
+                            : theme === 'light'
+                            ? 'text-primary-700 hover:bg-primary-50'
+                            : theme === 'dark'
+                            ? 'text-gray-300 hover:bg-gray-700'
+                            : 'text-purple-700 hover:bg-purple-50'
                         }`}
                       >
                         {style.label}
@@ -814,7 +916,15 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
 
                 {/* Professions Section */}
                 <div>
-                  <h3 className="text-sm font-medium text-primary-900 mb-2">Search by profession</h3>
+                  <h3 className={`text-sm font-medium mb-2 transition-colors duration-300 ${
+                    theme === 'light'
+                      ? 'text-primary-900'
+                      : theme === 'dark'
+                      ? 'text-white'
+                      : 'text-purple-900'
+                  }`}>
+                    Search by profession
+                  </h3>
                   <div className="flex flex-col gap-2 max-h-[200px] overflow-y-auto pr-1">
                     {professions.map((profession) => (
                       <button
@@ -822,8 +932,16 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
                         onClick={() => handleProfessionSelect(profession.id, profession.label)}
                         className={`text-left text-sm p-2 rounded-lg transition-all duration-200 ${
                           activeFilters.includes(profession.label)
-                            ? 'bg-primary-100 text-primary-700'
-                            : 'text-primary-700 hover:bg-primary-50'
+                            ? theme === 'light'
+                              ? 'bg-primary-100 text-primary-700'
+                              : theme === 'dark'
+                              ? 'bg-gray-700 text-white'
+                              : 'bg-purple-100 text-purple-700'
+                            : theme === 'light'
+                            ? 'text-primary-700 hover:bg-primary-50'
+                            : theme === 'dark'
+                            ? 'text-gray-300 hover:bg-gray-700'
+                            : 'text-purple-700 hover:bg-purple-50'
                         }`}
                       >
                         {profession.label}
