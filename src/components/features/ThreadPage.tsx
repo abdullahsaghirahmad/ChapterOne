@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ThreadCard } from './ThreadCard';
 import { PlusIcon } from '@heroicons/react/24/outline';
 import axios from 'axios';
+import { useTheme } from '../../contexts/ThemeContext';
 
 // Define Thread interface
 interface Thread {
@@ -56,6 +57,7 @@ export const normalizeTag = (tag: any): string => {
 };
 
 export const ThreadPage = () => {
+  const { theme } = useTheme();
   const [showNewThreadForm, setShowNewThreadForm] = useState(false);
   const [newThreadTitle, setNewThreadTitle] = useState('');
   const [newThreadDescription, setNewThreadDescription] = useState('');
@@ -146,10 +148,24 @@ export const ThreadPage = () => {
     <div className="space-y-8">
       {/* Header */}
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-primary-900">Book Recommendation Threads</h1>
+        <h1 className={`text-2xl font-bold transition-colors duration-300 ${
+          theme === 'light'
+            ? 'text-primary-900'
+            : theme === 'dark'
+            ? 'text-white'
+            : 'bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent'
+        }`}>
+          Book Recommendation Threads
+        </h1>
         <button
           onClick={() => setShowNewThreadForm(true)}
-          className="btn btn-primary flex items-center"
+          className={`flex items-center px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:scale-105 ${
+            theme === 'light'
+              ? 'bg-primary-600 hover:bg-primary-700 text-white'
+              : theme === 'dark'
+              ? 'bg-blue-600 hover:bg-blue-700 text-white'
+              : 'bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white'
+          }`}
         >
           <PlusIcon className="w-5 h-5 mr-2" />
           New Thread
@@ -158,11 +174,31 @@ export const ThreadPage = () => {
 
       {/* New Thread Form */}
       {showNewThreadForm && (
-        <div className="card">
-          <h2 className="text-xl font-semibold mb-4">Start a New Thread</h2>
+        <div className={`rounded-lg p-6 transition-colors duration-300 ${
+          theme === 'light'
+            ? 'bg-white border border-gray-200'
+            : theme === 'dark'
+            ? 'bg-gray-800 border border-gray-700'
+            : 'bg-gradient-to-br from-pink-50 to-purple-50 border border-purple-200'
+        }`}>
+          <h2 className={`text-xl font-semibold mb-4 transition-colors duration-300 ${
+            theme === 'light'
+              ? 'text-gray-900'
+              : theme === 'dark'
+              ? 'text-white'
+              : 'text-purple-900'
+          }`}>
+            Start a New Thread
+          </h2>
           <form onSubmit={handleSubmitThread} className="space-y-4">
             <div>
-              <label htmlFor="title" className="block text-sm font-medium text-primary-700 mb-1">
+              <label htmlFor="title" className={`block text-sm font-medium mb-1 transition-colors duration-300 ${
+                theme === 'light'
+                  ? 'text-primary-700'
+                  : theme === 'dark'
+                  ? 'text-gray-300'
+                  : 'text-purple-700'
+              }`}>
                 Title
               </label>
               <input
@@ -170,20 +206,38 @@ export const ThreadPage = () => {
                 id="title"
                 value={newThreadTitle}
                 onChange={(e) => setNewThreadTitle(e.target.value)}
-                className="input"
+                className={`w-full px-3 py-2 border rounded-lg transition-colors duration-300 focus:outline-none focus:ring-2 ${
+                  theme === 'light'
+                    ? 'bg-white border-gray-300 text-gray-900 focus:border-primary-500 focus:ring-primary-200'
+                    : theme === 'dark'
+                    ? 'bg-gray-700 border-gray-600 text-white focus:border-blue-500 focus:ring-blue-200'
+                    : 'bg-purple-50 border-purple-300 text-purple-900 focus:border-purple-500 focus:ring-purple-200'
+                }`}
                 placeholder="e.g., Books like The Midnight Library"
                 required
               />
             </div>
             <div>
-              <label htmlFor="description" className="block text-sm font-medium text-primary-700 mb-1">
+              <label htmlFor="description" className={`block text-sm font-medium mb-1 transition-colors duration-300 ${
+                theme === 'light'
+                  ? 'text-primary-700'
+                  : theme === 'dark'
+                  ? 'text-gray-300'
+                  : 'text-purple-700'
+              }`}>
                 Description
               </label>
               <textarea
                 id="description"
                 value={newThreadDescription}
                 onChange={(e) => setNewThreadDescription(e.target.value)}
-                className="input min-h-[100px]"
+                className={`w-full px-3 py-2 border rounded-lg min-h-[100px] transition-colors duration-300 focus:outline-none focus:ring-2 ${
+                  theme === 'light'
+                    ? 'bg-white border-gray-300 text-gray-900 focus:border-primary-500 focus:ring-primary-200'
+                    : theme === 'dark'
+                    ? 'bg-gray-700 border-gray-600 text-white focus:border-blue-500 focus:ring-blue-200'
+                    : 'bg-purple-50 border-purple-300 text-purple-900 focus:border-purple-500 focus:ring-purple-200'
+                }`}
                 placeholder="Describe what you're looking for..."
                 required
               />
@@ -192,11 +246,23 @@ export const ThreadPage = () => {
               <button
                 type="button"
                 onClick={() => setShowNewThreadForm(false)}
-                className="btn btn-secondary"
+                className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:scale-105 ${
+                  theme === 'light'
+                    ? 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                    : theme === 'dark'
+                    ? 'bg-gray-600 hover:bg-gray-500 text-gray-300'
+                    : 'bg-purple-200 hover:bg-purple-300 text-purple-700'
+                }`}
               >
                 Cancel
               </button>
-              <button type="submit" className="btn btn-primary">
+              <button type="submit" className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:scale-105 ${
+                theme === 'light'
+                  ? 'bg-primary-600 hover:bg-primary-700 text-white'
+                  : theme === 'dark'
+                  ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                  : 'bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white'
+              }`}>
                 Create Thread
               </button>
             </div>
@@ -205,8 +271,28 @@ export const ThreadPage = () => {
       )}
 
       {/* Loading and Error States */}
-      {loading && <div className="text-center py-8">Loading threads...</div>}
-      {error && <div className="text-center py-8 text-red-500">{error}</div>}
+      {loading && (
+        <div className={`text-center py-8 transition-colors duration-300 ${
+          theme === 'light'
+            ? 'text-gray-600'
+            : theme === 'dark'
+            ? 'text-gray-300'
+            : 'text-purple-600'
+        }`}>
+          Loading threads...
+        </div>
+      )}
+      {error && (
+        <div className={`text-center py-8 transition-colors duration-300 ${
+          theme === 'light'
+            ? 'text-red-500'
+            : theme === 'dark'
+            ? 'text-red-400'
+            : 'text-pink-600'
+        }`}>
+          {error}
+        </div>
+      )}
 
       {/* Threads List */}
       {!loading && !error && (
@@ -226,7 +312,13 @@ export const ThreadPage = () => {
               </div>
             ))
           ) : (
-            <div className="col-span-2 text-center py-8">
+            <div className={`col-span-2 text-center py-8 transition-colors duration-300 ${
+              theme === 'light'
+                ? 'text-gray-600'
+                : theme === 'dark'
+                ? 'text-gray-300'
+                : 'text-purple-600'
+            }`}>
               No threads found. Be the first to create one!
             </div>
           )}
