@@ -219,6 +219,7 @@ export function ColorSearchPage() {
   const [recommendations, setRecommendations] = useState<Book[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [blendedColor, setBlendedColor] = useState<string>('#f3f4f6');
+  const [hoveredColor, setHoveredColor] = useState<string | null>(null);
 
   const handleColorSelect = (color: ColorInfo) => {
     const existingIndex = selectedColors.findIndex(sc => sc.color.name === color.name);
@@ -381,28 +382,49 @@ export function ColorSearchPage() {
                   const weight = selected?.weight || 0;
                   
                   return (
-                    <button
-                      key={color.name}
-                      onClick={() => handleColorSelect(color)}
-                      className={`relative aspect-square rounded-xl transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-blue-200 ${
-                        weight > 0 ? 'ring-4 ring-white shadow-lg' : 'shadow-md hover:shadow-lg'
-                      }`}
-                      style={{ backgroundColor: color.value }}
-                      title={`${color.name}: ${color.description}`}
-                    >
-                      {weight > 0 && (
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="flex space-x-1">
-                            {[...Array(weight)].map((_, i) => (
-                              <div
-                                key={i}
-                                className="w-2 h-2 bg-white rounded-full shadow"
-                              />
-                            ))}
+                    <div key={color.name} className="relative">
+                      <button
+                        onClick={() => handleColorSelect(color)}
+                        onMouseEnter={() => setHoveredColor(color.name)}
+                        onMouseLeave={() => setHoveredColor(null)}
+                        onTouchStart={() => setHoveredColor(color.name)}
+                        onTouchEnd={() => setTimeout(() => setHoveredColor(null), 1500)}
+                        aria-label={`Select ${color.emotion} mood - ${color.keywords.slice(0, 2).join(', ')}`}
+                        className={`relative w-full aspect-square rounded-xl transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-blue-200 cursor-pointer ${
+                          weight > 0 ? 'ring-4 ring-white shadow-lg scale-105' : 'shadow-md hover:shadow-lg'
+                        }`}
+                        style={{ backgroundColor: color.value }}
+                      >
+                        {weight > 0 && (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="flex space-x-1">
+                              {[...Array(weight)].map((_, i) => (
+                                <div
+                                  key={i}
+                                  className="w-2 h-2 bg-white rounded-full shadow"
+                                />
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      )}
-                    </button>
+                        )}
+                        
+                        {/* Instant hover tooltip */}
+                        {hoveredColor === color.name && (
+                          <div className="absolute -top-14 left-1/2 transform -translate-x-1/2 z-20 pointer-events-none">
+                            <div className="bg-gray-900 text-white text-sm px-3 py-2 rounded-lg shadow-xl whitespace-nowrap animate-in fade-in duration-150">
+                              <div className="font-medium">{color.emotion}</div>
+                              <div className="text-xs text-gray-300 mt-1">
+                                {color.keywords.slice(0, 2).join(' • ')}
+                              </div>
+                              {/* Tooltip arrow */}
+                              <div className="absolute top-full left-1/2 transform -translate-x-1/2">
+                                <div className="border-4 border-transparent border-t-gray-900"></div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </button>
+                    </div>
                   );
                 })}
               </div>
