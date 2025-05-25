@@ -402,9 +402,6 @@ export function ColorSearchPage() {
                           </div>
                         </div>
                       )}
-                      <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 text-xs text-gray-700 font-medium whitespace-nowrap">
-                        {color.name}
-                      </div>
                     </button>
                   );
                 })}
