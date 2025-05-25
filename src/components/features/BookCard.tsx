@@ -15,6 +15,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { Pace } from '../../types';
 import { useNavigate } from 'react-router-dom';
+import { useTheme } from '../../contexts/ThemeContext';
 
 // Mapping of job titles to profession categories for search
 const professionMapping: Record<string, string> = {
@@ -128,6 +129,7 @@ export const BookCard = ({
   mostQuoted
 }: BookCardProps) => {
   const navigate = useNavigate();
+  const { theme } = useTheme();
   const [isExpanded, setIsExpanded] = useState(false);
   const [bookQuote, setBookQuote] = useState('');
   const [readerFavorite, setReaderFavorite] = useState('');
@@ -247,12 +249,40 @@ export const BookCard = ({
 
   const paceString = typeof pace === 'string' ? pace : pace.value;
 
-  // CSS classes for pills to ensure consistent appearance
-  const pillClass = "inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full whitespace-nowrap";
-  const themePillClass = `${pillClass} bg-primary-50 text-primary-600 border border-primary-200 dark:bg-primary-800 dark:text-primary-300 dark:border-primary-600`;
-  const bestForPillClass = `${pillClass} bg-primary-100 text-primary-700 dark:bg-primary-700 dark:text-primary-200`;
-  const bestForClickablePillClass = `${bestForPillClass} cursor-pointer hover:bg-primary-200 dark:hover:bg-primary-600 transition-colors`;
-  const morePillClass = `${pillClass} bg-primary-100 text-primary-700 dark:bg-primary-700 dark:text-primary-200 cursor-pointer hover:bg-primary-200 dark:hover:bg-primary-600`;
+  // Theme-aware CSS classes for pills
+  const pillClass = "inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full whitespace-nowrap transition-colors duration-300";
+  
+  const themePillClass = `${pillClass} ${
+    theme === 'light'
+      ? 'bg-primary-50 text-primary-600 border border-primary-200'
+      : theme === 'dark'
+      ? 'bg-gray-700 text-gray-300 border border-gray-600'
+      : 'bg-gradient-to-r from-pink-100 to-purple-100 text-purple-700 border border-purple-200'
+  }`;
+  
+  const bestForPillClass = `${pillClass} ${
+    theme === 'light'
+      ? 'bg-primary-100 text-primary-700'
+      : theme === 'dark'
+      ? 'bg-gray-600 text-gray-200'
+      : 'bg-gradient-to-r from-pink-200 to-purple-200 text-purple-800'
+  }`;
+  
+  const bestForClickablePillClass = `${bestForPillClass} cursor-pointer transition-all duration-300 hover:scale-105 ${
+    theme === 'light'
+      ? 'hover:bg-primary-200'
+      : theme === 'dark'
+      ? 'hover:bg-gray-500'
+      : 'hover:from-pink-300 hover:to-purple-300'
+  }`;
+  
+  const morePillClass = `${bestForPillClass} cursor-pointer transition-all duration-300 hover:scale-105 ${
+    theme === 'light'
+      ? 'hover:bg-primary-200'
+      : theme === 'dark'
+      ? 'hover:bg-gray-500'
+      : 'hover:from-pink-300 hover:to-purple-300'
+  }`;
 
   // Toggle functions for expanding pill sections
   const toggleThemes = (e: React.MouseEvent) => {
@@ -290,9 +320,21 @@ export const BookCard = ({
   };
 
   return (
-    <div className="card hover:shadow-md flex flex-col md:flex-row overflow-hidden">
+    <div className={`transition-all duration-300 hover:shadow-lg flex flex-col md:flex-row overflow-hidden rounded-lg ${
+      theme === 'light'
+        ? 'bg-white border border-gray-200 hover:border-primary-300'
+        : theme === 'dark'
+        ? 'bg-gray-800 border border-gray-700 hover:border-gray-600'
+        : 'bg-gradient-to-br from-pink-50 to-purple-50 border border-purple-200 hover:border-purple-300'
+    }`}>
       {/* Book Cover */}
-      <div className="w-full md:w-1/3 max-w-[150px] mx-auto md:mx-0 flex-shrink-0 bg-gray-100">
+      <div className={`w-full md:w-1/3 max-w-[150px] mx-auto md:mx-0 flex-shrink-0 ${
+        theme === 'light'
+          ? 'bg-gray-100'
+          : theme === 'dark'
+          ? 'bg-gray-700'
+          : 'bg-gradient-to-br from-pink-100 to-purple-100'
+      }`}>
         <img 
           src={getImageUrl()} 
           alt={`Cover of ${title}`} 
@@ -307,21 +349,55 @@ export const BookCard = ({
         {/* Title and Bookmark/Like buttons */}
         <div className="flex justify-between items-start">
           <div>
-            <h3 className="font-semibold text-lg text-primary-900 dark:text-primary-50">{title}</h3>
-            <p className="text-primary-600 dark:text-primary-400 text-sm">{author}</p>
+            <h3 className={`font-semibold text-lg transition-colors duration-300 ${
+              theme === 'light'
+                ? 'text-primary-900'
+                : theme === 'dark'
+                ? 'text-white'
+                : 'bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent'
+            }`}>
+              {title}
+            </h3>
+            <p className={`text-sm transition-colors duration-300 ${
+              theme === 'light'
+                ? 'text-primary-600'
+                : theme === 'dark'
+                ? 'text-gray-300'
+                : 'text-purple-600'
+            }`}>
+              {author}
+            </p>
           </div>
           <div className="flex space-x-2">
-            <button className="btn-icon text-primary-400 hover:text-primary-700 dark:text-primary-500 dark:hover:text-primary-300">
+            <button className={`transition-all duration-300 hover:scale-110 ${
+              theme === 'light'
+                ? 'text-primary-400 hover:text-primary-700'
+                : theme === 'dark'
+                ? 'text-gray-500 hover:text-gray-300'
+                : 'text-purple-400 hover:text-purple-600'
+            }`}>
               <BookmarkIcon className="h-5 w-5" />
             </button>
-            <button className="btn-icon text-primary-400 hover:text-primary-700 dark:text-primary-500 dark:hover:text-primary-300">
+            <button className={`transition-all duration-300 hover:scale-110 ${
+              theme === 'light'
+                ? 'text-primary-400 hover:text-primary-700'
+                : theme === 'dark'
+                ? 'text-gray-500 hover:text-gray-300'
+                : 'text-purple-400 hover:text-purple-600'
+            }`}>
               <HeartIcon className="h-5 w-5" />
             </button>
           </div>
         </div>
 
         {/* Reading Pace */}
-        <div className="flex items-center mt-3 text-primary-700 dark:text-primary-300">
+        <div className={`flex items-center mt-3 transition-colors duration-300 ${
+          theme === 'light'
+            ? 'text-primary-700'
+            : theme === 'dark'
+            ? 'text-gray-300'
+            : 'text-purple-700'
+        }`}>
           {getPaceIcon()}
           <span className="ml-1 text-sm">{paceString} paced</span>
         </div>
@@ -330,12 +406,18 @@ export const BookCard = ({
         {processedThemes.length > 0 && (
           <div className="mt-3 flex items-start">
             <div className="flex-shrink-0 pt-1" title="Book Themes">
-              <HashtagIcon className="h-4 w-4 text-primary-500" />
+              <HashtagIcon className={`h-4 w-4 transition-colors duration-300 ${
+                theme === 'light'
+                  ? 'text-primary-500'
+                  : theme === 'dark'
+                  ? 'text-gray-400'
+                  : 'text-purple-500'
+              }`} />
             </div>
             <div className={`flex flex-wrap gap-1 ml-2 ${!showAllThemes ? 'overflow-hidden h-7' : ''}`}>
-              {(showAllThemes ? processedThemes : processedThemes.slice(0, MAX_VISIBLE_THEMES)).map((theme) => (
-                <span key={theme} className={themePillClass}>
-                  {theme}
+              {(showAllThemes ? processedThemes : processedThemes.slice(0, MAX_VISIBLE_THEMES)).map((themeItem) => (
+                <span key={themeItem} className={themePillClass}>
+                  {themeItem}
                 </span>
               ))}
               {!showAllThemes && processedThemes.length > MAX_VISIBLE_THEMES && (
@@ -366,7 +448,13 @@ export const BookCard = ({
         {processedBestFor.length > 0 && (
           <div className="mt-2 flex items-start">
             <div className="flex-shrink-0 pt-1" title="Target Audience">
-              <UserGroupIcon className="h-4 w-4 text-primary-500" />
+              <UserGroupIcon className={`h-4 w-4 transition-colors duration-300 ${
+                theme === 'light'
+                  ? 'text-primary-500'
+                  : theme === 'dark'
+                  ? 'text-gray-400'
+                  : 'text-purple-500'
+              }`} />
             </div>
             <div className={`flex flex-wrap gap-1 ml-2 ${!showAllBestFor ? 'overflow-hidden h-7' : ''}`}>
               {(showAllBestFor ? processedBestFor : processedBestFor.slice(0, MAX_VISIBLE_BESTFOR)).map((item) => (
@@ -406,14 +494,26 @@ export const BookCard = ({
         )}
 
         {/* Description */}
-        <p className="mt-3 text-primary-600 dark:text-primary-400 text-sm line-clamp-2">
+        <p className={`mt-3 text-sm line-clamp-2 transition-colors duration-300 ${
+          theme === 'light'
+            ? 'text-primary-600'
+            : theme === 'dark'
+            ? 'text-gray-300'
+            : 'text-purple-600'
+        }`}>
           {description}
         </p>
 
         {/* Expand/Collapse button */}
         <button
           onClick={() => setIsExpanded(!isExpanded)}
-          className="self-start mt-2 text-sm font-medium text-primary-500 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 flex items-center"
+          className={`self-start mt-2 text-sm font-medium flex items-center transition-all duration-300 hover:scale-105 ${
+            theme === 'light'
+              ? 'text-primary-500 hover:text-primary-700'
+              : theme === 'dark'
+              ? 'text-blue-400 hover:text-blue-300'
+              : 'text-purple-500 hover:text-purple-700'
+          }`}
         >
           <BookOpenIcon className="h-4 w-4 mr-1" />
           {isExpanded ? 'Show less' : 'Read more'}
@@ -425,10 +525,30 @@ export const BookCard = ({
             {/* Notable Quote */}
             <div className="mb-4">
               <div className="flex items-center mb-2">
-                <ChatBubbleLeftRightIcon className="h-4 w-4 text-primary-500 mr-1" />
-                <span className="text-sm font-medium text-primary-700 dark:text-primary-300">Notable Quote</span>
+                <ChatBubbleLeftRightIcon className={`h-4 w-4 mr-1 transition-colors duration-300 ${
+                  theme === 'light'
+                    ? 'text-primary-500'
+                    : theme === 'dark'
+                    ? 'text-gray-400'
+                    : 'text-purple-500'
+                }`} />
+                <span className={`text-sm font-medium transition-colors duration-300 ${
+                  theme === 'light'
+                    ? 'text-primary-700'
+                    : theme === 'dark'
+                    ? 'text-gray-300'
+                    : 'text-purple-700'
+                }`}>
+                  Notable Quote
+                </span>
               </div>
-              <div className="pl-3 border-l-2 border-primary-300 dark:border-primary-600 italic text-primary-600 dark:text-primary-300 text-sm">
+              <div className={`pl-3 border-l-2 italic text-sm transition-colors duration-300 ${
+                theme === 'light'
+                  ? 'border-primary-300 text-primary-600'
+                  : theme === 'dark'
+                  ? 'border-gray-600 text-gray-300'
+                  : 'border-purple-300 text-purple-600'
+              }`}>
                 <p>{bookQuote}</p>
               </div>
             </div>
@@ -437,9 +557,23 @@ export const BookCard = ({
             <div className="mb-4">
               <div className="flex items-center mb-2">
                 <SparklesIcon className="h-4 w-4 text-amber-500 mr-1" />
-                <span className="text-sm font-medium text-primary-700 dark:text-primary-300">Reader Favorite</span>
+                <span className={`text-sm font-medium transition-colors duration-300 ${
+                  theme === 'light'
+                    ? 'text-primary-700'
+                    : theme === 'dark'
+                    ? 'text-gray-300'
+                    : 'text-purple-700'
+                }`}>
+                  Reader Favorite
+                </span>
               </div>
-              <div className="pl-3 border-l-2 border-amber-300 dark:border-amber-600 text-primary-600 dark:text-primary-300 text-sm">
+              <div className={`pl-3 border-l-2 text-sm transition-colors duration-300 ${
+                theme === 'light'
+                  ? 'border-amber-300 text-primary-600'
+                  : theme === 'dark'
+                  ? 'border-amber-600 text-gray-300'
+                  : 'border-amber-400 text-purple-600'
+              }`}>
                 <p>{readerFavorite}</p>
               </div>
             </div>
@@ -448,8 +582,22 @@ export const BookCard = ({
             {processedTone.length > 0 && (
               <div className="mt-2">
                 <div className="flex items-center mb-1">
-                  <ChatBubbleBottomCenterTextIcon className="h-4 w-4 text-primary-500 mr-1" />
-                  <span className="text-sm font-medium text-primary-700 dark:text-primary-300">Style</span>
+                  <ChatBubbleBottomCenterTextIcon className={`h-4 w-4 mr-1 transition-colors duration-300 ${
+                    theme === 'light'
+                      ? 'text-primary-500'
+                      : theme === 'dark'
+                      ? 'text-gray-400'
+                      : 'text-purple-500'
+                  }`} />
+                  <span className={`text-sm font-medium transition-colors duration-300 ${
+                    theme === 'light'
+                      ? 'text-primary-700'
+                      : theme === 'dark'
+                      ? 'text-gray-300'
+                      : 'text-purple-700'
+                  }`}>
+                    Style
+                  </span>
                 </div>
                 <div className="flex flex-wrap gap-1">
                   {(showAllTone ? processedTone : processedTone.slice(0, MAX_VISIBLE_TONE)).map((t) => (
@@ -481,22 +629,20 @@ export const BookCard = ({
               </div>
             )}
 
-            {/* Action buttons */}
-            <div className="flex mt-4 space-x-2">
-              <button className="btn btn-secondary text-sm">
-                Add to List
+            {/* Read Button */}
+            <div className="mt-4 flex space-x-2">
+              <button className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-300 hover:scale-105 ${
+                theme === 'light'
+                  ? 'bg-primary-600 hover:bg-primary-700 text-white'
+                  : theme === 'dark'
+                  ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                  : 'bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white'
+              }`}>
+                📖 Read
               </button>
             </div>
           </div>
         )}
-        
-        {/* Read Button - Always Visible */}
-        <div className="mt-auto pt-3">
-          <button className="btn btn-primary text-sm flex items-center justify-center">
-            <BookOpenIcon className="h-4 w-4 mr-1" />
-            Read
-          </button>
-        </div>
       </div>
     </div>
   );

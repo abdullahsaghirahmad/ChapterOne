@@ -7,6 +7,7 @@ import { api } from '../../services/api';
 import { Link } from 'react-router-dom';
 import { ArrowRightIcon } from '@heroicons/react/24/outline';
 import { normalizeTag } from './ThreadPage'; // Import the normalizeTag function
+import { useTheme } from '../../contexts/ThemeContext';
 
 // Add interface for pace object
 interface PaceObject {
@@ -87,6 +88,7 @@ const featuredBooks: Book[] = [
 ];
 
 export const HomePage = () => {
+  const { theme } = useTheme();
   const [trendingBooks, setTrendingBooks] = useState<Book[]>([]);
   const [threads, setThreads] = useState<Thread[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -164,7 +166,15 @@ export const HomePage = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-primary-600">Loading...</div>
+        <div className={`transition-colors duration-300 ${
+          theme === 'light'
+            ? 'text-primary-600'
+            : theme === 'dark'
+            ? 'text-gray-300'
+            : 'text-purple-600'
+        }`}>
+          Loading...
+        </div>
       </div>
     );
   }
@@ -173,10 +183,22 @@ export const HomePage = () => {
     <div className="space-y-12">
       {/* Hero Section */}
       <section className="text-center space-y-4">
-        <h1 className="text-4xl font-bold text-primary-900">
+        <h1 className={`text-4xl font-bold transition-colors duration-300 ${
+          theme === 'light'
+            ? 'text-primary-900'
+            : theme === 'dark'
+            ? 'text-white'
+            : 'bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent'
+        }`}>
           Discover Your Next Great Read
         </h1>
-        <p className="text-xl text-primary-600 max-w-2xl mx-auto">
+        <p className={`text-xl max-w-2xl mx-auto transition-colors duration-300 ${
+          theme === 'light'
+            ? 'text-primary-600'
+            : theme === 'dark'
+            ? 'text-gray-300'
+            : 'text-purple-600'
+        }`}>
           Get personalized book recommendations based on your mood, interests, and reading style
         </p>
         <div className="max-w-3xl mx-auto">
@@ -188,19 +210,42 @@ export const HomePage = () => {
         
         {/* Search error message */}
         {error && (
-          <div className="text-red-500 mt-4">{error}</div>
+          <div className={`mt-4 transition-colors duration-300 ${
+            theme === 'light'
+              ? 'text-red-500'
+              : theme === 'dark'
+              ? 'text-red-400'
+              : 'text-pink-600'
+          }`}>
+            {error}
+          </div>
         )}
       </section>
 
       {/* Featured Books */}
       <section>
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-primary-900">Featured Books</h2>
+          <h2 className={`text-2xl font-bold transition-colors duration-300 ${
+            theme === 'light'
+              ? 'text-primary-900'
+              : theme === 'dark'
+              ? 'text-white'
+              : 'bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent'
+          }`}>
+            Featured Books
+          </h2>
           <Link 
             to="/books" 
-            className="text-primary-600 hover:text-primary-800 flex items-center gap-1"
+            className={`flex items-center space-x-1 transition-all duration-300 hover:scale-105 ${
+              theme === 'light'
+                ? 'text-primary-600 hover:text-primary-800'
+                : theme === 'dark'
+                ? 'text-blue-400 hover:text-blue-300'
+                : 'text-purple-600 hover:text-purple-800'
+            }`}
           >
-            View All Books <ArrowRightIcon className="w-4 h-4" />
+            <span>View All Books</span>
+            <ArrowRightIcon className="w-4 h-4" />
           </Link>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
@@ -213,13 +258,28 @@ export const HomePage = () => {
       {/* Popular Threads */}
       <section>
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-primary-900">Popular Threads</h2>
+          <h2 className={`text-2xl font-bold transition-colors duration-300 ${
+            theme === 'light'
+              ? 'text-primary-900'
+              : theme === 'dark'
+              ? 'text-white'
+              : 'bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent'
+          }`}>
+            Popular Threads
+          </h2>
           {threads.length > visibleThreads && (
             <Link 
               to="/threads" 
-              className="text-primary-600 hover:text-primary-800 flex items-center gap-1"
+              className={`flex items-center space-x-1 transition-all duration-300 hover:scale-105 ${
+                theme === 'light'
+                  ? 'text-primary-600 hover:text-primary-800'
+                  : theme === 'dark'
+                  ? 'text-blue-400 hover:text-blue-300'
+                  : 'text-purple-600 hover:text-purple-800'
+              }`}
             >
-              View All <ArrowRightIcon className="w-4 h-4" />
+              <span>View All</span>
+              <ArrowRightIcon className="w-4 h-4" />
             </Link>
           )}
         </div>
