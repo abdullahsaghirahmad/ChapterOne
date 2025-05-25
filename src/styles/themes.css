@@ -1,0 +1,188 @@
+/* Theme Variables */
+:root {
+  /* Light Theme (Default) */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8fafc;
+  --bg-tertiary: #f1f5f9;
+  --text-primary: #1f2937;
+  --text-secondary: #6b7280;
+  --text-tertiary: #9ca3af;
+  --border-primary: #e5e7eb;
+  --border-secondary: #d1d5db;
+  --accent-primary: #3b82f6;
+  --accent-secondary: #8b5cf6;
+  --shadow: rgba(0, 0, 0, 0.1);
+  --shadow-lg: rgba(0, 0, 0, 0.15);
+}
+
+/* Dark Theme */
+[data-theme="dark"] {
+  --bg-primary: #111827;
+  --bg-secondary: #1f2937;
+  --bg-tertiary: #374151;
+  --text-primary: #f9fafb;
+  --text-secondary: #d1d5db;
+  --text-tertiary: #9ca3af;
+  --border-primary: #374151;
+  --border-secondary: #4b5563;
+  --accent-primary: #60a5fa;
+  --accent-secondary: #a78bfa;
+  --shadow: rgba(0, 0, 0, 0.3);
+  --shadow-lg: rgba(0, 0, 0, 0.4);
+}
+
+/* Rainbow/Unicorn Theme */
+[data-theme="rainbow"] {
+  --bg-primary: linear-gradient(135deg, #fdf2f8 0%, #f3e8ff 50%, #ede9fe 100%);
+  --bg-secondary: linear-gradient(135deg, #fce7f3 0%, #f3e8ff 50%, #e0e7ff 100%);
+  --bg-tertiary: linear-gradient(135deg, #fbcfe8 0%, #ddd6fe 50%, #c7d2fe 100%);
+  --text-primary: #581c87;
+  --text-secondary: #7c3aed;
+  --text-tertiary: #a855f7;
+  --border-primary: #d8b4fe;
+  --border-secondary: #c084fc;
+  --accent-primary: #ec4899;
+  --accent-secondary: #8b5cf6;
+  --shadow: rgba(236, 72, 153, 0.2);
+  --shadow-lg: rgba(139, 92, 246, 0.3);
+}
+
+/* Global Theme Transitions */
+* {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Theme-aware Background Classes */
+.theme-bg-primary {
+  background: var(--bg-primary);
+}
+
+.theme-bg-secondary {
+  background: var(--bg-secondary);
+}
+
+.theme-bg-tertiary {
+  background: var(--bg-tertiary);
+}
+
+/* Theme-aware Text Classes */
+.theme-text-primary {
+  color: var(--text-primary);
+}
+
+.theme-text-secondary {
+  color: var(--text-secondary);
+}
+
+.theme-text-tertiary {
+  color: var(--text-tertiary);
+}
+
+/* Theme-aware Border Classes */
+.theme-border-primary {
+  border-color: var(--border-primary);
+}
+
+.theme-border-secondary {
+  border-color: var(--border-secondary);
+}
+
+/* Theme-aware Shadow Classes */
+.theme-shadow {
+  box-shadow: 0 1px 3px var(--shadow);
+}
+
+.theme-shadow-lg {
+  box-shadow: 0 10px 15px -3px var(--shadow-lg);
+}
+
+/* Rainbow Theme Special Effects */
+.theme-rainbow .rainbow-gradient {
+  background: linear-gradient(45deg, #ff6b6b, #feca57, #48dbfb, #ff9ff3, #54a0ff);
+  background-size: 400% 400%;
+  animation: rainbowShift 4s ease-in-out infinite;
+}
+
+.theme-rainbow .rainbow-text {
+  background: linear-gradient(45deg, #ff6b6b, #feca57, #48dbfb, #ff9ff3, #54a0ff);
+  background-size: 400% 400%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: rainbowShift 4s ease-in-out infinite;
+}
+
+.theme-rainbow .rainbow-border {
+  border: 2px solid;
+  border-image: linear-gradient(45deg, #ff6b6b, #feca57, #48dbfb, #ff9ff3, #54a0ff) 1;
+  animation: rainbowShift 4s ease-in-out infinite;
+}
+
+/* Rainbow Animations */
+@keyframes rainbowShift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes sparkle {
+  0%, 100% {
+    opacity: 0;
+    transform: scale(0);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.theme-rainbow .sparkle {
+  animation: sparkle 2s ease-in-out infinite;
+}
+
+.theme-rainbow .sparkle:nth-child(2) {
+  animation-delay: 0.5s;
+}
+
+.theme-rainbow .sparkle:nth-child(3) {
+  animation-delay: 1s;
+}
+
+/* Body Theme Classes */
+.theme-light {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.theme-dark {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.theme-rainbow {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  position: relative;
+}
+
+.theme-rainbow::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(45deg, 
+    rgba(255, 107, 107, 0.05) 0%, 
+    rgba(254, 202, 87, 0.05) 25%, 
+    rgba(72, 219, 251, 0.05) 50%, 
+    rgba(255, 159, 243, 0.05) 75%, 
+    rgba(84, 160, 255, 0.05) 100%);
+  background-size: 400% 400%;
+  animation: rainbowShift 8s ease-in-out infinite;
+  pointer-events: none;
+  z-index: -1;
+} 

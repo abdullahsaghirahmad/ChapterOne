@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { HomeIcon, BookOpenIcon, ChatBubbleLeftIcon, UserIcon } from '@heroicons/react/24/outline';
+import { ThemeSwitcher } from '../ui/ThemeSwitcher';
 
 interface LayoutProps {
   children: any;
@@ -47,6 +48,7 @@ export const Layout = ({ children }: LayoutProps) => {
               >
                 Books
               </Link>
+              <ThemeSwitcher />
               <button className="btn btn-secondary">Sign In</button>
             </nav>
           </div>
