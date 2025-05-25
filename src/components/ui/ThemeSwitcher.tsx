@@ -68,7 +68,7 @@ export const ThemeSwitcher: React.FC = () => {
       <button
         onClick={handleToggle}
         className={`
-          relative flex items-center space-x-2 px-4 py-2 rounded-full transition-all duration-300 ease-out
+          relative flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 ease-out
           ${theme === 'light' 
             ? 'bg-gray-100 hover:bg-gray-200 text-gray-800' 
             : theme === 'dark'
@@ -81,6 +81,7 @@ export const ThemeSwitcher: React.FC = () => {
           shadow-md hover:shadow-lg
         `}
         aria-label={`Switch to ${theme === 'light' ? 'dark' : theme === 'dark' ? 'rainbow' : 'light'} theme`}
+        title={`Current theme: ${getThemeLabel()}`}
       >
         {/* Icon Container */}
         <div className={`
@@ -89,14 +90,6 @@ export const ThemeSwitcher: React.FC = () => {
         `}>
           {getThemeIcon()}
         </div>
-        
-        {/* Theme Label */}
-        <span className={`
-          text-sm font-medium transition-all duration-300
-          ${theme === 'rainbow' ? 'bg-gradient-to-r from-yellow-200 to-pink-200 bg-clip-text text-transparent font-bold' : ''}
-        `}>
-          {getThemeLabel()}
-        </span>
 
         {/* Rainbow Mode Sparkles */}
         {theme === 'rainbow' && (
