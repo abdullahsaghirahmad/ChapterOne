@@ -9,9 +9,7 @@ const threadRepository = database_1.AppDataSource.getRepository(Thread_1.Thread)
 // Get all threads
 router.get('/', async (req, res) => {
     try {
-        const threads = await threadRepository.find({
-            relations: ['createdBy', 'books']
-        });
+        const threads = await threadRepository.find();
         res.json(threads);
     }
     catch (error) {
@@ -22,8 +20,7 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
     try {
         const thread = await threadRepository.findOne({
-            where: { id: req.params.id },
-            relations: ['createdBy', 'books']
+            where: { id: req.params.id }
         });
         if (!thread) {
             return res.status(404).json({ message: 'Thread not found' });
@@ -37,12 +34,20 @@ router.get('/:id', async (req, res) => {
 // Create new thread
 router.post('/', async (req, res) => {
     try {
+        console.log('Creating thread with data:', req.body);
         const thread = threadRepository.create(req.body);
+        console.log('Thread entity created:', thread);
         const result = await threadRepository.save(thread);
+        console.log('Thread saved successfully:', result);
         res.status(201).json(result);
     }
     catch (error) {
-        res.status(500).json({ message: 'Error creating thread', error });
+        console.error('Error creating thread:', error);
+        res.status(500).json({
+            message: 'Error creating thread',
+            error: error instanceof Error ? error.message : error,
+            details: error instanceof Error ? error.stack : undefined
+        });
     }
 });
 // Update thread

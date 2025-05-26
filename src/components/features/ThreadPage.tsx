@@ -228,7 +228,7 @@ export const ThreadPage = () => {
       setCustomTag('');
     } catch (err) {
       console.error('Error creating thread:', err);
-      alert('Failed to create thread. Please try again.');
+      setError('Unable to create thread at the moment. The backend service is experiencing technical difficulties. Please try again later or contact support if the issue persists.');
     }
   };
 

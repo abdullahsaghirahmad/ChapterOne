@@ -1,6 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, ManyToMany, JoinTable, CreateDateColumn, UpdateDateColumn } from 'typeorm';
-import { User } from './User';
-import { Book } from './Book';
+import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
 
 @Entity()
 export class Thread {
@@ -18,20 +16,4 @@ export class Thread {
 
   @Column({ default: 0 })
   comments!: number;
-
-  @Column('simple-array', { nullable: true })
-  tags!: string[];
-
-  @ManyToOne(() => User, user => user.threads)
-  createdBy!: User;
-
-  @ManyToMany(() => Book)
-  @JoinTable()
-  books!: Book[];
-
-  @CreateDateColumn()
-  createdAt!: Date;
-
-  @UpdateDateColumn()
-  updatedAt!: Date;
 } 

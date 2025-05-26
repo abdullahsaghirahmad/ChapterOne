@@ -15,7 +15,12 @@ class BookService {
      * Get all books with essential data from the local database
      */
     async getAllBooks() {
-        return this.bookRepository.find();
+        // Don't limit the number of books returned
+        return this.bookRepository.find({
+            order: {
+                title: 'ASC' // Order by title alphabetically
+            }
+        });
     }
     /**
      * Get a book by ID, first from local DB then enhance with external data if needed
@@ -33,10 +38,10 @@ class BookService {
      * Search for books
      * @param query Search query
      * @param fetchExternal Whether to include results from external API
-     * @param searchType Type of search: 'all', 'title', 'author', 'mood', 'theme'
+     * @param searchType Type of search: 'all', 'title', 'author', 'mood', 'theme', 'profession'
      * @param limit Maximum number of results to return
      */
-    async searchBooks(query, fetchExternal = false, searchType = 'all', limit = 20) {
+    async searchBooks(query, fetchExternal = false, searchType = 'all', limit = 100) {
         let localBooks = [];
         // First search local database based on search type
         switch (searchType) {
@@ -71,6 +76,17 @@ class BookService {
                     .limit(limit)
                     .getMany();
                 break;
+            case 'profession':
+                // Search by profession using array unnest and ILIKE or exact match
+                localBooks = await this.bookRepository
+                    .createQueryBuilder('book')
+                    .where(`EXISTS (SELECT 1 FROM unnest(book.professions) AS p WHERE p = :exactQuery OR p ILIKE :likeQuery)`, {
+                    exactQuery: query,
+                    likeQuery: `%${query}%`
+                })
+                    .limit(limit)
+                    .getMany();
+                break;
             case 'readingStyle':
             case 'pace':
                 // Search by pace (reading style)
@@ -85,7 +101,7 @@ class BookService {
                 // Search across all fields, including array fields
                 localBooks = await this.bookRepository
                     .createQueryBuilder('book')
-                    .where('book.title ILIKE :query OR book.author ILIKE :query OR EXISTS (SELECT 1 FROM unnest(book.themes) AS th WHERE th ILIKE :query) OR EXISTS (SELECT 1 FROM unnest(book.tone) AS t WHERE t ILIKE :query)', { query: `%${query}%` })
+                    .where('book.title ILIKE :query OR book.author ILIKE :query OR EXISTS (SELECT 1 FROM unnest(book.themes) AS th WHERE th ILIKE :query) OR EXISTS (SELECT 1 FROM unnest(book.tone) AS t WHERE t ILIKE :query) OR EXISTS (SELECT 1 FROM unnest(book.professions) AS p WHERE p ILIKE :query)', { query: `%${query}%` })
                     .limit(limit)
                     .getMany();
                 break;

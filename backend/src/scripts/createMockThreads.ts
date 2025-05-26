@@ -110,10 +110,10 @@ async function main() {
       const thread = new Thread();
       thread.title = mockThread.title;
       thread.description = mockThread.description;
-      thread.tags = mockThread.tags;
+      // thread.tags = mockThread.tags.join(',');
       thread.upvotes = Math.floor(Math.random() * 100) + 1;
       thread.comments = Math.floor(Math.random() * 30) + 1;
-      thread.createdBy = adminUser;
+      // thread.createdBy = adminUser;
 
       // Analyze text with NLP to find themes
       const themes = await nlpService.extractThemes(thread.title + ' ' + thread.description);
@@ -147,12 +147,12 @@ async function main() {
         }
       }
       
-      thread.books = relatedBooks;
-      
-      // Save thread
-      await threadRepository.save(thread);
+      // thread.books = relatedBooks;
+
+      // Save the thread
+      const savedThread = await threadRepository.save(thread);
+      // console.log(`Created thread: "${thread.title}" with ${thread.books.length} related books`);
       createdCount++;
-      console.log(`Created thread: "${thread.title}" with ${thread.books.length} related books`);
     }
 
     console.log(`Successfully created ${createdCount} threads`);
