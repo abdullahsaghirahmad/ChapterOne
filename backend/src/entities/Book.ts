@@ -54,8 +54,8 @@ export class Book {
   @Column({ nullable: true })
   pageCount?: number;
 
-  // @ManyToMany(() => Thread, thread => thread.books)
-  // threads!: Thread[];
+  @ManyToMany(() => Thread, thread => thread.books)
+  threads!: Thread[];
 
   @CreateDateColumn()
   createdAt!: Date;

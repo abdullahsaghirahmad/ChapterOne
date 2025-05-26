@@ -18,7 +18,6 @@ exports.AppDataSource = new typeorm_1.DataSource({
     password: process.env.DB_PASSWORD || 'postgres',
     database: process.env.DB_NAME || 'chapterone',
     synchronize: process.env.NODE_ENV !== 'production',
-    dropSchema: process.env.NODE_ENV !== 'production',
     logging: process.env.NODE_ENV !== 'production',
     entities: [Book_1.Book, Thread_1.Thread, User_1.User],
     migrations: [],

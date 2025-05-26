@@ -11,6 +11,8 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Thread = void 0;
 const typeorm_1 = require("typeorm");
+const User_1 = require("./User");
+const Book_1 = require("./Book");
 let Thread = class Thread {
 };
 exports.Thread = Thread;
@@ -34,6 +36,27 @@ __decorate([
     (0, typeorm_1.Column)({ default: 0 }),
     __metadata("design:type", Number)
 ], Thread.prototype, "comments", void 0);
+__decorate([
+    (0, typeorm_1.Column)('simple-array', { nullable: true }),
+    __metadata("design:type", Array)
+], Thread.prototype, "tags", void 0);
+__decorate([
+    (0, typeorm_1.ManyToOne)(() => User_1.User, user => user.threads, { nullable: true }),
+    __metadata("design:type", Object)
+], Thread.prototype, "createdBy", void 0);
+__decorate([
+    (0, typeorm_1.ManyToMany)(() => Book_1.Book),
+    (0, typeorm_1.JoinTable)(),
+    __metadata("design:type", Array)
+], Thread.prototype, "books", void 0);
+__decorate([
+    (0, typeorm_1.CreateDateColumn)(),
+    __metadata("design:type", Date)
+], Thread.prototype, "createdAt", void 0);
+__decorate([
+    (0, typeorm_1.UpdateDateColumn)(),
+    __metadata("design:type", Date)
+], Thread.prototype, "updatedAt", void 0);
 exports.Thread = Thread = __decorate([
     (0, typeorm_1.Entity)()
 ], Thread);
