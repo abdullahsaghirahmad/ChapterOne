@@ -8,28 +8,67 @@ const threadRepository = AppDataSource.getRepository(Thread);
 // Get all threads
 router.get('/', async (req, res) => {
   try {
-    const threads = await threadRepository.find({
-      relations: ['createdBy', 'books']
-    });
+    const threads = await threadRepository.find();
     res.json(threads);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching threads', error });
   }
 });
 
-// Get thread by ID
+// Get thread by ID with related books
 router.get('/:id', async (req, res) => {
   try {
-    const thread = await threadRepository.findOne({
-      where: { id: req.params.id },
-      relations: ['createdBy', 'books']
-    });
+    const thread = await threadRepository.findOneBy({ id: req.params.id });
     if (!thread) {
       return res.status(404).json({ message: 'Thread not found' });
     }
-    res.json(thread);
+
+    // Fetch related books using raw SQL
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect();
+    
+    try {
+      const relatedBooks = await queryRunner.query(`
+        SELECT b.* FROM book b
+        INNER JOIN thread_book tb ON b.id = tb.book_id
+        WHERE tb.thread_id = $1
+        ORDER BY b.title
+      `, [req.params.id]);
+      
+      const threadWithBooks = {
+        ...thread,
+        books: relatedBooks
+      };
+      
+      res.json(threadWithBooks);
+    } finally {
+      await queryRunner.release();
+    }
   } catch (error) {
     res.status(500).json({ message: 'Error fetching thread', error });
+  }
+});
+
+// Get related books for a thread (separate endpoint)
+router.get('/:id/books', async (req, res) => {
+  try {
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect();
+    
+    try {
+      const relatedBooks = await queryRunner.query(`
+        SELECT b.* FROM book b
+        INNER JOIN thread_book tb ON b.id = tb.book_id
+        WHERE tb.thread_id = $1
+        ORDER BY b.title
+      `, [req.params.id]);
+      
+      res.json(relatedBooks);
+    } finally {
+      await queryRunner.release();
+    }
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching related books', error });
   }
 });
 

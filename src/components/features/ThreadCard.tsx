@@ -31,7 +31,7 @@ export const ThreadCard = ({
 
   return (
     <div 
-      className={`transition-all duration-300 hover:shadow-lg cursor-pointer rounded-lg p-6 ${
+      className={`transition-all duration-300 hover:shadow-lg cursor-pointer rounded-lg p-6 h-full flex flex-col ${
         theme === 'light'
           ? 'bg-white border border-gray-200 hover:border-primary-300'
           : theme === 'dark'
@@ -40,72 +40,50 @@ export const ThreadCard = ({
       }`}
       onClick={handleClick}
     >
-      <div className="flex flex-col gap-3">
-        {/* Header */}
-        <div className="flex items-start justify-between">
-          <h3 className={`text-lg font-medium transition-colors duration-300 ${
-            theme === 'light'
-              ? 'text-primary-900'
-              : theme === 'dark'
-              ? 'text-white'
-              : 'bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent'
-          }`}>
-            {title}
-          </h3>
-          <button 
-            className={`flex items-center gap-1 px-2 py-1 rounded-lg transition-all duration-300 hover:scale-105 ${
-              theme === 'light'
-                ? 'text-primary-600 hover:bg-primary-50 hover:text-primary-700'
-                : theme === 'dark'
-                ? 'text-gray-400 hover:bg-gray-700 hover:text-gray-300'
-                : 'text-purple-600 hover:bg-purple-100 hover:text-purple-700'
-            }`}
-            onClick={(e) => {
-              e.stopPropagation(); // Prevent thread navigation when clicking upvote
-            }}
-          >
-            <ArrowUpIcon className="w-5 h-5" />
-            <span className="text-sm">{upvotes}</span>
-          </button>
-        </div>
-
-        {/* Description */}
-        <p className={`line-clamp-2 transition-colors duration-300 ${
+      {/* Header with title and upvote */}
+      <div className="flex items-start justify-between mb-3">
+        <h3 className={`text-lg font-medium leading-tight flex-1 pr-3 transition-colors duration-300 ${
           theme === 'light'
-            ? 'text-primary-600'
+            ? 'text-primary-900'
             : theme === 'dark'
-            ? 'text-gray-300'
-            : 'text-purple-600'
+            ? 'text-white'
+            : 'bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent'
         }`}>
-          {description}
-        </p>
+          {title}
+        </h3>
+        <button 
+          className={`flex items-center gap-1 px-2 py-1 rounded-lg transition-all duration-300 hover:scale-105 flex-shrink-0 ${
+            theme === 'light'
+              ? 'text-primary-600 hover:bg-primary-50 hover:text-primary-700'
+              : theme === 'dark'
+              ? 'text-gray-400 hover:bg-gray-700 hover:text-gray-300'
+              : 'text-purple-600 hover:bg-purple-100 hover:text-purple-700'
+          }`}
+          onClick={(e) => {
+            e.stopPropagation(); // Prevent thread navigation when clicking upvote
+          }}
+        >
+          <ArrowUpIcon className="w-4 h-4" />
+          <span className="text-sm font-medium">{upvotes}</span>
+        </button>
+      </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-between text-sm">
-          <div className="flex items-center gap-4">
-            <div className={`flex items-center gap-1 transition-colors duration-300 ${
-              theme === 'light'
-                ? 'text-primary-500'
-                : theme === 'dark'
-                ? 'text-gray-400'
-                : 'text-purple-500'
-            }`}>
-              <ChatBubbleLeftIcon className="w-4 h-4" />
-              <span>{comments} comments</span>
-            </div>
-            <div className={`flex items-center gap-1 transition-colors duration-300 ${
-              theme === 'light'
-                ? 'text-primary-500'
-                : theme === 'dark'
-                ? 'text-gray-400'
-                : 'text-purple-500'
-            }`}>
-              <ClockIcon className="w-4 h-4" />
-              <span>{timestamp}</span>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {tags.map((tag) => (
+      {/* Description */}
+      <p className={`text-sm line-clamp-2 mb-4 flex-1 transition-colors duration-300 ${
+        theme === 'light'
+          ? 'text-gray-600'
+          : theme === 'dark'
+          ? 'text-gray-300'
+          : 'text-purple-600'
+      }`}>
+        {description}
+      </p>
+
+      {/* Tags */}
+      {tags && tags.length > 0 && (
+        <div className="mb-3">
+          <div className="flex flex-wrap gap-1">
+            {tags.slice(0, 5).map((tag) => (
               <span
                 key={tag}
                 className={`px-2 py-1 text-xs rounded-full transition-colors duration-300 ${
@@ -119,7 +97,36 @@ export const ThreadCard = ({
                 {tag}
               </span>
             ))}
+            {tags.length > 5 && (
+              <span className={`px-2 py-1 text-xs rounded-full transition-colors duration-300 ${
+                theme === 'light'
+                  ? 'bg-gray-100 text-gray-500'
+                  : theme === 'dark'
+                  ? 'bg-gray-600 text-gray-400'
+                  : 'bg-purple-100 text-purple-500'
+              }`}>
+                +{tags.length - 5}
+              </span>
+            )}
           </div>
+        </div>
+      )}
+
+      {/* Footer with comments and date */}
+      <div className={`flex items-center justify-between text-sm pt-3 border-t transition-colors duration-300 ${
+        theme === 'light'
+          ? 'border-gray-200 text-gray-500'
+          : theme === 'dark'
+          ? 'border-gray-600 text-gray-400'
+          : 'border-purple-200 text-purple-500'
+      }`}>
+        <div className="flex items-center gap-1">
+          <ChatBubbleLeftIcon className="w-4 h-4" />
+          <span>{comments} comments</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <ClockIcon className="w-4 h-4" />
+          <span>{timestamp}</span>
         </div>
       </div>
     </div>

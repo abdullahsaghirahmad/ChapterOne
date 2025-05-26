@@ -503,17 +503,16 @@ export const ThreadPage = () => {
         <div className="grid gap-4 md:grid-cols-2">
           {threads.length > 0 ? (
             threads.map((thread) => (
-              <div key={thread.id}>
-                <ThreadCard
-                  id={thread.id}
-                  title={thread.title}
-                  description={thread.description}
-                  upvotes={thread.upvotes}
-                  comments={thread.comments}
-                  timestamp={new Date(thread.createdAt).toLocaleDateString()}
-                  tags={thread.tags || []}
-                />
-              </div>
+              <ThreadCard
+                key={thread.id}
+                id={thread.id}
+                title={thread.title}
+                description={thread.description}
+                upvotes={thread.upvotes}
+                comments={thread.comments}
+                timestamp={new Date(thread.createdAt).toLocaleDateString()}
+                tags={thread.tags || []}
+              />
             ))
           ) : (
             <div className={`col-span-2 text-center py-8 transition-colors duration-300 ${
