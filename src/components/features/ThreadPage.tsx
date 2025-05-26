@@ -28,28 +28,25 @@ export const normalizeTag = (tag: any): string => {
   
   // Handle stringified object format like {""value"": ""tag""}
   if (typeof tag === 'string') {
-    if (tag.includes('{""') && tag.includes('""value""')) {
-      try {
-        const match = tag.match(/""value""\s*:\s*""([^""]+)""/);
-        if (match && match[1]) {
-          return match[1];
-        }
-      } catch (e) {
-        // Just return the original if extraction fails
-      }
+    // Remove curly braces and quotes to extract clean tag names
+    let cleanTag = tag;
+    
+    // Handle malformed JSON like "{\"finance\"" or "\"economics\"" or "\"investing\"}"
+    if (cleanTag.includes('{') || cleanTag.includes('}') || cleanTag.includes('"')) {
+      // Remove all JSON formatting characters
+      cleanTag = cleanTag
+        .replace(/[{}]/g, '') // Remove curly braces
+        .replace(/\\"/g, '') // Remove escaped quotes
+        .replace(/"/g, '') // Remove regular quotes
+        .trim();
     }
     
-    // Also try regular JSON parsing if it looks like an object
-    if (tag.startsWith('{') && tag.endsWith('}')) {
-      try {
-        const parsed = JSON.parse(tag);
-        if (parsed && typeof parsed === 'object' && 'value' in parsed) {
-          return parsed.value;
-        }
-      } catch (e) {
-        // Parsing failed, continue with other methods
-      }
+    // If it's still empty or just whitespace, return empty string
+    if (!cleanTag || cleanTag.trim() === '') {
+      return '';
     }
+    
+    return cleanTag;
   }
   
   // If it's just a string or other type, return its string representation
