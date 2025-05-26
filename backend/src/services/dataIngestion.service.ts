@@ -254,10 +254,10 @@ export class DataIngestionService {
       const thread = new Thread();
       thread.title = threadData.title;
       thread.description = threadData.description;
-      thread.tags = threadData.tags;
+      // thread.tags = threadData.tags.join(',');
       thread.upvotes = threadData.upvotes || 0;
       thread.comments = threadData.comments || 0;
-      thread.createdBy = user;
+      // thread.createdBy = user;
 
       // If there are related books, associate them
       if (threadData.relatedBooks && threadData.relatedBooks.length > 0) {
@@ -267,7 +267,7 @@ export class DataIngestionService {
           .getMany();
 
         if (books.length > 0) {
-          thread.books = books;
+          // thread.books = books;
         }
       }
 

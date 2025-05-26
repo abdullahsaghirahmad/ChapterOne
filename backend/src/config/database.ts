@@ -14,6 +14,7 @@ export const AppDataSource = new DataSource({
   password: process.env.DB_PASSWORD || 'postgres',
   database: process.env.DB_NAME || 'chapterone',
   synchronize: process.env.NODE_ENV !== 'production',
+  dropSchema: process.env.NODE_ENV !== 'production',
   logging: process.env.NODE_ENV !== 'production',
   entities: [Book, Thread, User],
   migrations: [],

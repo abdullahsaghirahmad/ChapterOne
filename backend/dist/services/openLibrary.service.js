@@ -31,6 +31,10 @@ class OpenLibraryAPI {
                 case 'theme':
                     params.subject = query;
                     break;
+                case 'profession':
+                    // For profession search, we'll use general search and filter later
+                    params.q = query;
+                    break;
                 case 'all':
                 default:
                     params.q = query;
@@ -42,6 +46,7 @@ class OpenLibraryAPI {
                 // Process moods and themes based on searchType
                 let tone = this.extractTone(details?.description);
                 let themes = this.extractThemes(doc.subject, details?.description);
+                let professions = this.determineProfessions(doc, details);
                 // Enhance results if searching for mood or theme
                 if (searchType === 'mood' || searchType === 'tone') {
                     // Prioritize tones related to the search
@@ -61,6 +66,15 @@ class OpenLibraryAPI {
                         themes = [this.formatSearchTermAsTheme(query)];
                     }
                 }
+                else if (searchType === 'profession') {
+                    // Prioritize professions related to the search
+                    professions = professions.filter(p => p.toLowerCase().includes(query.toLowerCase()) ||
+                        query.toLowerCase().includes(p.toLowerCase()));
+                    if (professions.length === 0) {
+                        // If no matching professions found, add the search query as a profession
+                        professions = [this.formatSearchTermAsProfession(query)];
+                    }
+                }
                 return {
                     title: doc.title,
                     author: doc.author_name?.[0] || 'Unknown',
@@ -75,9 +89,15 @@ class OpenLibraryAPI {
                     pace: this.determinePace(doc.number_of_pages_median),
                     tone: tone,
                     themes: themes,
+                    professions: professions,
                     bestFor: this.determineBestFor(doc, details)
                 };
             }));
+            // If searching for profession, only return books with matching professions
+            if (searchType === 'profession') {
+                return books.filter(book => book.professions && book.professions.some((p) => p.toLowerCase().includes(query.toLowerCase()) ||
+                    query.toLowerCase().includes(p.toLowerCase())));
+            }
             return books;
         }
         catch (error) {
@@ -190,6 +210,122 @@ class OpenLibraryAPI {
             }
         }
         return audiences;
+    }
+    /**
+     * Determine relevant professions for a book based on its content
+     * @param doc The book document from OpenLibrary
+     * @param details Additional details about the book
+     */
+    determineProfessions(doc, details) {
+        const professions = [];
+        const professionKeywords = {
+            'Product Management': ['product', 'user experience', 'customer', 'market', 'roadmap', 'innovation', 'feature', 'strategy', 'prioritization', 'agile'],
+            'UX/UI Design': ['design', 'user interface', 'ux', 'ui', 'usability', 'creative', 'visual', 'prototype', 'accessibility', 'wireframe'],
+            'Sales': ['sales', 'negotiation', 'customer', 'pitch', 'closing', 'persuasion', 'client', 'revenue', 'deal', 'objection'],
+            'Marketing': ['marketing', 'brand', 'campaign', 'strategy', 'social media', 'audience', 'messaging', 'content', 'analytics', 'promotion'],
+            'Software Engineering': ['software', 'engineer', 'code', 'development', 'programming', 'technical', 'architecture', 'algorithm', 'debugging', 'testing'],
+            'Data Science': ['data', 'analytics', 'statistics', 'machine learning', 'ai', 'artificial intelligence', 'model', 'prediction', 'visualization', 'insight'],
+            'Leadership': ['leadership', 'management', 'team', 'vision', 'inspiration', 'strategy', 'executive', 'coach', 'decision', 'influence'],
+            'Project Management': ['project', 'management', 'timeline', 'deadline', 'resources', 'planning', 'coordination', 'risk', 'delivery', 'milestone'],
+            'Finance': ['finance', 'investment', 'capital', 'budget', 'money', 'valuation', 'accounting', 'risk', 'portfolio', 'profit'],
+            'Human Resources': ['human resources', 'hr', 'talent', 'hiring', 'recruitment', 'culture', 'people', 'training', 'performance', 'benefit'],
+            'Entrepreneurship': ['startup', 'entrepreneur', 'founder', 'venture', 'business model', 'innovation', 'risk', 'growth', 'scaling', 'disruption'],
+            'Consulting': ['consulting', 'advisory', 'problem-solving', 'strategy', 'analysis', 'recommendation', 'stakeholder', 'framework', 'client', 'business']
+        };
+        // Subjects that map to professions
+        const subjectToProfession = {
+            'business': ['Leadership', 'Entrepreneurship', 'Marketing', 'Sales', 'Finance'],
+            'leadership': ['Leadership', 'Project Management'],
+            'management': ['Leadership', 'Project Management', 'Human Resources'],
+            'economics': ['Finance', 'Consulting'],
+            'technology': ['Software Engineering', 'Data Science', 'Product Management'],
+            'computer science': ['Software Engineering', 'Data Science'],
+            'design': ['UX/UI Design', 'Product Management'],
+            'psychology': ['Human Resources', 'Leadership', 'Sales', 'Marketing'],
+            'self-help': ['Leadership', 'Entrepreneurship'],
+            'science': ['Data Science', 'Software Engineering'],
+            'innovation': ['Product Management', 'Entrepreneurship'],
+            'startups': ['Entrepreneurship', 'Product Management'],
+            'marketing': ['Marketing'],
+            'sales': ['Sales'],
+            'finance': ['Finance'],
+            'human resources': ['Human Resources']
+        };
+        // Check description for relevant keywords
+        const description = details?.description || '';
+        if (description) {
+            const descText = typeof description === 'string'
+                ? description.toLowerCase()
+                : description.value?.toLowerCase() || '';
+            Object.entries(professionKeywords).forEach(([prof, keywords]) => {
+                if (keywords.some(keyword => descText.includes(keyword.toLowerCase()))) {
+                    professions.push(prof);
+                }
+            });
+        }
+        // Check subjects for relevant matches
+        const subjects = doc.subject || [];
+        subjects.forEach((subject) => {
+            const subjectLower = subject.toLowerCase();
+            Object.entries(subjectToProfession).forEach(([key, profs]) => {
+                if (subjectLower.includes(key)) {
+                    professions.push(...profs);
+                }
+            });
+        });
+        // Deduplicate professions
+        return [...new Set(professions)];
+    }
+    /**
+     * Format a search term as a profession
+     */
+    formatSearchTermAsProfession(term) {
+        // Map common search terms to standardized profession names
+        const professionMap = {
+            'product': 'Product Management',
+            'pm': 'Product Management',
+            'product manager': 'Product Management',
+            'design': 'UX/UI Design',
+            'designer': 'UX/UI Design',
+            'ux': 'UX/UI Design',
+            'ui': 'UX/UI Design',
+            'user experience': 'UX/UI Design',
+            'user interface': 'UX/UI Design',
+            'sales': 'Sales',
+            'selling': 'Sales',
+            'marketing': 'Marketing',
+            'market': 'Marketing',
+            'engineering': 'Software Engineering',
+            'developer': 'Software Engineering',
+            'programming': 'Software Engineering',
+            'software': 'Software Engineering',
+            'data': 'Data Science',
+            'analytics': 'Data Science',
+            'machine learning': 'Data Science',
+            'leadership': 'Leadership',
+            'leader': 'Leadership',
+            'management': 'Leadership',
+            'project': 'Project Management',
+            'project manager': 'Project Management',
+            'finance': 'Finance',
+            'financial': 'Finance',
+            'hr': 'Human Resources',
+            'human resources': 'Human Resources',
+            'entrepreneur': 'Entrepreneurship',
+            'startup': 'Entrepreneurship',
+            'business': 'Entrepreneurship',
+            'consulting': 'Consulting',
+            'consultant': 'Consulting',
+            'advisory': 'Consulting'
+        };
+        const termLower = term.toLowerCase();
+        for (const [key, value] of Object.entries(professionMap)) {
+            if (termLower.includes(key)) {
+                return value;
+            }
+        }
+        // If no match found, capitalize the first letter and return
+        return term.charAt(0).toUpperCase() + term.slice(1);
     }
 }
 exports.OpenLibraryAPI = OpenLibraryAPI;
