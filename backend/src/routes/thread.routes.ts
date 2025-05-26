@@ -8,7 +8,9 @@ const threadRepository = AppDataSource.getRepository(Thread);
 // Get all threads
 router.get('/', async (req, res) => {
   try {
-    const threads = await threadRepository.find();
+    const threads = await threadRepository.find({
+      relations: ['createdBy', 'books']
+    });
     res.json(threads);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching threads', error });
@@ -19,7 +21,8 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const thread = await threadRepository.findOne({
-      where: { id: req.params.id }
+      where: { id: req.params.id },
+      relations: ['createdBy', 'books']
     });
     if (!thread) {
       return res.status(404).json({ message: 'Thread not found' });

@@ -205,10 +205,10 @@ class DataIngestionService {
             const thread = new Thread_1.Thread();
             thread.title = threadData.title;
             thread.description = threadData.description;
-            thread.tags = threadData.tags.join(',');
+            thread.tags = threadData.tags;
             thread.upvotes = threadData.upvotes || 0;
             thread.comments = threadData.comments || 0;
-            // thread.createdBy = user;
+            thread.createdBy = user;
             // If there are related books, associate them
             if (threadData.relatedBooks && threadData.relatedBooks.length > 0) {
                 const books = await this.bookRepository
@@ -216,7 +216,7 @@ class DataIngestionService {
                     .where('book.title IN (:...titles)', { titles: threadData.relatedBooks })
                     .getMany();
                 if (books.length > 0) {
-                    // thread.books = books;
+                    thread.books = books;
                 }
             }
             return await this.threadRepository.save(thread);

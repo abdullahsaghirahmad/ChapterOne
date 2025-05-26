@@ -11,6 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Book = void 0;
 const typeorm_1 = require("typeorm");
+const Thread_1 = require("./Thread");
 let Book = class Book {
 };
 exports.Book = Book;
@@ -78,6 +79,10 @@ __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", Number)
 ], Book.prototype, "pageCount", void 0);
+__decorate([
+    (0, typeorm_1.ManyToMany)(() => Thread_1.Thread, thread => thread.books),
+    __metadata("design:type", Array)
+], Book.prototype, "threads", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)(),
     __metadata("design:type", Date)
