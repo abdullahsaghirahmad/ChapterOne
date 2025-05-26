@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { ThreadCard } from './ThreadCard';
 import { PlusIcon } from '@heroicons/react/24/outline';
 import axios from 'axios';
@@ -58,9 +58,98 @@ export const ThreadPage = () => {
   const [showNewThreadForm, setShowNewThreadForm] = useState(false);
   const [newThreadTitle, setNewThreadTitle] = useState('');
   const [newThreadDescription, setNewThreadDescription] = useState('');
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [customTag, setCustomTag] = useState('');
   const [threads, setThreads] = useState<Thread[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // Popular tags from existing threads and common book topics
+  const popularTags = [
+    'finance', 'economics', 'investing', 'leadership', 'management', 'team',
+    'design', 'ux', 'ui', 'product', 'startup', 'business', 'technology',
+    'self-help', 'psychology', 'philosophy', 'science', 'history', 'biography',
+    'fiction', 'non-fiction', 'mystery', 'romance', 'fantasy', 'sci-fi',
+    'career', 'productivity', 'marketing', 'sales', 'entrepreneurship',
+    'personal-development', 'health', 'wellness', 'education', 'parenting'
+  ];
+
+  // Generate tag suggestions based on title and description
+  const generateTagSuggestions = useCallback((title: string, description: string): string[] => {
+    const text = `${title} ${description}`.toLowerCase();
+    const suggestions: string[] = [];
+
+    // Check for keyword matches in popular tags
+    popularTags.forEach(tag => {
+      if (text.includes(tag.toLowerCase()) || 
+          text.includes(tag.replace('-', ' ')) ||
+          text.includes(tag.replace('-', ''))) {
+        suggestions.push(tag);
+      }
+    });
+
+    // Add some contextual suggestions based on common patterns
+    if (text.includes('book') || text.includes('read') || text.includes('recommend')) {
+      if (!suggestions.includes('books')) suggestions.push('books');
+    }
+    if (text.includes('startup') || text.includes('entrepreneur')) {
+      if (!suggestions.includes('startup')) suggestions.push('startup');
+      if (!suggestions.includes('business')) suggestions.push('business');
+    }
+    if (text.includes('money') || text.includes('financial') || text.includes('invest')) {
+      if (!suggestions.includes('finance')) suggestions.push('finance');
+    }
+    if (text.includes('leader') || text.includes('manage') || text.includes('team')) {
+      if (!suggestions.includes('leadership')) suggestions.push('leadership');
+    }
+    if (text.includes('design') || text.includes('user experience') || text.includes('interface')) {
+      if (!suggestions.includes('design')) suggestions.push('design');
+      if (!suggestions.includes('ux')) suggestions.push('ux');
+    }
+
+    // Always include 'general' as a fallback if no specific tags found
+    if (suggestions.length === 0) {
+      suggestions.push('general');
+    }
+
+    return suggestions.slice(0, 5); // Limit to 5 suggestions
+  }, []);
+
+  // Update tag suggestions when title or description changes
+  useEffect(() => {
+    if (newThreadTitle || newThreadDescription) {
+      const suggestions = generateTagSuggestions(newThreadTitle, newThreadDescription);
+      // Only auto-add suggestions if no tags are selected yet
+      if (selectedTags.length === 0) {
+        setSelectedTags(suggestions);
+      }
+    }
+  }, [newThreadTitle, newThreadDescription, selectedTags.length, generateTagSuggestions]);
+
+  const addTag = (tag: string) => {
+    const cleanTag = tag.trim().toLowerCase();
+    if (cleanTag && !selectedTags.includes(cleanTag)) {
+      setSelectedTags([...selectedTags, cleanTag]);
+    }
+  };
+
+  const removeTag = (tagToRemove: string) => {
+    setSelectedTags(selectedTags.filter(tag => tag !== tagToRemove));
+  };
+
+  const handleAddCustomTag = () => {
+    if (customTag.trim()) {
+      addTag(customTag);
+      setCustomTag('');
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddCustomTag();
+    }
+  };
 
   // Fetch threads from API
   useEffect(() => {
@@ -120,7 +209,7 @@ export const ThreadPage = () => {
       const response = await axios.post<Thread>('http://localhost:3001/api/threads', {
         title: newThreadTitle,
         description: newThreadDescription,
-        tags: ['General', 'Books']
+        tags: selectedTags.length > 0 ? selectedTags : ['general']
       });
       
       // Make sure to process the new thread's tags too
@@ -135,6 +224,8 @@ export const ThreadPage = () => {
       setShowNewThreadForm(false);
       setNewThreadTitle('');
       setNewThreadDescription('');
+      setSelectedTags([]);
+      setCustomTag('');
     } catch (err) {
       console.error('Error creating thread:', err);
       alert('Failed to create thread. Please try again.');
@@ -239,6 +330,122 @@ export const ThreadPage = () => {
                 required
               />
             </div>
+
+            {/* Tags Section */}
+            <div>
+              <label className={`block text-sm font-medium mb-2 transition-colors duration-300 ${
+                theme === 'light'
+                  ? 'text-primary-700'
+                  : theme === 'dark'
+                  ? 'text-gray-300'
+                  : 'text-purple-700'
+              }`}>
+                Tags
+              </label>
+
+              {/* Selected Tags */}
+              {selectedTags.length > 0 && (
+                <div className="mb-3">
+                  <div className="flex flex-wrap gap-2">
+                    {selectedTags.map((tag) => (
+                      <span
+                        key={tag}
+                        className={`inline-flex items-center px-3 py-1 rounded-full text-sm transition-colors duration-300 ${
+                          theme === 'light'
+                            ? 'bg-primary-100 text-primary-700 border border-primary-200'
+                            : theme === 'dark'
+                            ? 'bg-gray-700 text-gray-300 border border-gray-600'
+                            : 'bg-gradient-to-r from-pink-100 to-purple-100 text-purple-700 border border-purple-200'
+                        }`}
+                      >
+                        {tag}
+                        <button
+                          type="button"
+                          onClick={() => removeTag(tag)}
+                          className={`ml-2 hover:scale-110 transition-transform duration-200 ${
+                            theme === 'light'
+                              ? 'text-primary-500 hover:text-primary-700'
+                              : theme === 'dark'
+                              ? 'text-gray-400 hover:text-gray-200'
+                              : 'text-purple-500 hover:text-purple-700'
+                          }`}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Suggested Tags */}
+              {newThreadTitle || newThreadDescription ? (
+                <div className="mb-3">
+                  <p className={`text-xs mb-2 transition-colors duration-300 ${
+                    theme === 'light'
+                      ? 'text-gray-600'
+                      : theme === 'dark'
+                      ? 'text-gray-400'
+                      : 'text-purple-600'
+                  }`}>
+                    Suggested tags (click to add):
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {generateTagSuggestions(newThreadTitle, newThreadDescription)
+                      .filter(tag => !selectedTags.includes(tag))
+                      .map((tag) => (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => addTag(tag)}
+                          className={`px-3 py-1 rounded-full text-sm border-2 border-dashed transition-all duration-300 hover:scale-105 ${
+                            theme === 'light'
+                              ? 'border-primary-300 text-primary-600 hover:bg-primary-50 hover:border-primary-400'
+                              : theme === 'dark'
+                              ? 'border-gray-600 text-gray-400 hover:bg-gray-700 hover:border-gray-500'
+                              : 'border-purple-300 text-purple-600 hover:bg-purple-50 hover:border-purple-400'
+                          }`}
+                        >
+                          + {tag}
+                        </button>
+                      ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {/* Add Custom Tag */}
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={customTag}
+                  onChange={(e) => setCustomTag(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder="Add custom tag..."
+                  className={`flex-1 px-3 py-2 border rounded-lg text-sm transition-colors duration-300 focus:outline-none focus:ring-2 ${
+                    theme === 'light'
+                      ? 'bg-white border-gray-300 text-gray-900 focus:border-primary-500 focus:ring-primary-200'
+                      : theme === 'dark'
+                      ? 'bg-gray-700 border-gray-600 text-white focus:border-blue-500 focus:ring-blue-200'
+                      : 'bg-purple-50 border-purple-300 text-purple-900 focus:border-purple-500 focus:ring-purple-200'
+                  }`}
+                />
+                <button
+                  type="button"
+                  onClick={handleAddCustomTag}
+                  disabled={!customTag.trim()}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed ${
+                    theme === 'light'
+                      ? 'bg-primary-600 hover:bg-primary-700 text-white disabled:hover:bg-primary-600'
+                      : theme === 'dark'
+                      ? 'bg-blue-600 hover:bg-blue-700 text-white disabled:hover:bg-blue-600'
+                      : 'bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white'
+                  }`}
+                >
+                  Add
+                </button>
+              </div>
+            </div>
+
             <div className="flex justify-end gap-2">
               <button
                 type="button"
