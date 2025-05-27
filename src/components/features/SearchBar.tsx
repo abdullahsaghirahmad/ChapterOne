@@ -21,6 +21,120 @@ type DebouncedFunction = {
   cancel: () => void;
 };
 
+// Animated Beaker Component
+const AnimatedBeaker = ({ className }: { className?: string }) => {
+  const [isAnimating, setIsAnimating] = useState(false);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIsAnimating(true);
+      setTimeout(() => setIsAnimating(false), 2000);
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className={`relative ${className}`}>
+      <svg 
+        width="20" 
+        height="20" 
+        viewBox="0 0 24 24" 
+        fill="none" 
+        className={`transition-transform duration-300 ${isAnimating ? 'animate-bounce' : ''}`}
+      >
+        {/* Beaker outline */}
+        <path
+          d="M9 2v6.5L6 12v8a2 2 0 002 2h8a2 2 0 002-2v-8l-3-3.5V2"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          fill="none"
+        />
+        
+        {/* First color drop */}
+        <circle
+          cx="10"
+          cy="16"
+          r="1.5"
+          className={`transition-all duration-1000 ${
+            isAnimating ? 'fill-blue-400 opacity-100' : 'fill-blue-300 opacity-60'
+          }`}
+        >
+          <animate
+            attributeName="cy"
+            values="8;16;16"
+            dur="2s"
+            begin="0s"
+            repeatCount="indefinite"
+            calcMode="spline"
+            keySplines="0.4 0 0.6 1;0.4 0 0.6 1"
+            keyTimes="0;0.3;1"
+          />
+        </circle>
+        
+        {/* Second color drop */}
+        <circle
+          cx="14"
+          cy="18"
+          r="1"
+          className={`transition-all duration-1000 ${
+            isAnimating ? 'fill-purple-400 opacity-100' : 'fill-purple-300 opacity-60'
+          }`}
+        >
+          <animate
+            attributeName="cy"
+            values="8;18;18"
+            dur="2s"
+            begin="0.5s"
+            repeatCount="indefinite"
+            calcMode="spline"
+            keySplines="0.4 0 0.6 1;0.4 0 0.6 1"
+            keyTimes="0;0.4;1"
+          />
+        </circle>
+        
+        {/* Liquid level */}
+        <path
+          d="M8 18h8v2a1 1 0 01-1 1H9a1 1 0 01-1-1v-2z"
+          className={`transition-all duration-1000 ${
+            isAnimating ? 'fill-gradient-to-r from-blue-400 to-purple-400 opacity-80' : 'fill-gray-300 opacity-40'
+          }`}
+        >
+          <animate
+            attributeName="opacity"
+            values="0.2;0.8;0.6"
+            dur="2s"
+            begin="1s"
+            repeatCount="indefinite"
+          />
+        </path>
+        
+        {/* Bubbles */}
+        <circle cx="11" cy="15" r="0.5" className="fill-white opacity-60">
+          <animate
+            attributeName="opacity"
+            values="0;1;0"
+            dur="1.5s"
+            begin="1.2s"
+            repeatCount="indefinite"
+          />
+        </circle>
+        <circle cx="13" cy="16" r="0.3" className="fill-white opacity-40">
+          <animate
+            attributeName="opacity"
+            values="0;1;0"
+            dur="1.8s"
+            begin="1.5s"
+            repeatCount="indefinite"
+          />
+        </circle>
+      </svg>
+    </div>
+  );
+};
+
 export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
   const { theme } = useTheme();
   const [query, setQuery] = useState('');
@@ -777,9 +891,9 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
             : 'bg-gradient-to-br from-pink-50 to-purple-50 border-purple-200'
         }`}>
           <div className="p-4">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {/* Moods Section - Now with simple text list and color search link */}
-              <div className="lg:col-span-1 animate-fade-in" style={{ animationDelay: '50ms' }}>
+              <div className="animate-fade-in" style={{ animationDelay: '50ms' }}>
                 <h3 className={`text-sm font-medium mb-2 transition-colors duration-300 ${
                   theme === 'light'
                     ? 'text-primary-900'
@@ -814,7 +928,7 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
                 </div>
                 
                 {/* Color Search Link */}
-                <div className={`mt-4 pt-4 border-t transition-colors duration-300 ${
+                <div className={`mt-3 pt-3 border-t transition-colors duration-300 ${
                   theme === 'light'
                     ? 'border-primary-200'
                     : theme === 'dark'
@@ -823,18 +937,18 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
                 }`}>
                   <Link
                     to="/color-search"
-                    className={`flex items-center justify-center w-full p-3 rounded-lg transition-all duration-200 transform hover:scale-105 shadow-lg ${
+                    className={`group flex items-center w-full px-3 py-2 rounded-md text-sm transition-all duration-200 hover:scale-[1.02] ${
                       theme === 'light'
-                        ? 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white'
+                        ? 'text-primary-600 hover:text-primary-700 hover:bg-primary-50 border border-primary-200 hover:border-primary-300'
                         : theme === 'dark'
-                        ? 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white'
-                        : 'bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white'
+                        ? 'text-gray-300 hover:text-white hover:bg-gray-700 border border-gray-600 hover:border-gray-500'
+                        : 'text-purple-600 hover:text-purple-700 hover:bg-purple-50 border border-purple-200 hover:border-purple-300'
                     }`}
                   >
-                    <span className="mr-2">🎨</span>
-                    Try Color Search
-                    <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                    <AnimatedBeaker className="mr-2 flex-shrink-0" />
+                    <span className="flex-grow">Color Search</span>
+                    <svg className="w-3 h-3 ml-1 transition-transform duration-200 group-hover:translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
                   </Link>
                 </div>
@@ -876,78 +990,75 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
                 </div>
               </div>
               
-              {/* Combined Reading Style and Professions Section */}
+              {/* Reading Style Section */}
               <div className="animate-fade-in" style={{ animationDelay: '150ms' }}>
-                {/* Reading Style Section */}
-                <div className="mb-6">
-                  <h3 className={`text-sm font-medium mb-2 transition-colors duration-300 ${
-                    theme === 'light'
-                      ? 'text-primary-900'
-                      : theme === 'dark'
-                      ? 'text-white'
-                      : 'text-purple-900'
-                  }`}>
-                    Search by reading style
-                  </h3>
-                  <div className="flex flex-col gap-2">
-                    {readingStyles.map((style) => (
-                      <button
-                        key={style.id}
-                        onClick={() => handleReadingStyleSelect(style.id)}
-                        className={`text-left text-sm p-2 rounded-lg transition-all duration-200 ${
-                          activeFilters.includes(style.id)
-                            ? theme === 'light'
-                              ? 'bg-primary-100 text-primary-700'
-                              : theme === 'dark'
-                              ? 'bg-gray-700 text-white'
-                              : 'bg-purple-100 text-purple-700'
-                            : theme === 'light'
-                            ? 'text-primary-700 hover:bg-primary-50'
+                <h3 className={`text-sm font-medium mb-2 transition-colors duration-300 ${
+                  theme === 'light'
+                    ? 'text-primary-900'
+                    : theme === 'dark'
+                    ? 'text-white'
+                    : 'text-purple-900'
+                }`}>
+                  Search by reading style
+                </h3>
+                <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto pr-1">
+                  {readingStyles.map((style) => (
+                    <button
+                      key={style.id}
+                      onClick={() => handleReadingStyleSelect(style.id)}
+                      className={`text-left text-sm p-2 rounded-lg transition-all duration-200 ${
+                        activeFilters.includes(style.id)
+                          ? theme === 'light'
+                            ? 'bg-primary-100 text-primary-700'
                             : theme === 'dark'
-                            ? 'text-gray-300 hover:bg-gray-700'
-                            : 'text-purple-700 hover:bg-purple-50'
-                        }`}
-                      >
-                        {style.label}
-                      </button>
-                    ))}
-                  </div>
+                            ? 'bg-gray-700 text-white'
+                            : 'bg-purple-100 text-purple-700'
+                          : theme === 'light'
+                          ? 'text-primary-700 hover:bg-primary-50'
+                          : theme === 'dark'
+                          ? 'text-gray-300 hover:bg-gray-700'
+                          : 'text-purple-700 hover:bg-purple-50'
+                      }`}
+                    >
+                      {style.label}
+                    </button>
+                  ))}
                 </div>
+              </div>
 
-                {/* Professions Section */}
-                <div>
-                  <h3 className={`text-sm font-medium mb-2 transition-colors duration-300 ${
-                    theme === 'light'
-                      ? 'text-primary-900'
-                      : theme === 'dark'
-                      ? 'text-white'
-                      : 'text-purple-900'
-                  }`}>
-                    Search by profession
-                  </h3>
-                  <div className="flex flex-col gap-2 max-h-[200px] overflow-y-auto pr-1">
-                    {professions.map((profession) => (
-                      <button
-                        key={profession.id}
-                        onClick={() => handleProfessionSelect(profession.id, profession.label)}
-                        className={`text-left text-sm p-2 rounded-lg transition-all duration-200 ${
-                          activeFilters.includes(profession.label)
-                            ? theme === 'light'
-                              ? 'bg-primary-100 text-primary-700'
-                              : theme === 'dark'
-                              ? 'bg-gray-700 text-white'
-                              : 'bg-purple-100 text-purple-700'
-                            : theme === 'light'
-                            ? 'text-primary-700 hover:bg-primary-50'
+              {/* Professions Section */}
+              <div className="animate-fade-in" style={{ animationDelay: '200ms' }}>
+                <h3 className={`text-sm font-medium mb-2 transition-colors duration-300 ${
+                  theme === 'light'
+                    ? 'text-primary-900'
+                    : theme === 'dark'
+                    ? 'text-white'
+                    : 'text-purple-900'
+                }`}>
+                  Search by profession
+                </h3>
+                <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto pr-1">
+                  {professions.map((profession) => (
+                    <button
+                      key={profession.id}
+                      onClick={() => handleProfessionSelect(profession.id, profession.label)}
+                      className={`text-left text-sm p-2 rounded-lg transition-all duration-200 ${
+                        activeFilters.includes(profession.label)
+                          ? theme === 'light'
+                            ? 'bg-primary-100 text-primary-700'
                             : theme === 'dark'
-                            ? 'text-gray-300 hover:bg-gray-700'
-                            : 'text-purple-700 hover:bg-purple-50'
-                        }`}
-                      >
-                        {profession.label}
-                      </button>
-                    ))}
-                  </div>
+                            ? 'bg-gray-700 text-white'
+                            : 'bg-purple-100 text-purple-700'
+                          : theme === 'light'
+                          ? 'text-primary-700 hover:bg-primary-50'
+                          : theme === 'dark'
+                          ? 'text-gray-300 hover:bg-gray-700'
+                          : 'text-purple-700 hover:bg-purple-50'
+                      }`}
+                    >
+                      {profession.label}
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>
