@@ -1,27 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { MagnifyingGlassIcon, AdjustmentsHorizontalIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon, AdjustmentsHorizontalIcon, XMarkIcon, ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
 import { debounce } from 'lodash';
 import { api } from '../../services/api';
 import { Link } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext';
 
-interface SearchBarProps {
-  onSearch: (query: string, type?: string) => void;
-  onMoodSelect?: (mood: string) => void;
-}
-
-interface Suggestion {
-  id: string;
-  title: string;
-  type: 'book' | 'author' | 'theme' | 'mood' | 'pace' | 'profession';
-}
-
-type DebouncedFunction = {
-  (searchQuery: string, type: string): Promise<void>;
-  cancel: () => void;
-};
-
-// Animated Beaker Component
+// Animated Beaker Component for Color Search
 const AnimatedBeaker = ({ className }: { className?: string }) => {
   const [isAnimating, setIsAnimating] = useState(false);
 
@@ -41,16 +25,16 @@ const AnimatedBeaker = ({ className }: { className?: string }) => {
         height="20" 
         viewBox="0 0 24 24" 
         fill="none" 
-        className={`transition-transform duration-300 ${isAnimating ? 'animate-bounce' : ''}`}
+        className="transition-transform duration-300"
       >
-        {/* Beaker outline */}
+        {/* Beaker */}
         <path
           d="M9 2v6.5L6 12v8a2 2 0 002 2h8a2 2 0 002-2v-8l-3-3.5V2"
           stroke="currentColor"
-          strokeWidth="1.5"
+          strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          fill="none"
+          className="transition-colors duration-300"
         />
         
         {/* First color drop */}
@@ -58,791 +42,319 @@ const AnimatedBeaker = ({ className }: { className?: string }) => {
           cx="10"
           cy="16"
           r="1.5"
+          fill="#3B82F6"
           className={`transition-all duration-1000 ${
-            isAnimating ? 'fill-blue-400 opacity-100' : 'fill-blue-300 opacity-60'
+            isAnimating ? 'opacity-100 scale-100' : 'opacity-60 scale-75'
           }`}
-        >
-          <animate
-            attributeName="cy"
-            values="8;16;16"
-            dur="2s"
-            begin="0s"
-            repeatCount="indefinite"
-            calcMode="spline"
-            keySplines="0.4 0 0.6 1;0.4 0 0.6 1"
-            keyTimes="0;0.3;1"
-          />
-        </circle>
+        />
         
         {/* Second color drop */}
         <circle
           cx="14"
-          cy="18"
+          cy="14"
           r="1"
-          className={`transition-all duration-1000 ${
-            isAnimating ? 'fill-purple-400 opacity-100' : 'fill-purple-300 opacity-60'
+          fill="#EF4444"
+          className={`transition-all duration-1000 delay-500 ${
+            isAnimating ? 'opacity-100 scale-110' : 'opacity-40 scale-50'
           }`}
-        >
-          <animate
-            attributeName="cy"
-            values="8;18;18"
-            dur="2s"
-            begin="0.5s"
-            repeatCount="indefinite"
-            calcMode="spline"
-            keySplines="0.4 0 0.6 1;0.4 0 0.6 1"
-            keyTimes="0;0.4;1"
-          />
-        </circle>
+        />
         
-        {/* Liquid level */}
-        <path
-          d="M8 18h8v2a1 1 0 01-1 1H9a1 1 0 01-1-1v-2z"
-          className={`transition-all duration-1000 ${
-            isAnimating ? 'fill-gradient-to-r from-blue-400 to-purple-400 opacity-80' : 'fill-gray-300 opacity-40'
+        {/* Mixing effect */}
+        <circle
+          cx="12"
+          cy="18"
+          r="2"
+          fill="#8B5CF6"
+          className={`transition-all duration-1000 delay-1000 ${
+            isAnimating ? 'opacity-80 scale-100' : 'opacity-20 scale-75'
           }`}
-        >
-          <animate
-            attributeName="opacity"
-            values="0.2;0.8;0.6"
-            dur="2s"
-            begin="1s"
-            repeatCount="indefinite"
-          />
-        </path>
-        
-        {/* Bubbles */}
-        <circle cx="11" cy="15" r="0.5" className="fill-white opacity-60">
-          <animate
-            attributeName="opacity"
-            values="0;1;0"
-            dur="1.5s"
-            begin="1.2s"
-            repeatCount="indefinite"
-          />
-        </circle>
-        <circle cx="13" cy="16" r="0.3" className="fill-white opacity-40">
-          <animate
-            attributeName="opacity"
-            values="0;1;0"
-            dur="1.8s"
-            begin="1.5s"
-            repeatCount="indefinite"
-          />
-        </circle>
+        />
       </svg>
     </div>
   );
 };
 
+interface SearchBarProps {
+  onSearch: (query: string, type?: string) => void;
+  onMoodSelect?: (mood: string) => void;
+}
+
+interface Suggestion {
+  id: string;
+  title: string;
+  type: 'book' | 'author' | 'theme' | 'mood' | 'pace' | 'profession';
+}
+
+interface FilterCategory {
+  id: string;
+  label: string;
+  count: number;
+  items: string[];
+  isExpanded: boolean;
+}
+
 export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
   const { theme } = useTheme();
-  const [query, setQuery] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
-  const [searchType, setSearchType] = useState('all');
-  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
-  const [isDismissing, setIsDismissing] = useState(false);
-  const [showTypeDropdown, setShowTypeDropdown] = useState(false);
+  const [showFiltersSidebar, setShowFiltersSidebar] = useState(false);
+  const [filterCategories, setFilterCategories] = useState<FilterCategory[]>([]);
   
-  // Track if the click originated from the filter button to prevent immediate closing
-  const filterButtonClickedRef = useRef(false);
-  const typeDropdownClickedRef = useRef(false);
-  
-  const searchContainerRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const typeDropdownRef = useRef<HTMLDivElement>(null);
-  const filterButtonRef = useRef<HTMLButtonElement>(null);
+  const searchRef = useRef<HTMLDivElement>(null);
+  const sidebarRef = useRef<HTMLDivElement>(null);
 
-  // Click outside handlers - One handler for document-wide events
-  useEffect(() => {
-    // Handler for document clicks
-    const handleOutsideInteraction = (event: MouseEvent) => {
-      // Skip if click originated from filter button or type dropdown button
-      if (filterButtonClickedRef.current || typeDropdownClickedRef.current) {
-        return;
-      }
-
-      // Check if the click was outside the search container
-      // This is the key to detecting outside clicks reliably
-      if (!(searchContainerRef.current && searchContainerRef.current.contains(event.target as Node))) {
-        // Close any open dropdowns with animation
-        if (showSuggestions || showFilters || showTypeDropdown) {
-          setIsDismissing(true);
-          setTimeout(() => {
-            setShowSuggestions(false);
-            setShowFilters(false);
-            setShowTypeDropdown(false);
-            setIsDismissing(false);
-          }, 150);
-        }
-      }
-    };
-
-    // Use the capture phase for more reliable detection
-    document.addEventListener('click', handleOutsideInteraction, true);
-    
-    // Cleanup
-    return () => {
-      document.removeEventListener('click', handleOutsideInteraction, true);
-    };
-  }, [showSuggestions, showFilters, showTypeDropdown]);
-  
-  // Close suggestions when search type changes
-  useEffect(() => {
-    setShowSuggestions(false);
-  }, [searchType]);
-
-  // Separate handler for filter button
-  const handleFilterButtonClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    
-    // Set ref to indicate this click came from the filter button
-    filterButtonClickedRef.current = true;
-    
-    // If type dropdown is open, close it
-    if (showTypeDropdown) {
-      setIsDismissing(true);
-      setTimeout(() => {
-        setShowTypeDropdown(false);
-        setIsDismissing(false);
-      }, 150);
-    }
-    
-    // If suggestions are open, close them
-    if (showSuggestions) {
-      setShowSuggestions(false);
-    }
-
-    // Toggle the filter dropdown state
-    if (showFilters) {
-      setIsDismissing(true);
-      setTimeout(() => {
-        setShowFilters(false);
-        setIsDismissing(false);
-        // Reset flag after closing
-        filterButtonClickedRef.current = false;
-      }, 150);
-    } else {
-      setShowFilters(true);
-      // Reset flag after a short delay to prevent document click from closing immediately
-      setTimeout(() => {
-        filterButtonClickedRef.current = false;
-      }, 0);
-    }
-  };
-
-  // Separate handler for type dropdown button
-  const handleTypeDropdownClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    
-    // Set ref to indicate this click came from the type dropdown button
-    typeDropdownClickedRef.current = true;
-    
-    // Close filters if open
-    if (showFilters) {
-      setIsDismissing(true);
-      setTimeout(() => {
-        setShowFilters(false);
-        setIsDismissing(false);
-      }, 150);
-    }
-    
-    // Close suggestions if open
-    if (showSuggestions) {
-      setShowSuggestions(false);
-    }
-    
-    // Toggle type dropdown
-    if (showTypeDropdown) {
-      setIsDismissing(true);
-      setTimeout(() => {
-        setShowTypeDropdown(false);
-        setIsDismissing(false);
-        // Reset flag after closing
-        typeDropdownClickedRef.current = false;
-      }, 150);
-    } else {
-      setShowTypeDropdown(true);
-      // Reset flag after a short delay
-      setTimeout(() => {
-        typeDropdownClickedRef.current = false;
-      }, 0);
-    }
-  };
-
-  // Modified handleSubmit to also close suggestion dropdown
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setShowSuggestions(false);
-    setShowFilters(false);
-    onSearch(query, searchType);
-  };
-
-  // Get quick suggestions based on search type and input
-  const getQuickSuggestions = (input: string): Suggestion[] => {
-    const searchText = input.toLowerCase();
-    
-    switch (searchType) {
-      case 'mood':
-        return moods
-          .filter(mood => mood.toLowerCase().includes(searchText))
-          .map(mood => ({
-            id: `mood-${mood}`,
-            title: mood,
-            type: 'mood' as const
-          }));
-      case 'theme':
-        return themes
-          .filter(theme => theme.toLowerCase().includes(searchText))
-          .map(theme => ({
-            id: `theme-${theme}`,
-            title: theme,
-            type: 'theme' as const
-          }));
-      case 'pace':
-        return readingStyles
-          .filter(style => style.label.toLowerCase().includes(searchText))
-          .map(style => ({
-            id: `pace-${style.id}`,
-            title: style.label,
-            type: 'pace' as const
-          }));
-      case 'profession':
-        return professions
-          .filter(prof => prof.label.toLowerCase().includes(searchText))
-          .map(prof => ({
-            id: `profession-${prof.id}`,
-            title: prof.label,
-            type: 'profession' as const
-          }));
-      default:
-        return [];
-    }
-  };
-
-  // Modify the existing debouncedFetchSuggestions
-  const debouncedFetchSuggestions = useCallback(
-    debounce(async (searchQuery: string, type: string) => {
-      if (!searchQuery.trim()) {
-        setSuggestions([]);
-        return;
-      }
-
-      setIsLoading(true);
-      try {
-        // First, get quick suggestions based on search type
-        const quickSuggestions = getQuickSuggestions(searchQuery);
-        
-        // If we have quick suggestions and the search type is mood/theme/pace,
-        // use those instead of API call
-        if (quickSuggestions.length > 0 && ['mood', 'theme', 'pace'].includes(type)) {
-          setSuggestions(quickSuggestions);
-          setIsLoading(false);
-          return;
-        }
-
-        // Otherwise, get suggestions from API
-        const results = await api.searchBooks(searchQuery, type, false);
-        
-        // Process results into suggestions
-        const newSuggestions: Suggestion[] = results.slice(0, 5).map(book => ({
-          id: book.id,
-          title: book.title,
-          type: 'book' as const
-        }));
-
-        // Add author suggestions if searching all or authors
-        if (type === 'all' || type === 'author') {
-          const authorSuggestions = results
-            .slice(0, 3)
-            .filter(book => book.author)
-            .map(book => ({
-              id: `author-${book.id}`,
-              title: book.author,
-              type: 'author' as const
-            }));
-          newSuggestions.push(...authorSuggestions);
-        }
-
-        setSuggestions(newSuggestions);
-      } catch (error) {
-        console.error('Error fetching suggestions:', error);
-        setSuggestions([]);
-      } finally {
-        setIsLoading(false);
-      }
-    }, 300),
-    [searchType] // Add searchType as dependency since we're using it in the callback
-  ) as DebouncedFunction;
-
-  useEffect(() => {
-    debouncedFetchSuggestions(query, searchType);
-    return () => {
-      debouncedFetchSuggestions.cancel();
-    };
-  }, [query, searchType, debouncedFetchSuggestions]);
-
-  // Modified handleSuggestionClick to handle event propagation
-  const handleSuggestionClick = (suggestion: Suggestion, e?: React.MouseEvent) => {
-    // Prevent event propagation
-    if (e) {
-      e.stopPropagation();
-    }
-    
-    setQuery(suggestion.title);
-    setShowSuggestions(false);
-    setShowFilters(false);
-    
-    switch (suggestion.type) {
-      case 'mood':
-        handleMoodSelect(suggestion.title);
-        break;
-      case 'theme':
-        handleThemeSelect(suggestion.title);
-        break;
-      case 'pace':
-        const style = readingStyles.find(s => s.label === suggestion.title);
-        if (style) {
-          handleReadingStyleSelect(style.id);
-        }
-        break;
-      case 'profession':
-        const prof = professions.find(p => p.label === suggestion.title);
-        if (prof) {
-          handleProfessionSelect(prof.id, prof.label);
-        }
-        break;
-      case 'author':
-        onSearch(suggestion.title, 'author');
-        break;
-      default:
-        onSearch(suggestion.title, 'title');
-    }
-  };
-
-  // Update clearSearch to be consistent with other handlers
-  const clearSearch = () => {
-    setQuery('');
-    setSuggestions([]);
-    
-    // Close dropdowns with animation if any are open
-    if (showSuggestions || showFilters || showTypeDropdown) {
-      setIsDismissing(true);
-      setTimeout(() => {
-        setShowSuggestions(false);
-        setShowFilters(false);
-        setShowTypeDropdown(false);
-        setIsDismissing(false);
-      }, 150);
-    }
-    
-    setActiveFilters([]);
-    setSearchType('all');
-    onSearch('', 'all');
-    
-    // Focus the input after clearing
-    setTimeout(() => inputRef.current?.focus(), 50);
-  };
-
-  const removeFilter = (filter: string) => {
-    setActiveFilters(filters => filters.filter(f => f !== filter));
-    if (query === filter) {
-      setQuery('');
-      onSearch('', 'all');
-    }
-  };
-
-  // Define search types
-  const searchTypes = [
-    { id: 'all', label: 'All' },
-    { id: 'title', label: 'Book Titles' },
-    { id: 'author', label: 'Authors' },
-    { id: 'mood', label: 'Moods' },
-    { id: 'theme', label: 'Themes' },
-    { id: 'pace', label: 'Reading Style' },
-    { id: 'profession', label: 'Profession' },
-    { id: 'color', label: '🎨 Search by Color', isSpecial: true }
-  ];
-  
-  // Define moods and reading preferences
+  // Sample data - in real app, this would come from API
   const moods = [
-    'Feeling overwhelmed',
-    'Need inspiration',
-    'Want to escape',
-    'Looking for adventure',
-    'Feeling nostalgic',
-    'Want to learn',
-    'Need a laugh',
-    'Feeling romantic',
+    'Feeling overwhelmed', 'Need inspiration', 'Want to escape', 'Looking for adventure',
+    'Feeling nostalgic', 'Want to learn', 'Need motivation', 'Seeking comfort',
+    'Curious about life', 'Ready for change', 'Need guidance', 'Feeling creative'
   ];
-  
+
   const themes = [
-    'Love',
-    'Adventure',
-    'Mystery',
-    'Fantasy',
-    'Science Fiction',
-    'History',
-    'Philosophy',
-    'Science',
-    'Coming of Age',
-    'Family',
-    'Friendship',
-    'Identity',
+    'Love', 'Friendship', 'Family', 'Adventure', 'Mystery', 'Science Fiction',
+    'Fantasy', 'Historical', 'Biography', 'Self-Help', 'Business', 'Health'
   ];
-  
+
   const readingStyles = [
-    { id: 'Fast', label: 'Fast-paced reads' },
-    { id: 'Moderate', label: 'Balanced pacing' },
-    { id: 'Slow', label: 'Slow, thoughtful reads' }
+    'Quick Read', 'Deep Dive', 'Light Reading', 'Academic', 'Visual',
+    'Interactive', 'Series', 'Standalone'
   ];
 
   const professions = [
-    { id: 'product-management', label: 'Product Management' },
-    { id: 'design', label: 'UX/UI Design' },
-    { id: 'sales', label: 'Sales' },
-    { id: 'marketing', label: 'Marketing' },
-    { id: 'engineering', label: 'Software Engineering' },
-    { id: 'data-science', label: 'Data Science' },
-    { id: 'leadership', label: 'Leadership' },
-    { id: 'project-management', label: 'Project Management' },
-    { id: 'finance', label: 'Finance' },
-    { id: 'human-resources', label: 'Human Resources' },
-    { id: 'entrepreneurship', label: 'Entrepreneurship' },
-    { id: 'consulting', label: 'Consulting' }
+    { id: 'tech', label: 'Technology' },
+    { id: 'healthcare', label: 'Healthcare' },
+    { id: 'education', label: 'Education' },
+    { id: 'business', label: 'Business' },
+    { id: 'creative', label: 'Creative Arts' },
+    { id: 'science', label: 'Science' }
   ];
 
-  const handleMoodSelect = (mood: string) => {
-    setQuery(mood);
-    setSearchType('mood');
-    
-    // Apply animation before closing
-    setIsDismissing(true);
-    setTimeout(() => {
-      setShowFilters(false);
-      setShowSuggestions(false);
-      setIsDismissing(false);
-    }, 150);
-    
-    setActiveFilters(prev => [...prev.filter(f => f !== mood), mood]);
-    onSearch(mood, 'mood');
-    onMoodSelect?.(mood);
-  };
-  
-  const handleThemeSelect = (theme: string) => {
-    setQuery(theme);
-    setSearchType('theme');
-    
-    // Apply animation before closing
-    setIsDismissing(true);
-    setTimeout(() => {
-      setShowFilters(false);
-      setShowSuggestions(false);
-      setIsDismissing(false);
-    }, 150);
-    
-    setActiveFilters(prev => [...prev.filter(f => f !== theme), theme]);
-    onSearch(theme, 'theme');
-  };
-  
-  const handleReadingStyleSelect = (style: string) => {
-    setQuery(style);
-    setSearchType('pace');
-    
-    // Apply animation before closing
-    setIsDismissing(true);
-    setTimeout(() => {
-      setShowFilters(false);
-      setShowSuggestions(false);
-      setIsDismissing(false);
-    }, 150);
-    
-    setActiveFilters(prev => [...prev.filter(f => f !== style), style]);
-    onSearch(style, 'pace');
-  };
-
-  const handleProfessionSelect = (professionId: string, label: string) => {
-    setQuery(label);
-    setSearchType('profession');
-    
-    // Apply animation before closing
-    setIsDismissing(true);
-    setTimeout(() => {
-      setShowFilters(false);
-      setShowSuggestions(false);
-      setIsDismissing(false);
-    }, 150);
-    
-    setActiveFilters(prev => [...prev.filter(f => f !== label), label]);
-    onSearch(professionId, 'profession');
-  };
-
-  // Update input focus handler to use animation and be consistent with other handlers
-  const handleInputFocus = () => {
-    // If filters are shown, hide them with animation
-    if (showFilters) {
-      setIsDismissing(true);
-      setTimeout(() => {
-        setShowFilters(false);
-        setIsDismissing(false);
-      }, 150);
-    }
-    
-    // If type dropdown is shown, hide it with animation
-    if (showTypeDropdown) {
-      setIsDismissing(true);
-      setTimeout(() => {
-        setShowTypeDropdown(false);
-        setIsDismissing(false);
-      }, 150);
-    }
-    
-    // Only show suggestions if we have a query
-    if (query.trim()) {
-      setShowSuggestions(true);
-    }
-  };
-
-  // Create custom dropdown component to replace the select element
-  // Close type dropdown when clicking outside
+  // Initialize filter categories
   useEffect(() => {
-    const handleClickOutsideTypeDropdown = (event: MouseEvent) => {
-      if (typeDropdownRef.current && !typeDropdownRef.current.contains(event.target as Node)) {
-        setShowTypeDropdown(false);
+    setFilterCategories([
+      {
+        id: 'moods',
+        label: 'Moods',
+        count: moods.length,
+        items: moods,
+        isExpanded: true
+      },
+      {
+        id: 'themes',
+        label: 'Themes & Genres',
+        count: themes.length,
+        items: themes,
+        isExpanded: false
+      },
+      {
+        id: 'reading-style',
+        label: 'Reading Style',
+        count: readingStyles.length,
+        items: readingStyles,
+        isExpanded: false
+      },
+      {
+        id: 'professions',
+        label: 'For Professionals',
+        count: professions.length,
+        items: professions.map(p => p.label),
+        isExpanded: false
+      }
+    ]);
+  }, []);
+
+  // Debounced search function
+  const debouncedSearch = useCallback(
+    debounce(async (query: string) => {
+      if (query.length > 0) {
+        try {
+          const results = await api.searchBooks(query);
+          const searchSuggestions: Suggestion[] = [
+            ...results.slice(0, 3).map(book => ({
+              id: book.id,
+              title: book.title,
+              type: 'book' as const
+            })),
+            ...getQuickSuggestions(query)
+          ];
+          setSuggestions(searchSuggestions);
+          setShowSuggestions(true);
+        } catch (error) {
+          console.error('Search error:', error);
+          setSuggestions(getQuickSuggestions(query));
+          setShowSuggestions(true);
+        }
+      } else {
+        setSuggestions([]);
+        setShowSuggestions(false);
+      }
+    }, 300),
+    []
+  );
+
+  const getQuickSuggestions = (input: string): Suggestion[] => {
+    const query = input.toLowerCase();
+    const suggestions: Suggestion[] = [];
+
+    // Add mood suggestions
+    moods.forEach(mood => {
+      if (mood.toLowerCase().includes(query)) {
+        suggestions.push({
+          id: `mood-${mood}`,
+          title: mood,
+          type: 'mood'
+        });
+      }
+    });
+
+    // Add theme suggestions
+    themes.forEach(theme => {
+      if (theme.toLowerCase().includes(query)) {
+        suggestions.push({
+          id: `theme-${theme}`,
+          title: theme,
+          type: 'theme'
+        });
+      }
+    });
+
+    return suggestions.slice(0, 5);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+    debouncedSearch(value);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      onSearch(searchQuery);
+      setShowSuggestions(false);
+    }
+  };
+
+  const handleSuggestionClick = (suggestion: Suggestion) => {
+    if (suggestion.type === 'mood') {
+      addFilter(suggestion.title);
+      onMoodSelect?.(suggestion.title);
+    } else {
+      setSearchQuery(suggestion.title);
+      onSearch(suggestion.title);
+    }
+    setShowSuggestions(false);
+  };
+
+  const addFilter = (filter: string) => {
+    if (!activeFilters.includes(filter)) {
+      setActiveFilters([...activeFilters, filter]);
+    }
+  };
+
+  const removeFilter = (filter: string) => {
+    setActiveFilters(activeFilters.filter(f => f !== filter));
+  };
+
+  const clearAllFilters = () => {
+    setActiveFilters([]);
+  };
+
+  const toggleFilterCategory = (categoryId: string) => {
+    setFilterCategories(categories =>
+      categories.map(cat =>
+        cat.id === categoryId
+          ? { ...cat, isExpanded: !cat.isExpanded }
+          : cat
+      )
+    );
+  };
+
+  const toggleFiltersSidebar = () => {
+    setShowFiltersSidebar(!showFiltersSidebar);
+  };
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+      if (sidebarRef.current && !sidebarRef.current.contains(event.target as Node)) {
+        const target = event.target as HTMLElement;
+        if (!target.closest('[data-filters-toggle]')) {
+          setShowFiltersSidebar(false);
+        }
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutsideTypeDropdown);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutsideTypeDropdown);
-    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleTypeSelect = (typeId: string, e?: React.MouseEvent) => {
-    // Prevent event propagation
-    if (e) {
-      e.stopPropagation();
-    }
-    
-    // Special handling for color search
-    if (typeId === 'color') {
-      // Redirect to color search page
-      window.location.href = '/color-search';
-      return;
-    }
-    
-    setSearchType(typeId);
-    
-    // Apply animation before closing
-    setIsDismissing(true);
-    setTimeout(() => {
-      setShowTypeDropdown(false);
-      setIsDismissing(false);
-      // Focus search input after selecting type
-      inputRef.current?.focus();
-    }, 150);
-  };
-
   return (
-    <div className="w-full relative space-y-3" ref={searchContainerRef}>
-      <form onSubmit={handleSubmit} className="relative">
-        <div className="relative flex">
-          <div className="flex-grow relative">
-            <input
-              ref={inputRef}
-              type="text"
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                if (e.target.value.trim()) {
-                  setShowSuggestions(true);
-                } else {
-                  setShowSuggestions(false);
-                }
-              }}
-              onFocus={handleInputFocus}
-              placeholder={
-                searchType === 'mood' ? "Type to search moods..." :
-                searchType === 'theme' ? "Type to search themes..." :
-                searchType === 'pace' ? "Type to search reading styles..." :
-                searchType === 'profession' ? "Search books by profession..." :
-                "Search for books, authors, or moods..."
-              }
-              className={`w-full pl-10 pr-24 py-3 rounded-lg border transition-all duration-300 focus:outline-none focus:ring-2 ${
-                theme === 'light'
-                  ? 'bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus:border-primary-500 focus:ring-primary-200'
-                  : theme === 'dark'
-                  ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-blue-200'
-                  : 'bg-gradient-to-r from-pink-50 to-purple-50 border-purple-300 text-purple-900 placeholder-purple-500 focus:border-purple-500 focus:ring-purple-200'
-              }`}
-            />
-            <MagnifyingGlassIcon className={`w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 transition-colors duration-300 ${
+    <div className="relative w-full max-w-4xl mx-auto">
+      {/* Main Search Bar */}
+      <div ref={searchRef} className="relative">
+        <form onSubmit={handleSubmit} className="relative">
+          <div className={`flex items-center rounded-lg border-2 transition-all duration-300 ${
+            theme === 'light'
+              ? 'bg-white border-primary-200 focus-within:border-primary-400 shadow-sm'
+              : theme === 'dark'
+              ? 'bg-gray-800 border-gray-600 focus-within:border-gray-400 shadow-lg'
+              : 'bg-gradient-to-r from-pink-50 to-purple-50 border-purple-200 focus-within:border-purple-400 shadow-sm'
+          }`}>
+            <MagnifyingGlassIcon className={`w-5 h-5 ml-4 ${
               theme === 'light'
-                ? 'text-primary-500'
+                ? 'text-primary-400'
                 : theme === 'dark'
                 ? 'text-gray-400'
-                : 'text-purple-500'
+                : 'text-purple-400'
             }`} />
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
-              {isLoading && (
-                <div className={`animate-spin rounded-full h-5 w-5 border-b-2 transition-opacity duration-200 animate-fade-in ${
-                  theme === 'light'
-                    ? 'border-primary-600'
-                    : theme === 'dark'
-                    ? 'border-blue-400'
-                    : 'border-purple-600'
-                }`}></div>
-              )}
-              {query && (
-                <button
-                  type="button"
-                  onClick={clearSearch}
-                  className={`p-1 rounded-full transition-all duration-300 hover:scale-110 animate-fade-in ${
-                    theme === 'light'
-                      ? 'hover:bg-primary-50 text-primary-400 hover:text-primary-600'
-                      : theme === 'dark'
-                      ? 'hover:bg-gray-700 text-gray-400 hover:text-gray-300'
-                      : 'hover:bg-purple-100 text-purple-400 hover:text-purple-600'
-                  }`}
-                >
-                  <XMarkIcon className="w-5 h-5" />
-                </button>
-              )}
-            </div>
-          </div>
-          
-          {/* Custom dropdown to replace select */}
-          <div className="ml-2 relative" ref={typeDropdownRef}>
+            
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={handleInputChange}
+              placeholder="Search books, authors, moods, or themes..."
+              className={`flex-1 px-4 py-3 bg-transparent border-none outline-none text-lg ${
+                theme === 'light'
+                  ? 'text-gray-900 placeholder-gray-500'
+                  : theme === 'dark'
+                  ? 'text-white placeholder-gray-400'
+                  : 'text-purple-900 placeholder-purple-500'
+              }`}
+              onFocus={() => searchQuery && setShowSuggestions(true)}
+            />
+
             <button
               type="button"
-              onClick={handleTypeDropdownClick}
-              className={`px-3 py-2 rounded-lg border transition-all duration-300 transform hover:scale-105 flex items-center justify-between min-w-[120px] ${
-                theme === 'light'
-                  ? `border-primary-200 text-primary-500 hover:text-primary-700 ${showTypeDropdown ? 'bg-primary-50 scale-105' : 'hover:bg-primary-50'}`
-                  : theme === 'dark'
-                  ? `border-gray-600 text-gray-300 hover:text-white ${showTypeDropdown ? 'bg-gray-700 scale-105' : 'hover:bg-gray-700'}`
-                  : `border-purple-300 text-purple-500 hover:text-purple-700 ${showTypeDropdown ? 'bg-purple-100 scale-105' : 'hover:bg-purple-100'}`
-              }`}
-            >
-              <span>{searchTypes.find(type => type.id === searchType)?.label || 'All'}</span>
-              <svg 
-                xmlns="http://www.w3.org/2000/svg" 
-                className={`h-4 w-4 ml-2 transition-transform duration-200 ${showTypeDropdown ? 'rotate-180' : ''}`} 
-                fill="none" 
-                viewBox="0 0 24 24" 
-                stroke="currentColor"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            
-            {showTypeDropdown && (
-              <div className={`absolute z-30 mt-1 w-full rounded-lg shadow-lg border ${isDismissing ? 'animate-fade-out' : 'animate-slide-down'} ${
-                theme === 'light'
-                  ? 'bg-white border-primary-200'
-                  : theme === 'dark'
-                  ? 'bg-gray-800 border-gray-600'
-                  : 'bg-gradient-to-br from-pink-50 to-purple-50 border-purple-200'
-              }`}>
-                <ul className="py-1">
-                  {searchTypes.map(type => (
-                    <li key={type.id}>
-                      <button
-                        type="button"
-                        onClick={(e) => handleTypeSelect(type.id, e)}
-                        className={`w-full text-left px-4 py-2 transition-colors duration-200 ${
-                          searchType === type.id 
-                            ? theme === 'light'
-                              ? 'bg-primary-100 text-primary-700'
-                              : theme === 'dark'
-                              ? 'bg-gray-700 text-white'
-                              : 'bg-purple-100 text-purple-700'
-                            : theme === 'light'
-                            ? 'text-primary-600 hover:bg-primary-50'
-                            : theme === 'dark'
-                            ? 'text-gray-300 hover:bg-gray-700'
-                            : 'text-purple-600 hover:bg-purple-50'
-                        }`}
-                      >
-                        {type.label}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-          
-          <button
-            type="button"
-            ref={filterButtonRef}
-            onClick={handleFilterButtonClick}
-            className={`ml-2 p-2 rounded-lg border transition-all duration-300 transform hover:scale-105 ${
-              theme === 'light'
-                ? `border-primary-200 text-primary-500 hover:text-primary-700 ${showFilters ? 'bg-primary-50 scale-105' : 'hover:bg-primary-50'}`
-                : theme === 'dark'
-                ? `border-gray-600 text-gray-300 hover:text-white ${showFilters ? 'bg-gray-700 scale-105' : 'hover:bg-gray-700'}`
-                : `border-purple-300 text-purple-500 hover:text-purple-700 ${showFilters ? 'bg-purple-100 scale-105' : 'hover:bg-purple-100'}`
-            }`}
-            aria-label="Toggle filters"
-          >
-            <AdjustmentsHorizontalIcon className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Active Filters */}
-        {activeFilters.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-3 animate-slide-up">
-            {activeFilters.map((filter) => (
-              <span
-                key={filter}
-                className={`inline-flex items-center px-3 py-1 rounded-full text-sm animate-scale-in transition-colors duration-300 ${
-                  theme === 'light'
+              onClick={toggleFiltersSidebar}
+              data-filters-toggle
+              className={`mr-3 p-2 rounded-lg transition-all duration-200 ${
+                showFiltersSidebar
+                  ? theme === 'light'
                     ? 'bg-primary-100 text-primary-700'
                     : theme === 'dark'
-                    ? 'bg-gray-700 text-gray-300'
-                    : 'bg-gradient-to-r from-pink-200 to-purple-200 text-purple-800'
-                }`}
-              >
-                {filter}
-                <button
-                  onClick={() => removeFilter(filter)}
-                  className={`ml-2 transition-colors duration-200 ${
-                    theme === 'light'
-                      ? 'text-primary-500 hover:text-primary-700'
-                      : theme === 'dark'
-                      ? 'text-gray-400 hover:text-gray-300'
-                      : 'text-purple-500 hover:text-purple-700'
-                  }`}
-                  aria-label={`Remove ${filter} filter`}
-                >
-                  <XMarkIcon className="w-4 h-4" />
-                </button>
-              </span>
-            ))}
-            {activeFilters.length > 1 && (
-              <button
-                onClick={clearSearch}
-                className={`text-sm transition-colors duration-200 ${
-                  theme === 'light'
-                    ? 'text-primary-600 hover:text-primary-800'
-                    : theme === 'dark'
-                    ? 'text-blue-400 hover:text-blue-300'
-                    : 'text-purple-600 hover:text-purple-800'
-                }`}
-              >
-                Clear all
-              </button>
-            )}
+                    ? 'bg-gray-700 text-white'
+                    : 'bg-purple-100 text-purple-700'
+                  : theme === 'light'
+                  ? 'text-primary-500 hover:bg-primary-50'
+                  : theme === 'dark'
+                  ? 'text-gray-400 hover:bg-gray-700'
+                  : 'text-purple-500 hover:bg-purple-50'
+              }`}
+            >
+              <AdjustmentsHorizontalIcon className="w-5 h-5" />
+            </button>
           </div>
-        )}
+        </form>
 
-        {/* Suggestions dropdown */}
+        {/* Search Suggestions Dropdown */}
         {showSuggestions && suggestions.length > 0 && (
-          <div className={`absolute z-20 mt-1 w-full rounded-lg shadow-lg border ${isDismissing ? 'animate-fade-out' : 'animate-slide-down'} ${
+          <div className={`absolute z-20 mt-2 w-full rounded-lg shadow-lg border ${
             theme === 'light'
               ? 'bg-white border-primary-200'
               : theme === 'dark'
@@ -854,8 +366,8 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
                 <li key={suggestion.id}>
                   <button
                     type="button"
-                    onClick={(e) => handleSuggestionClick(suggestion, e)}
-                    className={`w-full text-left px-4 py-2 flex items-center transition-colors duration-200 ${
+                    onClick={() => handleSuggestionClick(suggestion)}
+                    className={`w-full text-left px-4 py-2 flex items-center justify-between transition-colors duration-200 ${
                       theme === 'light'
                         ? 'hover:bg-primary-50 text-gray-900'
                         : theme === 'dark'
@@ -863,15 +375,15 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
                         : 'hover:bg-purple-50 text-purple-900'
                     }`}
                   >
-                    <span className="flex-grow">{suggestion.title}</span>
-                    <span className={`text-sm ml-2 ${
-                      theme === 'light'
-                        ? 'text-primary-400'
-                        : theme === 'dark'
-                        ? 'text-gray-400'
-                        : 'text-purple-400'
+                    <span>{suggestion.title}</span>
+                    <span className={`text-xs px-2 py-1 rounded-full ${
+                      suggestion.type === 'book'
+                        ? 'bg-blue-100 text-blue-700'
+                        : suggestion.type === 'mood'
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-purple-100 text-purple-700'
                     }`}>
-                      {suggestion.type.charAt(0).toUpperCase() + suggestion.type.slice(1)}
+                      {suggestion.type}
                     </span>
                   </button>
                 </li>
@@ -879,20 +391,93 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
             </ul>
           </div>
         )}
-      </form>
+      </div>
 
-      {/* Advanced Filters */}
-      {showFilters && (
-        <div className={`absolute z-10 mt-2 w-full rounded-lg shadow-lg border ${isDismissing ? 'animate-fade-out' : 'animate-slide-down'} ${
-          theme === 'light'
-            ? 'bg-white border-primary-200'
-            : theme === 'dark'
-            ? 'bg-gray-800 border-gray-600'
-            : 'bg-gradient-to-br from-pink-50 to-purple-50 border-purple-200'
-        }`}>
+      {/* Active Filters */}
+      {activeFilters.length > 0 && (
+        <div className="flex flex-wrap gap-2 mt-4">
+          {activeFilters.map((filter) => (
+            <span
+              key={filter}
+              className={`inline-flex items-center px-3 py-1 rounded-full text-sm transition-all duration-200 ${
+                theme === 'light'
+                  ? 'bg-primary-100 text-primary-700'
+                  : theme === 'dark'
+                  ? 'bg-gray-700 text-gray-300'
+                  : 'bg-gradient-to-r from-pink-200 to-purple-200 text-purple-800'
+              }`}
+            >
+              {filter}
+              <button
+                onClick={() => removeFilter(filter)}
+                className={`ml-2 transition-colors duration-200 ${
+                  theme === 'light'
+                    ? 'text-primary-500 hover:text-primary-700'
+                    : theme === 'dark'
+                    ? 'text-gray-400 hover:text-gray-300'
+                    : 'text-purple-500 hover:text-purple-700'
+                }`}
+              >
+                <XMarkIcon className="w-4 h-4" />
+              </button>
+            </span>
+          ))}
+          {activeFilters.length > 1 && (
+            <button
+              onClick={clearAllFilters}
+              className={`text-sm px-3 py-1 rounded-full transition-colors duration-200 ${
+                theme === 'light'
+                  ? 'text-primary-600 hover:text-primary-800 hover:bg-primary-50'
+                  : theme === 'dark'
+                  ? 'text-blue-400 hover:text-blue-300 hover:bg-gray-700'
+                  : 'text-purple-600 hover:text-purple-800 hover:bg-purple-50'
+              }`}
+            >
+              Clear all
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Filters Sidebar - Original 4-Column Grid Layout */}
+      {showFiltersSidebar && (
+        <div
+          ref={sidebarRef}
+          className={`absolute right-0 top-full mt-2 w-full max-w-4xl rounded-lg shadow-xl border z-30 ${
+            theme === 'light'
+              ? 'bg-white border-primary-200'
+              : theme === 'dark'
+              ? 'bg-gray-800 border-gray-600'
+              : 'bg-gradient-to-br from-pink-50 to-purple-50 border-purple-200'
+          }`}
+        >
           <div className="p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className={`text-lg font-semibold ${
+                theme === 'light'
+                  ? 'text-gray-900'
+                  : theme === 'dark'
+                  ? 'text-white'
+                  : 'text-purple-900'
+              }`}>
+                Advanced Filters
+              </h3>
+              <button
+                onClick={toggleFiltersSidebar}
+                className={`p-1 rounded-lg transition-colors duration-200 ${
+                  theme === 'light'
+                    ? 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                    : theme === 'dark'
+                    ? 'text-gray-400 hover:text-gray-300 hover:bg-gray-700'
+                    : 'text-purple-500 hover:text-purple-700 hover:bg-purple-100'
+                }`}
+              >
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {/* Moods Section - Now with simple text list and color search link */}
+              {/* Search by mood - First Column */}
               <div className="animate-fade-in" style={{ animationDelay: '50ms' }}>
                 <h3 className={`text-sm font-medium mb-2 transition-colors duration-300 ${
                   theme === 'light'
@@ -903,11 +488,11 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
                 }`}>
                   Search by mood
                 </h3>
-                <div className="flex flex-col gap-2 max-h-[250px] overflow-y-auto pr-1">
+                <div className="flex flex-col gap-2 max-h-[200px] overflow-y-auto pr-1 mb-4">
                   {moods.map((mood) => (
                     <button
                       key={mood}
-                      onClick={() => handleMoodSelect(mood)}
+                      onClick={() => addFilter(mood)}
                       className={`text-left text-sm p-2 rounded-lg transition-all duration-200 ${
                         activeFilters.includes(mood)
                           ? theme === 'light'
@@ -927,34 +512,52 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
                   ))}
                 </div>
                 
-                {/* Color Search Link */}
-                <div className={`mt-3 pt-3 border-t transition-colors duration-300 ${
-                  theme === 'light'
-                    ? 'border-primary-200'
-                    : theme === 'dark'
-                    ? 'border-gray-600'
-                    : 'border-purple-200'
-                }`}>
+                {/* Color Search - Below mood */}
+                <div className="relative">
+                  {/* Small divider */}
+                  <div className={`w-full h-px my-3 ${
+                    theme === 'light'
+                      ? 'bg-primary-200'
+                      : theme === 'dark'
+                      ? 'bg-gray-600'
+                      : 'bg-purple-200'
+                  }`}></div>
+                  
                   <Link
                     to="/color-search"
-                    className={`group flex items-center w-full px-3 py-2 rounded-md text-sm transition-all duration-200 hover:scale-[1.02] ${
+                    className={`group flex items-center w-full px-3 py-2 rounded-lg text-sm transition-all duration-200 hover:scale-[1.02] relative overflow-hidden ${
                       theme === 'light'
-                        ? 'text-primary-600 hover:text-primary-700 hover:bg-primary-50 border border-primary-200 hover:border-primary-300'
+                        ? 'text-primary-600 hover:text-primary-700 hover:bg-primary-50'
                         : theme === 'dark'
-                        ? 'text-gray-300 hover:text-white hover:bg-gray-700 border border-gray-600 hover:border-gray-500'
-                        : 'text-purple-600 hover:text-purple-700 hover:bg-purple-50 border border-purple-200 hover:border-purple-300'
+                        ? 'text-gray-300 hover:text-white hover:bg-gray-700'
+                        : 'text-purple-600 hover:text-purple-700 hover:bg-purple-50'
                     }`}
                   >
                     <AnimatedBeaker className="mr-2 flex-shrink-0" />
-                    <span className="flex-grow">Color Search</span>
-                    <svg className="w-3 h-3 ml-1 transition-transform duration-200 group-hover:translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <span className="flex-grow relative whitespace-nowrap">
+                      <span className="relative z-10 group-hover:opacity-0 transition-opacity duration-300">Try color search</span>
+                      {/* Rainbow glittering text with sparkles */}
+                      <span className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <span className="bg-gradient-to-r from-red-500 via-yellow-500 via-green-500 via-blue-500 via-indigo-500 to-purple-500 bg-clip-text text-transparent animate-pulse">
+                          Try color search
+                        </span>
+                        {/* Sparkles */}
+                        <span className="absolute -top-1 left-2 w-1 h-1 bg-yellow-400 rounded-full animate-ping opacity-75"></span>
+                        <span className="absolute -top-0.5 left-8 w-0.5 h-0.5 bg-pink-400 rounded-full animate-ping animation-delay-200 opacity-75"></span>
+                        <span className="absolute top-0 left-14 w-1 h-1 bg-blue-400 rounded-full animate-ping animation-delay-400 opacity-75"></span>
+                        <span className="absolute -bottom-1 left-4 w-0.5 h-0.5 bg-green-400 rounded-full animate-ping animation-delay-600 opacity-75"></span>
+                        <span className="absolute -bottom-0.5 left-10 w-1 h-1 bg-purple-400 rounded-full animate-ping animation-delay-800 opacity-75"></span>
+                        <span className="absolute top-0.5 right-8 w-0.5 h-0.5 bg-red-400 rounded-full animate-ping animation-delay-1000 opacity-75"></span>
+                      </span>
+                    </span>
+                    <svg className="w-3 h-3 ml-2 transition-transform duration-200 group-hover:translate-x-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
                   </Link>
                 </div>
               </div>
               
-              {/* Themes Section */}
+              {/* Search by theme - Second Column */}
               <div className="animate-fade-in" style={{ animationDelay: '100ms' }}>
                 <h3 className={`text-sm font-medium mb-2 transition-colors duration-300 ${
                   theme === 'light'
@@ -969,7 +572,7 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
                   {themes.map((themeItem) => (
                     <button
                       key={themeItem}
-                      onClick={() => handleThemeSelect(themeItem)}
+                      onClick={() => addFilter(themeItem)}
                       className={`text-left text-sm p-2 rounded-lg transition-all duration-200 ${
                         activeFilters.includes(themeItem)
                           ? theme === 'light'
@@ -989,8 +592,8 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
                   ))}
                 </div>
               </div>
-              
-              {/* Reading Style Section */}
+
+              {/* Search by reading style - Third Column */}
               <div className="animate-fade-in" style={{ animationDelay: '150ms' }}>
                 <h3 className={`text-sm font-medium mb-2 transition-colors duration-300 ${
                   theme === 'light'
@@ -1004,10 +607,10 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
                 <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto pr-1">
                   {readingStyles.map((style) => (
                     <button
-                      key={style.id}
-                      onClick={() => handleReadingStyleSelect(style.id)}
+                      key={style}
+                      onClick={() => addFilter(style)}
                       className={`text-left text-sm p-2 rounded-lg transition-all duration-200 ${
-                        activeFilters.includes(style.id)
+                        activeFilters.includes(style)
                           ? theme === 'light'
                             ? 'bg-primary-100 text-primary-700'
                             : theme === 'dark'
@@ -1020,13 +623,13 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
                           : 'text-purple-700 hover:bg-purple-50'
                       }`}
                     >
-                      {style.label}
+                      {style}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Professions Section */}
+              {/* Search by profession - Fourth Column */}
               <div className="animate-fade-in" style={{ animationDelay: '200ms' }}>
                 <h3 className={`text-sm font-medium mb-2 transition-colors duration-300 ${
                   theme === 'light'
@@ -1041,7 +644,7 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
                   {professions.map((profession) => (
                     <button
                       key={profession.id}
-                      onClick={() => handleProfessionSelect(profession.id, profession.label)}
+                      onClick={() => addFilter(profession.label)}
                       className={`text-left text-sm p-2 rounded-lg transition-all duration-200 ${
                         activeFilters.includes(profession.label)
                           ? theme === 'light'
