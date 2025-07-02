@@ -29,7 +29,7 @@ export class AuthService {
   /**
    * Sign in with OAuth provider
    */
-  async signInWithOAuth(provider: 'google' | 'github' | 'facebook' | 'twitter' | 'discord', redirectTo?: string): Promise<{ url: string | null; error: string | null }> {
+  async signInWithOAuth(provider: 'google' | 'github' | 'facebook' | 'twitter' | 'discord' | 'linkedin_oidc', redirectTo?: string): Promise<{ url: string | null; error: string | null }> {
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: provider,

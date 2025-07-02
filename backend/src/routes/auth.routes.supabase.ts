@@ -187,7 +187,7 @@ router.post('/oauth/:provider', async (req, res) => {
     const { redirectTo } = req.body;
 
     // Validate provider
-    const validProviders = ['google', 'github', 'facebook', 'twitter', 'discord'];
+    const validProviders = ['google', 'github', 'facebook', 'twitter', 'discord', 'linkedin_oidc'];
     if (!validProviders.includes(provider)) {
       return res.status(400).json({ 
         message: 'Invalid OAuth provider. Supported providers: ' + validProviders.join(', ')

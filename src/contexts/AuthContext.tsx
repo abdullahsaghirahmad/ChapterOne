@@ -21,7 +21,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, username: string) => Promise<void>;
   signOut: () => Promise<void>;
-  signInWithOAuth: (provider: 'google' | 'github' | 'facebook' | 'twitter' | 'discord') => Promise<void>;
+  signInWithOAuth: (provider: 'google' | 'github' | 'facebook' | 'twitter' | 'discord' | 'linkedin_oidc') => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -115,7 +115,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const handleSignInWithOAuth = async (provider: 'google' | 'github' | 'facebook' | 'twitter' | 'discord') => {
+  const handleSignInWithOAuth = async (provider: 'google' | 'github' | 'facebook' | 'twitter' | 'discord' | 'linkedin_oidc') => {
     try {
       const result = await auth.signInWithOAuth(provider);
       console.log('OAuth initiated:', result);
