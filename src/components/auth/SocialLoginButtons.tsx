@@ -43,7 +43,11 @@ const SocialLoginButtons: React.FC<SocialLoginButtonsProps> = ({
       bgColor: 'bg-white hover:bg-gray-50',
       textColor: 'text-gray-900',
       borderColor: 'border-gray-300'
-    },
+    }
+  ];
+
+  // Hidden providers (kept functional but not displayed)
+  const hiddenProviders = [
     {
       name: 'linkedin_oidc',
       label: 'Continue with LinkedIn',
@@ -55,11 +59,7 @@ const SocialLoginButtons: React.FC<SocialLoginButtonsProps> = ({
       bgColor: 'bg-white hover:bg-gray-50',
       textColor: 'text-gray-900',
       borderColor: 'border-gray-300'
-    }
-  ];
-
-  // Hidden providers (kept functional but not displayed)
-  const hiddenProviders = [
+    },
     {
       name: 'github',
       label: 'Continue with GitHub',
