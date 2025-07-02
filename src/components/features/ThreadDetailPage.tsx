@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeftIcon, ChatBubbleLeftIcon, ArrowUpIcon } from '@heroicons/react/24/outline';
-import axios from 'axios';
+import api from '../../services/api.supabase';
 import { BookCard } from './BookCard';
 import { normalizeTag } from './ThreadPage';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -14,7 +14,7 @@ interface Thread {
   comments: number;
   tags: string[];
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
   createdBy?: {
     username: string;
   };
@@ -32,10 +32,6 @@ interface Thread {
   }[];
 }
 
-interface UpvoteResponse {
-  upvotes: number;
-}
-
 export const ThreadDetailPage: React.FC = () => {
   const { theme } = useTheme();
   const { id } = useParams<{ id: string }>();
@@ -48,11 +44,16 @@ export const ThreadDetailPage: React.FC = () => {
     const fetchThreadDetails = async () => {
       try {
         setLoading(true);
-        const response = await axios.get<Thread>(`http://localhost:3001/api/threads/${id}`);
-        console.log('Thread details:', response.data);
+        const threadData = await api.threads.getById(id!);
+        console.log('Thread details:', threadData);
+        
+        if (!threadData) {
+          setError('Thread not found');
+          setLoading(false);
+          return;
+        }
         
         // Process the thread to ensure tags are properly formatted
-        let threadData = response.data;
         let processedTags = threadData.tags;
         
         // If tags is a string that looks like a stringified array, parse it
@@ -78,8 +79,9 @@ export const ThreadDetailPage: React.FC = () => {
         
         setThread({
           ...threadData,
-          tags: processedTags
-        });
+          tags: processedTags,
+          createdBy: threadData.createdBy ? { username: String(threadData.createdBy) } : undefined
+        } as Thread);
         
         setLoading(false);
       } catch (err) {
@@ -102,8 +104,8 @@ export const ThreadDetailPage: React.FC = () => {
     if (!thread) return;
     
     try {
-      const response = await axios.post<UpvoteResponse>(`http://localhost:3001/api/threads/${id}/upvote`);
-      setThread(prev => prev ? { ...prev, upvotes: response.data.upvotes } : null);
+      const updatedThread = await api.threads.upvote(id!);
+      setThread(prev => prev ? { ...prev, upvotes: updatedThread.upvotes } : null);
     } catch (err) {
       console.error('Error upvoting thread:', err);
       alert('Failed to upvote. Please try again.');

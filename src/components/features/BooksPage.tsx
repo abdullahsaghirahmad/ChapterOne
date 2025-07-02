@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { BookCard } from './BookCard';
 import { SearchBar } from './SearchBar';
-import { api } from '../../services/api';
 import { Book, Pace } from '../../types';
 import { Switch } from '../ui/Switch';
 import { useLocation, useNavigate } from 'react-router-dom';

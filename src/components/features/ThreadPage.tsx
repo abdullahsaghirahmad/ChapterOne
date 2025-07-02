@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ThreadCard } from './ThreadCard';
 import { PlusIcon } from '@heroicons/react/24/outline';
-import axios from 'axios';
+import api from '../../services/api.supabase';
 import { useTheme } from '../../contexts/ThemeContext';
 
 // Define Thread interface
@@ -13,7 +13,7 @@ interface Thread {
   comments: number;
   tags: string[];
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
   books?: any[];
 }
 
@@ -156,11 +156,11 @@ export const ThreadPage = () => {
     const fetchThreads = async () => {
       try {
         setLoading(true);
-        const response = await axios.get<Thread[]>('http://localhost:3001/api/threads');
-        console.log('Threads response:', response.data);
+        const threadsData = await api.threads.getAll();
+        console.log('Threads response:', threadsData);
         
         // Process the threads to ensure tags are properly formatted
-        const processedThreads = response.data.map(thread => {
+        const processedThreads = threadsData.map((thread: any) => {
           // Process tags to ensure they're an array of strings
           let processedTags = thread.tags;
           
@@ -206,7 +206,7 @@ export const ThreadPage = () => {
   const handleSubmitThread = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await axios.post<Thread>('http://localhost:3001/api/threads', {
+      const newThreadData = await api.threads.create({
         title: newThreadTitle,
         description: newThreadDescription,
         tags: selectedTags.length > 0 ? selectedTags : ['general']
@@ -214,9 +214,9 @@ export const ThreadPage = () => {
       
       // Make sure to process the new thread's tags too
       const newThread = {
-        ...response.data,
-        tags: Array.isArray(response.data.tags) 
-          ? response.data.tags.map(normalizeTag) 
+        ...newThreadData,
+        tags: Array.isArray(newThreadData.tags) 
+          ? newThreadData.tags.map(normalizeTag) 
           : []
       };
       
@@ -228,7 +228,7 @@ export const ThreadPage = () => {
       setCustomTag('');
     } catch (err) {
       console.error('Error creating thread:', err);
-      setError('Unable to create thread at the moment. The backend service is experiencing technical difficulties. Please try again later or contact support if the issue persists.');
+      setError('Unable to create thread at the moment. Please try again later.');
     }
   };
 
@@ -424,9 +424,9 @@ export const ThreadPage = () => {
                   className={`flex-1 px-3 py-2 border rounded-lg text-sm transition-colors duration-300 focus:outline-none focus:ring-2 ${
                     theme === 'light'
                       ? 'bg-white border-gray-300 text-gray-900 focus:border-primary-500 focus:ring-primary-200'
-                      : theme === 'dark'
-                      ? 'bg-gray-700 border-gray-600 text-white focus:border-blue-500 focus:ring-blue-200'
-                      : 'bg-purple-50 border-purple-300 text-purple-900 focus:border-purple-500 focus:ring-purple-200'
+                    : theme === 'dark'
+                    ? 'bg-gray-700 border-gray-600 text-white focus:border-blue-500 focus:ring-blue-200'
+                    : 'bg-purple-50 border-purple-300 text-purple-900 focus:border-purple-500 focus:ring-purple-200'
                   }`}
                 />
                 <button
@@ -436,9 +436,9 @@ export const ThreadPage = () => {
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed ${
                     theme === 'light'
                       ? 'bg-primary-600 hover:bg-primary-700 text-white disabled:hover:bg-primary-600'
-                      : theme === 'dark'
-                      ? 'bg-blue-600 hover:bg-blue-700 text-white disabled:hover:bg-blue-600'
-                      : 'bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white'
+                    : theme === 'dark'
+                    ? 'bg-blue-600 hover:bg-blue-700 text-white disabled:hover:bg-blue-600'
+                    : 'bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white'
                   }`}
                 >
                   Add
@@ -463,9 +463,9 @@ export const ThreadPage = () => {
               <button type="submit" className={`px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:scale-105 ${
                 theme === 'light'
                   ? 'bg-primary-600 hover:bg-primary-700 text-white'
-                  : theme === 'dark'
-                  ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                  : 'bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white'
+                : theme === 'dark'
+                ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                : 'bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white'
               }`}>
                 Create Thread
               </button>

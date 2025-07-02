@@ -49,6 +49,41 @@ router.get('/', async (req, res) => {
 });
 
 /**
+ * GET /api/books/filters/options
+ * Get available filter options
+ */
+router.get('/filters/options', async (req, res) => {
+  try {
+    const options = await bookService.getFilterOptions();
+    res.json(options);
+  } catch (error) {
+    console.error('Error fetching filter options:', error);
+    res.status(500).json({ 
+      message: 'Failed to fetch filter options', 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    });
+  }
+});
+
+/**
+ * GET /api/books/search/:query
+ * Search books by title or author
+ */
+router.get('/search/:query', async (req, res) => {
+  try {
+    const { query } = req.params;
+    const books = await bookService.searchBooks(query);
+    res.json(books);
+  } catch (error) {
+    console.error('Error searching books:', error);
+    res.status(500).json({ 
+      message: 'Failed to search books', 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    });
+  }
+});
+
+/**
  * GET /api/books/:id
  * Get a specific book by ID
  */
@@ -130,41 +165,6 @@ router.delete('/:id', async (req, res) => {
     console.error('Error deleting book:', error);
     res.status(500).json({ 
       message: 'Failed to delete book', 
-      error: error instanceof Error ? error.message : 'Unknown error' 
-    });
-  }
-});
-
-/**
- * GET /api/books/filters/options
- * Get available filter options
- */
-router.get('/filters/options', async (req, res) => {
-  try {
-    const options = await bookService.getFilterOptions();
-    res.json(options);
-  } catch (error) {
-    console.error('Error fetching filter options:', error);
-    res.status(500).json({ 
-      message: 'Failed to fetch filter options', 
-      error: error instanceof Error ? error.message : 'Unknown error' 
-    });
-  }
-});
-
-/**
- * GET /api/books/search/:query
- * Search books by title or author
- */
-router.get('/search/:query', async (req, res) => {
-  try {
-    const { query } = req.params;
-    const books = await bookService.searchBooks(query);
-    res.json(books);
-  } catch (error) {
-    console.error('Error searching books:', error);
-    res.status(500).json({ 
-      message: 'Failed to search books', 
       error: error instanceof Error ? error.message : 'Unknown error' 
     });
   }

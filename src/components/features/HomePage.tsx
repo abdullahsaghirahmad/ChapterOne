@@ -3,7 +3,7 @@ import { SearchBar } from './SearchBar';
 import { ThreadCard } from './ThreadCard';
 import { BookCard } from './BookCard';
 import { Book, Thread, Pace } from '../../types';
-import { api } from '../../services/api';
+import api from '../../services/api.supabase';
 import { Link } from 'react-router-dom';
 import { ArrowRightIcon } from '@heroicons/react/24/outline';
 import { normalizeTag } from './ThreadPage'; // Import the normalizeTag function
@@ -100,8 +100,8 @@ export const HomePage = () => {
     const fetchData = async () => {
       try {
         setIsLoading(true);
-        // Use our featured books instead of fetching from API
-        const threadsData = await api.getThreads();
+        // Use Supabase API instead of local backend
+        const threadsData = await api.threads.getAll();
         
         // Process threads to match ThreadCard component props
         const processedThreads = threadsData.map(thread => {
