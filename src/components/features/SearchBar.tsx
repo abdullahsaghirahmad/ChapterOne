@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { MagnifyingGlassIcon, AdjustmentsHorizontalIcon, XMarkIcon, ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
 import { debounce } from 'lodash';
-import { api } from '../../services/api';
+import api from '../../services/api.supabase';
 import { Link } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext';
 
@@ -170,9 +170,9 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
     debounce(async (query: string) => {
       if (query.length > 0) {
         try {
-          const results = await api.searchBooks(query);
+          const results = await api.books.search(query);
           const searchSuggestions: Suggestion[] = [
-            ...results.slice(0, 3).map(book => ({
+            ...results.slice(0, 3).map((book: any) => ({
               id: book.id,
               title: book.title,
               type: 'book' as const
