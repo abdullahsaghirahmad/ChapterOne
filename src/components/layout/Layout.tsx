@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { HomeIcon, BookOpenIcon, ChatBubbleLeftIcon, UserIcon } from '@heroicons/react/24/outline';
+import { HomeIcon, BookOpenIcon, ChatBubbleLeftIcon, UserIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 import { ThemeSwitcher } from '../ui/ThemeSwitcher';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useAuth } from '../../contexts/AuthContext';
+import AuthModal from '../auth/AuthModal';
 
 interface LayoutProps {
   children: any;
@@ -11,8 +13,20 @@ interface LayoutProps {
 export const Layout = ({ children }: LayoutProps) => {
   const location = useLocation();
   const { theme } = useTheme();
+  const { user, signOut, loading } = useAuth();
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
 
   const isActive = (path: string) => location.pathname === path;
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      setShowUserMenu(false);
+    } catch (error) {
+      console.error('Sign out error:', error);
+    }
+  };
 
   return (
     <div className={`min-h-screen transition-all duration-300 ${
@@ -87,15 +101,75 @@ export const Layout = ({ children }: LayoutProps) => {
                 Books
               </Link>
               <ThemeSwitcher />
-              <button className={`btn transition-all duration-300 ${
-                theme === 'light'
-                  ? 'btn-secondary'
-                  : theme === 'dark'
-                  ? 'bg-gray-700 hover:bg-gray-600 text-white border-gray-600'
-                  : 'bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white border-none'
-              }`}>
-                Sign In
-              </button>
+              
+              {/* Auth Section */}
+              {loading ? (
+                <div className="w-8 h-8 border-2 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+              ) : user ? (
+                <div className="relative">
+                  <button
+                    onClick={() => setShowUserMenu(!showUserMenu)}
+                    className={`flex items-center space-x-2 btn transition-all duration-300 ${
+                      theme === 'light'
+                        ? 'btn-secondary'
+                        : theme === 'dark'
+                        ? 'bg-gray-700 hover:bg-gray-600 text-white border-gray-600'
+                        : 'bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white border-none'
+                    }`}
+                  >
+                    <UserIcon className="w-4 h-4" />
+                    <span>{user.user_metadata?.username || user.user_metadata?.full_name || user.email?.split('@')[0]}</span>
+                    <ChevronDownIcon className="w-4 h-4" />
+                  </button>
+                  
+                  {showUserMenu && (
+                    <div className={`absolute right-0 mt-2 w-48 rounded-md shadow-lg z-50 ${
+                      theme === 'light'
+                        ? 'bg-white border border-gray-200'
+                        : theme === 'dark'
+                        ? 'bg-gray-800 border border-gray-700'
+                        : 'bg-gradient-to-br from-pink-50 to-purple-50 border border-purple-200'
+                    }`}>
+                      <div className="py-1">
+                        <div className={`px-4 py-2 text-sm border-b ${
+                          theme === 'light'
+                            ? 'text-gray-700 border-gray-200'
+                            : theme === 'dark'
+                            ? 'text-gray-300 border-gray-700'
+                            : 'text-purple-700 border-purple-200'
+                        }`}>
+                          {user.email}
+                        </div>
+                        <button
+                          onClick={handleSignOut}
+                          className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                            theme === 'light'
+                              ? 'text-gray-700 hover:bg-gray-100'
+                              : theme === 'dark'
+                              ? 'text-gray-300 hover:bg-gray-700'
+                              : 'text-purple-700 hover:bg-purple-100'
+                          }`}
+                        >
+                          Sign out
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowAuthModal(true)}
+                  className={`btn transition-all duration-300 ${
+                    theme === 'light'
+                      ? 'btn-secondary'
+                      : theme === 'dark'
+                      ? 'bg-gray-700 hover:bg-gray-600 text-white border-gray-600'
+                      : 'bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white border-none'
+                  }`}
+                >
+                  Sign In
+                </button>
+              )}
             </nav>
           </div>
         </div>
@@ -179,6 +253,20 @@ export const Layout = ({ children }: LayoutProps) => {
           </div>
         </div>
       </nav>
+
+      {/* Auth Modal */}
+      <AuthModal 
+        isOpen={showAuthModal} 
+        onClose={() => setShowAuthModal(false)} 
+      />
+
+      {/* Click outside to close user menu */}
+      {showUserMenu && (
+        <div 
+          className="fixed inset-0 z-40" 
+          onClick={() => setShowUserMenu(false)}
+        />
+      )}
     </div>
   );
 }; 

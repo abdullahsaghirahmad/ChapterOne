@@ -1,6 +1,6 @@
 import { Book, Thread, User } from '../types';
 
-const API_BASE_URL = 'http://localhost:3101/api';
+const API_BASE_URL = 'http://localhost:3001/api';
 
 // API functions
 export const api = {
