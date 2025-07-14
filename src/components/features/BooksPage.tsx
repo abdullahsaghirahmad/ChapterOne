@@ -4,6 +4,7 @@ import { SearchBar } from './SearchBar';
 import { Book, Pace } from '../../types';
 import { Switch } from '../ui/Switch';
 import { useLocation, useNavigate } from 'react-router-dom';
+import api from '../../services/api.supabase';
 
 // Interface for Pace objects that might be returned from API
 interface PaceObject {
@@ -374,6 +375,7 @@ export const BooksPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [books, setBooks] = useState<Book[]>([]);
+  const [allBooks, setAllBooks] = useState<Book[]>([]); // Store all books for filtering
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [includeExternal, setIncludeExternal] = useState(true);
@@ -387,71 +389,33 @@ export const BooksPage = () => {
       setError(null);
       
       try {
+        // Fetch all books from database
+        const booksData = await api.books.getAll();
+        setAllBooks(booksData);
+        
         const queryParams = new URLSearchParams(location.search);
         const queryFromUrl = queryParams.get('query');
         const typeFromUrl = queryParams.get('type');
         
-        let data: Book[];
+        let filteredBooks: Book[] = booksData;
         
-        // If there's a search query in the URL, use it to filter books
+        // If there's a search query in the URL, filter the books
         if (queryFromUrl) {
           setSearchQuery(queryFromUrl);
           if (typeFromUrl) {
             setSearchType(typeFromUrl);
           }
           
-          // Instead of fetching from API, filter our featuredBooks
-          const query = queryFromUrl.toLowerCase();
+          filteredBooks = filterBooks(booksData, queryFromUrl, typeFromUrl || 'all');
           
-          if (typeFromUrl === 'title') {
-            data = featuredBooks.filter(book => 
-              book.title.toLowerCase().includes(query)
-            );
-          } else if (typeFromUrl === 'author') {
-            data = featuredBooks.filter(book => 
-              book.author.toLowerCase().includes(query)
-            );
-          } else if (typeFromUrl === 'mood' || typeFromUrl === 'tone') {
-            data = featuredBooks.filter(book => 
-              book.tone && book.tone.some(tone => 
-                String(tone).toLowerCase().includes(query)
-              )
-            );
-          } else if (typeFromUrl === 'theme') {
-            data = featuredBooks.filter(book => 
-              book.themes && book.themes.some(theme => 
-                String(theme).toLowerCase().includes(query)
-              )
-            );
-          } else if (typeFromUrl === 'profession') {
-            data = featuredBooks.filter(book => 
-              book.professions && book.professions.some(profession => 
-                String(profession).toLowerCase().includes(query)
-              )
-            );
-          } else {
-            // Search all fields
-            data = featuredBooks.filter(book => 
-              book.title.toLowerCase().includes(query) ||
-              book.author.toLowerCase().includes(query) ||
-              (book.themes && book.themes.some(theme => String(theme).toLowerCase().includes(query))) ||
-              (book.tone && book.tone.some(tone => String(tone).toLowerCase().includes(query))) ||
-              (book.professions && book.professions.some(profession => String(profession).toLowerCase().includes(query))) ||
-              (book.bestFor && book.bestFor.some(bestFor => String(bestFor).toLowerCase().includes(query)))
-            );
-          }
-          
-          console.log(`SEARCH: Found ${data.length} books matching "${queryFromUrl}"`);
-        } 
-        // Otherwise, use all our featured books
-        else {
-          console.log('FETCH: Using all featured books');
-          data = featuredBooks;
+          console.log(`SEARCH: Found ${filteredBooks.length} books matching "${queryFromUrl}"`);
+        } else {
+          console.log('FETCH: Using all books from database');
         }
         
-        setBooks(data);
+        setBooks(filteredBooks);
       } catch (err) {
-        console.error('Error processing books:', err);
+        console.error('Error fetching books:', err);
         setError(err instanceof Error ? err.message : 'Failed to load books. Please try again later.');
       } finally {
         setLoading(false);
@@ -461,20 +425,84 @@ export const BooksPage = () => {
     fetchData();
   }, [location.search, includeExternal]);
 
+  // Function to filter books based on search query and type
+  const filterBooks = (allBooks: Book[], query: string, searchType: string): Book[] => {
+    if (!query) return allBooks;
+    
+    const lowerQuery = query.toLowerCase();
+    
+    return allBooks.filter(book => {
+      switch (searchType) {
+        case 'title':
+          return book.title.toLowerCase().includes(lowerQuery);
+        case 'author':
+          return book.author.toLowerCase().includes(lowerQuery);
+        case 'mood':
+        case 'tone':
+          return book.tone && book.tone.some(tone => 
+            String(tone).toLowerCase().includes(lowerQuery)
+          );
+        case 'theme':
+          return book.themes && book.themes.some(theme => 
+            String(theme).toLowerCase().includes(lowerQuery)
+          );
+        case 'profession':
+          return book.professions && book.professions.some(profession => 
+            String(profession).toLowerCase().includes(lowerQuery)
+          );
+        case 'category':
+          return book.categories && book.categories.some(category => 
+            String(category).toLowerCase().includes(lowerQuery)
+          );
+        case 'pace':
+          return book.pace && String(book.pace).toLowerCase().includes(lowerQuery);
+        case 'all':
+        default:
+          // Search all fields
+          return book.title.toLowerCase().includes(lowerQuery) ||
+                 book.author.toLowerCase().includes(lowerQuery) ||
+                 (book.themes && book.themes.some(theme => String(theme).toLowerCase().includes(lowerQuery))) ||
+                 (book.tone && book.tone.some(tone => String(tone).toLowerCase().includes(lowerQuery))) ||
+                 (book.professions && book.professions.some(profession => String(profession).toLowerCase().includes(lowerQuery))) ||
+                 (book.bestFor && book.bestFor.some(bestFor => String(bestFor).toLowerCase().includes(lowerQuery))) ||
+                 (book.categories && book.categories.some(category => String(category).toLowerCase().includes(lowerQuery))) ||
+                 (book.description && book.description.toLowerCase().includes(lowerQuery));
+      }
+    });
+  };
+
   const handleExternalToggle = () => {
     const newIncludeExternal = !includeExternal;
     setIncludeExternal(newIncludeExternal);
     
-    // Refresh the books with the new external API setting
-    if (searchQuery) {
-      // Reuse the current search with new setting
-      const searchParams = new URLSearchParams(location.search);
+    // Note: External API functionality can be implemented later if needed
+    // For now, we're working with database books only
+    console.log('External toggle changed to:', newIncludeExternal);
+  };
+
+  const handleSearch = (query: string, type?: string) => {
+    setSearchQuery(query || '');
+    setSearchType(type || 'all');
+    
+    // Filter books based on search
+    const filteredBooks = filterBooks(allBooks, query || '', type || 'all');
+    setBooks(filteredBooks);
+    
+    // Update URL to reflect the search
+    const searchParams = new URLSearchParams();
+    if (query) {
+      searchParams.set('query', query);
+      if (type && type !== 'all') {
+        searchParams.set('type', type);
+      }
       navigate(`/books?${searchParams.toString()}`);
     } else {
-      // Just reload the current page to trigger the useEffect
-      // which will fetch all books with the new external setting
-      window.location.reload();
+      navigate('/books');
     }
+  };
+
+  const handleMoodSelect = (mood: string) => {
+    handleSearch(mood, 'mood');
   };
 
   // Debug information for rendering
@@ -505,30 +533,8 @@ export const BooksPage = () => {
       {/* Search */}
       <div className="max-w-3xl mx-auto">
         <SearchBar 
-          onSearch={(query, type) => {
-            setSearchQuery(query || '');
-            setSearchType(type || 'all');
-            // Update URL to reflect the search
-            const searchParams = new URLSearchParams();
-            if (query) {
-              searchParams.set('query', query);
-              if (type && type !== 'all') {
-                searchParams.set('type', type);
-              }
-              navigate(`/books?${searchParams.toString()}`);
-            } else {
-              navigate('/books');
-            }
-          }}
-          onMoodSelect={(mood) => {
-            setSearchQuery(mood || '');
-            setSearchType('mood');
-            // Update URL for mood search
-            const searchParams = new URLSearchParams();
-            searchParams.set('query', mood || '');
-            searchParams.set('type', 'mood');
-            navigate(`/books?${searchParams.toString()}`);
-          }}
+          onSearch={handleSearch}
+          onMoodSelect={handleMoodSelect}
         />
         
         {/* External API Toggle */}
@@ -544,15 +550,14 @@ export const BooksPage = () => {
 
       {/* Books Grid */}
       {books.length === 0 ? (
-        <div className="text-center py-10">No books found. Try a different search or enable external sources.</div>
+        <div className="text-center py-10">
+          {searchQuery ? 
+            `No books found matching "${searchQuery}"${searchType !== 'all' ? ` by ${searchType}` : ''}. Try a different search.` :
+            'No books found. Try enabling external sources or check back later.'
+          }
+        </div>
       ) : (
         <div>
-          {/* DIAGNOSTICS */}
-          <div className="text-center mb-4 p-2 bg-red-100 border border-red-500 rounded-md">
-            <strong>DIAGNOSTICS</strong>: Currently displaying <strong>{books.length}</strong> books.
-            {/* This is a test to ensure we're showing the real book count */}
-          </div>
-          
           {/* Search result info */}
           <div className="mb-4 text-sm text-gray-600">
             {searchQuery ? 

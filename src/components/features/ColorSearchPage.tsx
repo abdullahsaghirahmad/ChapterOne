@@ -1,16 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
-
-interface Book {
-  id: number;
-  title: string;
-  author: string;
-  description: string;
-  coverImage: string;
-  rating: number;
-  keywords: string[];
-  emotions: string[];
-}
+import { Book } from '../../types';
+import api from '../../services/api.supabase';
 
 interface ColorInfo {
   name: string;
@@ -107,140 +98,160 @@ const COLORS: ColorInfo[] = [
   }
 ];
 
-const SAMPLE_BOOKS: Book[] = [
-  {
-    id: 1,
-    title: "The Midnight Library",
-    author: "Matt Haig",
-    description: "A magical library where you can explore alternate lives and find meaning.",
-    coverImage: "/api/placeholder/300/400",
-    rating: 4.2,
-    keywords: ['philosophy', 'meaning', 'choices', 'life'],
-    emotions: ['overwhelmed', 'inspiration', 'serene']
-  },
-  {
-    id: 2,
-    title: "Atomic Habits",
-    author: "James Clear",
-    description: "A practical guide to building good habits and breaking bad ones.",
-    coverImage: "/api/placeholder/300/400",
-    rating: 4.7,
-    keywords: ['success', 'motivation', 'growth', 'habits', 'self-improvement'],
-    emotions: ['inspiration', 'learning']
-  },
-  {
-    id: 3,
-    title: "The Name of the Wind",
-    author: "Patrick Rothfuss",
-    description: "An epic fantasy tale of magic, music, and adventure.",
-    coverImage: "/api/placeholder/300/400",
-    rating: 4.5,
-    keywords: ['fantasy', 'magic', 'adventure', 'music', 'storytelling'],
-    emotions: ['escape', 'adventure', 'mysterious']
-  },
-  {
-    id: 4,
-    title: "The Hitchhiker's Guide to the Galaxy",
-    author: "Douglas Adams",
-    description: "A hilarious sci-fi comedy about space travel and the meaning of life.",
-    coverImage: "/api/placeholder/300/400",
-    rating: 4.3,
-    keywords: ['funny', 'comedy', 'science fiction', 'space', 'absurd'],
-    emotions: ['humor', 'escape']
-  },
-  {
-    id: 5,
-    title: "Pride and Prejudice",
-    author: "Jane Austen",
-    description: "A timeless romance of wit, charm, and social commentary.",
-    coverImage: "/api/placeholder/300/400",
-    rating: 4.4,
-    keywords: ['romance', 'classic', 'wit', 'society', 'relationships'],
-    emotions: ['romantic', 'sophisticated', 'nostalgic']
-  },
-  {
-    id: 6,
-    title: "The Girl with the Dragon Tattoo",
-    author: "Stieg Larsson",
-    description: "A gripping mystery thriller with complex characters.",
-    coverImage: "/api/placeholder/300/400",
-    rating: 4.1,
-    keywords: ['mystery', 'thriller', 'crime', 'investigation', 'suspense'],
-    emotions: ['mysterious', 'adventure']
-  },
-  {
-    id: 7,
-    title: "Wild",
-    author: "Cheryl Strayed",
-    description: "A powerful memoir of healing and self-discovery through hiking.",
-    coverImage: "/api/placeholder/300/400",
-    rating: 4.0,
-    keywords: ['memoir', 'hiking', 'healing', 'nature', 'journey'],
-    emotions: ['serene', 'inspiration', 'passionate']
-  },
-  {
-    id: 8,
-    title: "Educated",
-    author: "Tara Westover",
-    description: "A memoir about education, family, and the power of learning.",
-    coverImage: "/api/placeholder/300/400",
-    rating: 4.6,
-    keywords: ['memoir', 'education', 'family', 'transformation', 'knowledge'],
-    emotions: ['learning', 'inspiration', 'passionate']
-  },
-  {
-    id: 9,
-    title: "The Alchemist",
-    author: "Paulo Coelho",
-    description: "A philosophical novel about following your dreams.",
-    coverImage: "/api/placeholder/300/400",
-    rating: 4.2,
-    keywords: ['philosophy', 'dreams', 'journey', 'wisdom', 'inspiration'],
-    emotions: ['inspiration', 'serene', 'passionate']
-  },
-  {
-    id: 10,
-    title: "Gone Girl",
-    author: "Gillian Flynn",
-    description: "A psychological thriller about a marriage gone terribly wrong.",
-    coverImage: "/api/placeholder/300/400",
-    rating: 4.0,
-    keywords: ['psychological', 'thriller', 'marriage', 'dark', 'twisted'],
-    emotions: ['mysterious', 'passionate', 'adventure']
-  }
-];
-
 interface SelectedColor {
   color: ColorInfo;
   weight: number;
 }
 
-export function ColorSearchPage() {
+export const ColorSearchPage = () => {
   const { theme } = useTheme();
+  const [books, setBooks] = useState<Book[]>([]);
+  const [allBooks, setAllBooks] = useState<Book[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedColors, setSelectedColors] = useState<SelectedColor[]>([]);
-  const [recommendations, setRecommendations] = useState<Book[]>([]);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [blendedColor, setBlendedColor] = useState<string>('#f3f4f6');
+  const [colorQuery, setColorQuery] = useState('');
   const [hoveredColor, setHoveredColor] = useState<string | null>(null);
+  const [searchResults, setSearchResults] = useState<Book[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
 
-  const handleColorSelect = (color: ColorInfo) => {
-    const existingIndex = selectedColors.findIndex(sc => sc.color.name === color.name);
-    
-    if (existingIndex !== -1) {
-      // If color already selected, increase weight or remove if at max
-      const existing = selectedColors[existingIndex];
-      if (existing.weight >= 3) {
-        setSelectedColors(selectedColors.filter(sc => sc.color.name !== color.name));
-      } else {
-        const updated = [...selectedColors];
-        updated[existingIndex] = { ...existing, weight: existing.weight + 1 };
-        setSelectedColors(updated);
+  // Fetch books from database when component mounts
+  useEffect(() => {
+    const fetchBooks = async () => {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        const booksData = await api.books.getAll();
+        setAllBooks(booksData);
+        setBooks(booksData);
+      } catch (err) {
+        console.error('Error fetching books:', err);
+        setError('Failed to load books. Please try again later.');
+      } finally {
+        setLoading(false);
       }
+    };
+    
+    fetchBooks();
+  }, []);
+
+  // Map emotions to book themes/tones for better matching
+  const mapEmotionToBookAttributes = (emotion: string): string[] => {
+    const emotionMap: { [key: string]: string[] } = {
+      'overwhelmed': ['Self-Help', 'Psychology', 'Meditation', 'Mindfulness'],
+      'inspiration': ['Self-Help', 'Biography', 'Motivation', 'Personal Development'],
+      'serene': ['Philosophy', 'Meditation', 'Nature', 'Spiritual'],
+      'learning': ['Education', 'Science', 'History', 'Academic'],
+      'escape': ['Fiction', 'Fantasy', 'Adventure', 'Science Fiction'],
+      'adventure': ['Adventure', 'Travel', 'Action', 'Exploration'],
+      'mysterious': ['Mystery', 'Thriller', 'Crime', 'Suspense'],
+      'humor': ['Comedy', 'Humor', 'Satirical', 'Funny'],
+      'romantic': ['Romance', 'Love', 'Relationships'],
+      'sophisticated': ['Literary Fiction', 'Classic', 'Philosophy'],
+      'nostalgic': ['Historical Fiction', 'Classic', 'Memory'],
+      'passionate': ['Romance', 'Biography', 'Intense'],
+    };
+    
+    return emotionMap[emotion] || [];
+  };
+
+  // Filter books based on color selection and emotions
+  const filterBooksByColors = useCallback((selectedColors: SelectedColor[], allBooks: Book[]): Book[] => {
+    if (selectedColors.length === 0) return allBooks;
+    
+    // Extract emotions from selected colors
+    const emotions = selectedColors.map(sc => sc.color.emotion).filter(Boolean);
+    const uniqueEmotions = Array.from(new Set(emotions));
+    
+    // Map emotions to book attributes
+    const searchTerms = uniqueEmotions.flatMap(emotion => mapEmotionToBookAttributes(emotion));
+    const uniqueSearchTerms = Array.from(new Set(searchTerms));
+    
+    if (uniqueSearchTerms.length === 0) return allBooks;
+    
+    return allBooks.filter(book => {
+      // Check themes
+      const themeMatch = book.themes && book.themes.some(theme => 
+        uniqueSearchTerms.some(term => 
+          String(theme).toLowerCase().includes(term.toLowerCase())
+        )
+      );
+      
+      // Check tone
+      const toneMatch = book.tone && book.tone.some(tone => 
+        uniqueSearchTerms.some(term => 
+          String(tone).toLowerCase().includes(term.toLowerCase())
+        )
+      );
+      
+      // Check categories
+      const categoryMatch = book.categories && book.categories.some(category => 
+        uniqueSearchTerms.some(term => 
+          String(category).toLowerCase().includes(term.toLowerCase())
+        )
+      );
+      
+      // Check description
+      const descriptionMatch = book.description && uniqueSearchTerms.some(term => 
+        book.description!.toLowerCase().includes(term.toLowerCase())
+      );
+      
+      return themeMatch || toneMatch || categoryMatch || descriptionMatch;
+    });
+  }, []);
+
+  // Handle color selection
+  const handleColorSelect = (color: ColorInfo) => {
+    setSelectedColors(prev => {
+      const existing = prev.find(sc => sc.color.name === color.name);
+      if (existing) {
+        // Remove if already selected
+        return prev.filter(sc => sc.color.name !== color.name);
+      } else {
+        // Add new selection
+        return [...prev, { color, weight: 1 }];
+      }
+    });
+  };
+
+  // Update search results when colors change
+  useEffect(() => {
+    if (selectedColors.length > 0) {
+      setIsSearching(true);
+      const filtered = filterBooksByColors(selectedColors, allBooks);
+      setSearchResults(filtered);
+      setIsSearching(false);
     } else {
-      // Add new color with weight 1
-      setSelectedColors([...selectedColors, { color, weight: 1 }]);
+      setSearchResults([]);
+    }
+  }, [selectedColors, allBooks, filterBooksByColors]);
+
+  // Handle text search
+  const handleTextSearch = (query: string) => {
+    setColorQuery(query);
+    if (query.trim()) {
+      const filtered = allBooks.filter(book => 
+        book.title.toLowerCase().includes(query.toLowerCase()) ||
+        book.author.toLowerCase().includes(query.toLowerCase()) ||
+        (book.themes && book.themes.some(theme => 
+          String(theme).toLowerCase().includes(query.toLowerCase())
+        )) ||
+        (book.description && book.description.toLowerCase().includes(query.toLowerCase()))
+      );
+      setSearchResults(filtered);
+    } else {
+      setSearchResults([]);
     }
   };
+
+  if (loading) {
+    return <div className="text-center py-10">Loading books...</div>;
+  }
+
+  if (error) {
+    return <div className="text-center py-10 text-red-600">Error: {error}</div>;
+  }
 
   const hexToRgb = (hex: string): [number, number, number] => {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -274,63 +285,6 @@ export function ColorSearchPage() {
     const blendedB = weightedB / totalWeight;
 
     return rgbToHex(blendedR, blendedG, blendedB);
-  };
-
-  const generateRecommendations = async (colors: SelectedColor[]) => {
-    if (colors.length === 0) {
-      setRecommendations([]);
-      return;
-    }
-
-    setIsAnalyzing(true);
-    
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
-    // Calculate emotional resonance scores
-    const scoredBooks = SAMPLE_BOOKS.map(book => {
-      let score = 0;
-      let emotionalMatch = 0;
-      let keywordMatch = 0;
-
-      colors.forEach(({ color, weight }) => {
-        // Emotional resonance
-        if (book.emotions.includes(color.emotion)) {
-          emotionalMatch += weight * 3;
-        }
-
-        // Keyword matching
-        color.keywords.forEach(keyword => {
-          if (book.keywords.some(bookKeyword => 
-            bookKeyword.toLowerCase().includes(keyword.toLowerCase()) ||
-            keyword.toLowerCase().includes(bookKeyword.toLowerCase())
-          )) {
-            keywordMatch += weight * 2;
-          }
-        });
-      });
-
-      score = emotionalMatch + keywordMatch + (book.rating * 2);
-      return { ...book, score };
-    });
-
-    // Sort by score and return top recommendations
-    const topBooks = scoredBooks
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 6);
-
-    setRecommendations(topBooks);
-    setIsAnalyzing(false);
-  };
-
-  useEffect(() => {
-    const blended = blendColors(selectedColors);
-    setBlendedColor(blended);
-    generateRecommendations(selectedColors);
-  }, [selectedColors]);
-
-  const clearSelection = () => {
-    setSelectedColors([]);
   };
 
   const getEmotionalSummary = () => {
@@ -532,7 +486,7 @@ export function ColorSearchPage() {
                       Your Color Blend
                     </h3>
                     <button
-                      onClick={clearSelection}
+                      onClick={() => setSelectedColors([])}
                       className={`text-sm transition-colors duration-300 ${
                         theme === 'light'
                           ? 'text-gray-500 hover:text-red-600'
@@ -547,7 +501,7 @@ export function ColorSearchPage() {
                   
                   <div 
                     className="w-full h-16 rounded-lg shadow-inner mb-4 transition-colors duration-500"
-                    style={{ backgroundColor: blendedColor }}
+                    style={{ backgroundColor: blendColors(selectedColors) }}
                   />
                   
                   <div className="space-y-2">
@@ -632,7 +586,7 @@ export function ColorSearchPage() {
                 </h2>
                 {selectedColors.length > 0 && (
                   <div className="flex items-center space-x-2">
-                    <div className="w-4 h-4 rounded" style={{ backgroundColor: blendedColor }} />
+                    <div className="w-4 h-4 rounded" style={{ backgroundColor: blendColors(selectedColors) }} />
                     <span className={`text-sm transition-colors duration-300 ${
                       theme === 'light'
                         ? 'text-gray-600'
@@ -678,7 +632,7 @@ export function ColorSearchPage() {
                     Select colors that match your mood to get personalized book recommendations.
                   </p>
                 </div>
-              ) : isAnalyzing ? (
+              ) : isSearching ? (
                 <div className="text-center py-12">
                   <div className="w-16 h-16 mx-auto mb-4">
                     <div className={`w-full h-full rounded-full border-4 animate-spin ${
@@ -710,7 +664,7 @@ export function ColorSearchPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {recommendations.map((book) => (
+                  {searchResults.map((book) => (
                     <div key={book.id} className={`border rounded-lg p-4 transition-all duration-300 hover:shadow-md ${
                       theme === 'light'
                         ? 'border-gray-200 hover:border-primary-300'

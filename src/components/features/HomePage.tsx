@@ -15,78 +15,6 @@ interface PaceObject {
   value: Pace;
 }
 
-// Featured books for homepage display
-const featuredBooks: Book[] = [
-  {
-    id: "sf-dune-1",
-    title: "Dune",
-    author: "Frank Herbert",
-    publishedYear: 1965,
-    coverImage: "https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1555447414i/44767458.jpg",
-    description: "Set on the desert planet Arrakis, Dune is the story of the boy Paul Atreides, heir to a noble family tasked with ruling an inhospitable world where the only thing of value is the \"spice\" melange, a drug capable of extending life and enhancing consciousness.",
-    rating: 4.7,
-    pace: "Moderate",
-    tone: ["Epic", "Philosophical", "Political", "Atmospheric", "Complex"],
-    themes: ["Power", "Religion", "Ecology", "Politics", "Destiny", "Survival"],
-    bestFor: ["Science Fiction Fans", "Political Theorists", "Philosophers", "Environmental Scientists"],
-    professions: ["Political Scientists", "Ecologists", "Futurists", "Philosophers"],
-    isExternal: false,
-    pageCount: 658,
-    categories: ["Science Fiction", "Classic", "Space Opera"]
-  },
-  {
-    id: "fantasy-lotr-1",
-    title: "The Lord of the Rings",
-    author: "J.R.R. Tolkien",
-    publishedYear: 1954,
-    coverImage: "https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1566425108i/33.jpg",
-    description: "One Ring to rule them all, One Ring to find them, One Ring to bring them all and in the darkness bind them. In ancient times the Rings of Power were crafted by the Elven-smiths, and Sauron, the Dark Lord, forged the One Ring, filling it with his own power so that he could rule all others.",
-    rating: 4.8,
-    pace: "Slow",
-    tone: ["Epic", "Descriptive", "Mythic", "Poetic", "Adventure"],
-    themes: ["Good vs Evil", "Fellowship", "Heroism", "Power", "Sacrifice", "Journey"],
-    bestFor: ["Fantasy Lovers", "Literary Scholars", "Historians", "Linguists"],
-    professions: ["Writers", "Linguists", "Mythologists", "Historians"],
-    isExternal: false,
-    pageCount: 1178,
-    categories: ["Fantasy", "Classic", "Epic"]
-  },
-  {
-    id: "romance-pride-1",
-    title: "Pride and Prejudice",
-    author: "Jane Austen",
-    publishedYear: 1813,
-    coverImage: "https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1320399351i/1885.jpg",
-    description: "Since its immediate success in 1813, Pride and Prejudice has remained one of the most popular novels in the English language. Jane Austen called this brilliant work \"her own darling child\" and its vivacious heroine, Elizabeth Bennet, \"as delightful a creature as ever appeared in print.\"",
-    rating: 4.6,
-    pace: "Moderate",
-    tone: ["Witty", "Ironic", "Romantic", "Satirical", "Elegant"],
-    themes: ["Social Class", "Marriage", "Pride", "Prejudice", "Love", "Self-discovery"],
-    bestFor: ["Romance Readers", "Literary Critics", "Sociologists", "Feminists"],
-    professions: ["English Professors", "Sociologists", "Journalists", "Writers"],
-    isExternal: false,
-    pageCount: 279,
-    categories: ["Romance", "Classic", "Literary Fiction"]
-  },
-  {
-    id: "nonfiction-thinking-1",
-    title: "Thinking, Fast and Slow",
-    author: "Daniel Kahneman",
-    publishedYear: 2011,
-    coverImage: "https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1317793965i/11468377.jpg",
-    description: "In the international bestseller, Thinking, Fast and Slow, Daniel Kahneman, the renowned psychologist and winner of the Nobel Prize in Economics, takes us on a groundbreaking tour of the mind and explains the two systems that drive the way we think.",
-    rating: 4.5,
-    pace: "Slow",
-    tone: ["Academic", "Insightful", "Analytical", "Accessible", "Thought-provoking"],
-    themes: ["Psychology", "Decision Making", "Behavioral Economics", "Cognitive Biases", "Rationality"],
-    bestFor: ["Business Leaders", "Product Managers", "Decision Makers", "Psychology Enthusiasts"],
-    professions: ["Psychologists", "Economists", "Product Managers", "Executives", "Data Scientists"],
-    isExternal: false,
-    pageCount: 499,
-    categories: ["Psychology", "Non-fiction", "Economics", "Science"]
-  }
-];
-
 export const HomePage = () => {
   const { theme } = useTheme();
   const [trendingBooks, setTrendingBooks] = useState<Book[]>([]);
@@ -100,8 +28,11 @@ export const HomePage = () => {
     const fetchData = async () => {
       try {
         setIsLoading(true);
-        // Use Supabase API instead of local backend
+        // Fetch threads from Supabase
         const threadsData = await api.threads.getAll();
+        
+        // Fetch books from Supabase
+        const booksData = await api.books.getAll();
         
         // Process threads to match ThreadCard component props
         const processedThreads = threadsData.map(thread => {
@@ -136,16 +67,10 @@ export const HomePage = () => {
           };
         });
         
-        // Set our featured books directly - using only the top 4 featured books
-        // We'll take the first book from each category
-        const topFeaturedBooks = [
-          featuredBooks.find(book => book.id === "sf-dune-1"), // Science Fiction
-          featuredBooks.find(book => book.id === "fantasy-lotr-1"), // Fantasy
-          featuredBooks.find(book => book.id === "romance-pride-1"), // Romance
-          featuredBooks.find(book => book.id === "nonfiction-thinking-1") // Non-fiction
-        ].filter(Boolean) as Book[]; // Remove any undefined values and cast to Book[]
+        // Select featured books from database - prioritize diverse categories and high ratings
+        const featuredBooks = selectFeaturedBooks(booksData);
         
-        setTrendingBooks(topFeaturedBooks);
+        setTrendingBooks(featuredBooks);
         setThreads(processedThreads);
       } catch (err) {
         setError('Failed to load data. Please try again later.');
@@ -157,6 +82,53 @@ export const HomePage = () => {
 
     fetchData();
   }, []);
+
+  // Function to select featured books from database
+  const selectFeaturedBooks = (books: Book[]): Book[] => {
+    if (!books || books.length === 0) return [];
+    
+    // Define preferred categories for featured books
+    const preferredCategories = ['Science Fiction', 'Fantasy', 'Romance', 'Psychology', 'History', 'Business', 'Self-Help'];
+    
+    // Group books by category
+    const booksByCategory = books.reduce((acc: { [key: string]: Book[] }, book) => {
+      if (book.categories && book.categories.length > 0) {
+        book.categories.forEach(category => {
+          if (!acc[category]) acc[category] = [];
+          acc[category].push(book);
+        });
+      }
+      return acc;
+    }, {});
+    
+    // Select best book from each preferred category
+    const selectedBooks: Book[] = [];
+    
+    for (const category of preferredCategories) {
+      if (booksByCategory[category] && booksByCategory[category].length > 0) {
+        // Sort by rating (descending) and pick the top book
+        const bestBook = booksByCategory[category].sort((a, b) => (b.rating || 0) - (a.rating || 0))[0];
+        if (bestBook && !selectedBooks.some(b => b.id === bestBook.id)) {
+          selectedBooks.push(bestBook);
+        }
+      }
+      
+      // Stop when we have 4 books
+      if (selectedBooks.length >= 4) break;
+    }
+    
+    // If we don't have 4 books yet, fill with highest rated books
+    if (selectedBooks.length < 4) {
+      const remainingBooks = books
+        .filter(book => !selectedBooks.some(selected => selected.id === book.id))
+        .sort((a, b) => (b.rating || 0) - (a.rating || 0))
+        .slice(0, 4 - selectedBooks.length);
+      
+      selectedBooks.push(...remainingBooks);
+    }
+    
+    return selectedBooks.slice(0, 4);
+  };
 
   const handleSearch = async (query: string, searchType: string = 'all') => {
     // When searching, redirect to the Books page instead of filtering the featured books
