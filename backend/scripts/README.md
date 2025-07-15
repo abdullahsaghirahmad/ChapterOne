@@ -148,6 +148,48 @@ Potential improvements for these scripts:
 4. **Thread Templates** - Pre-defined templates for common thread types
 5. **Database Backup** - Automatic backup before bulk operations
 
+## Book Image Management
+
+### `fix_broken_images.js`
+
+Automatically detects and fixes broken book cover image URLs by searching for working replacements from Google Books and Open Library APIs.
+
+**Usage:**
+```bash
+cd backend
+node scripts/fix_broken_images.js
+```
+
+**Features:**
+- Tests all book cover image URLs in the database
+- Searches Google Books API for replacement images
+- Falls back to Open Library API if needed
+- Updates database with working URLs
+- Provides detailed progress and summary reports
+- Respects API rate limits with delays
+- Handles errors gracefully
+
+**Sample Output:**
+```
+🔧 Starting broken image URL fix...
+🚀 Connected to database
+📚 Found 25 books with cover images
+
+📖 [1/25] Checking "Thinking, Fast and Slow"
+   Current URL: https://old-broken-url.com/image.jpg
+   ❌ URL is broken
+🔍 Searching for new image for "Thinking, Fast and Slow" by Daniel Kahneman
+   ✅ Found on Google Books: https://books.google.com/books/content/images/...
+   ✅ Updated with new URL
+
+📊 Summary:
+   📚 Total books checked: 25
+   ❌ Broken URLs found: 3
+   ✅ URLs fixed: 3
+   ⚠️ Could not fix: 0
+   💚 Working URLs: 22
+```
+
 ## Contributing
 
 When adding new sample threads:

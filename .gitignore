@@ -188,3 +188,6 @@ coverage/
 
 # Custom files to ignore
 run-and-commit.md
+# Backend environment files
+backend/supabase.env
+backend/*.env

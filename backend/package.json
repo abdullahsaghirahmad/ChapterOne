@@ -2,14 +2,18 @@
   "name": "chapterone-backend",
   "version": "1.0.0",
   "description": "Backend for ChapterOne book recommendation app",
-  "main": "dist/index.js",
+  "main": "dist/index.supabase.js",
   "scripts": {
-    "start": "node dist/index.js",
-    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "start": "node dist/index.supabase.js",
+    "dev": "ts-node-dev --respawn --transpile-only src/index.supabase.ts",
+    "dev:local": "ts-node-dev --respawn --transpile-only src/index.ts",
     "dev:supabase": "ts-node-dev --respawn --transpile-only src/index.supabase.ts",
     "build": "tsc",
     "typeorm": "typeorm-ts-node-commonjs",
-    "ingest": "ts-node src/scripts/ingestData.ts"
+    "ingest": "ts-node src/scripts/ingestData.ts",
+    "fix-images": "node scripts/fix_broken_images.js",
+    "fix-images:supabase": "node scripts/fix_broken_images_supabase.js",
+    "fix-images:cors": "node scripts/fix_broken_images_cors_friendly.js"
   },
   "keywords": [],
   "author": "",

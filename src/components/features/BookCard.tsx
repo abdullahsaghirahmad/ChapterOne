@@ -160,18 +160,50 @@ export const BookCard = ({
     : [];
 
   // Handle image loading errors
-  const handleImageError = () => {
-    console.log(`Image failed to load for book: ${title}`);
-    setImgError(true);
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    const img = e.currentTarget;
+    console.log(`🚨 Image error for "${title}":`, {
+      src: img.src,
+      isSVG: img.src.startsWith('data:image/svg+xml'),
+      imgError: imgError,
+      coverImage: coverImage
+    });
+    
+    // Only set error if this is not already a fallback SVG
+    if (!img.src.startsWith('data:image/svg+xml')) {
+      console.log(`❌ Setting imgError=true for "${title}"`);
+      setImgError(true);
+    } else {
+      console.error(`💥 SVG fallback failed for "${title}". This should not happen.`);
+    }
   };
 
   // Determine what image URL to use
   const getImageUrl = () => {
-    if (imgError || !coverImage || coverImage.includes('placeholder') || coverImage.includes('no-cover')) {
+    const shouldUseFallback = imgError || !coverImage || coverImage.includes('placeholder') || coverImage.includes('no-cover');
+    
+    if (shouldUseFallback) {
+      console.log(`📖 Using SVG fallback for "${title}" - imgError: ${imgError}, coverImage: ${coverImage}`);
+      
       // Create a simple solid color with title as text, using data URI
       const color = stringToColor(`${title}${author}`);
-      return `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='225' viewBox='0 0 150 225'%3E%3Crect width='150' height='225' fill='%23${color}' /%3E%3Ctext x='50%25' y='50%25' font-family='Arial' font-size='14' text-anchor='middle' fill='white' dominant-baseline='middle'%3E${encodeURIComponent(title.substring(0, 20))}%3C/text%3E%3C/svg%3E`;
+      const truncatedTitle = title.substring(0, 20);
+      // Properly encode the entire SVG as a data URI
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="150" height="225" viewBox="0 0 150 225">
+        <rect width="150" height="225" fill="#${color}" />
+        <text x="50%" y="50%" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="white" dominant-baseline="middle">
+          ${truncatedTitle.replace(/[<>&"']/g, (char) => {
+            const entities = { '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#39;' };
+            return entities[char as keyof typeof entities];
+          })}
+        </text>
+      </svg>`;
+      const fallbackUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+      console.log(`🎨 Generated SVG fallback for "${title}": ${fallbackUrl.substring(0, 100)}...`);
+      return fallbackUrl;
     }
+    
+    console.log(`🖼️ Using actual image for "${title}": ${coverImage}`);
     return coverImage;
   };
 
@@ -188,6 +220,11 @@ export const BookCard = ({
     }
     return color;
   };
+
+  // Reset image error state when coverImage changes
+  useEffect(() => {
+    setImgError(false);
+  }, [coverImage]);
 
   useEffect(() => {
     // Simulate fetching book quotes from an external source
