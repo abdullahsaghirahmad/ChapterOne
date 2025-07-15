@@ -4,7 +4,7 @@ import dotenv from 'dotenv'
 dotenv.config()
 
 const supabaseUrl = process.env.SUPABASE_URL || 'https://lrnxluoicdtonxrbteit.supabase.co'
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'your-service-role-key-here'
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxybnhsdW9pY2R0b254cmJ0ZWl0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE0Nzc1MTIsImV4cCI6MjA2NzA1MzUxMn0.yWiRPG5ABO2mXBtwgkZquLG0EnKmPDkj2UIVfRj8Yyk'
 
 // Create Supabase client with service role for backend operations
 export const supabase = createClient(supabaseUrl, supabaseServiceKey, {

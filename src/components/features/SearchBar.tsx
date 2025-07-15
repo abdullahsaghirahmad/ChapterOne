@@ -231,11 +231,26 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchQuery.trim()) {
-      onSearch(searchQuery);
+    performSearch();
+  };
+
+  const performSearch = useCallback(() => {
+    // Combine search query with active filters to create a comprehensive search
+    let combinedQuery = searchQuery.trim();
+    
+    if (activeFilters.length > 0) {
+      // Add filters to the search query
+      const filterQuery = activeFilters.join(' ');
+      combinedQuery = combinedQuery ? `${combinedQuery} ${filterQuery}` : filterQuery;
+    }
+    
+    console.log('SearchBar: Performing search with query:', combinedQuery, 'filters:', activeFilters);
+    
+    if (combinedQuery) {
+      onSearch(combinedQuery);
       setShowSuggestions(false);
     }
-  };
+  }, [searchQuery, activeFilters, onSearch]);
 
   const handleSuggestionClick = (suggestion: Suggestion) => {
     if (suggestion.type === 'mood') {
@@ -261,6 +276,18 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
   const clearAllFilters = () => {
     setActiveFilters([]);
   };
+
+  // Automatically search when filters change
+  useEffect(() => {
+    // Only trigger search if we have filters or a search query
+    if (activeFilters.length > 0) {
+      const timeoutId = setTimeout(() => {
+        performSearch();
+      }, 300); // Debounce to avoid too many searches
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [activeFilters, performSearch]); // Watch for filter changes
 
   const toggleFilterCategory = (categoryId: string) => {
     setFilterCategories(categories =>

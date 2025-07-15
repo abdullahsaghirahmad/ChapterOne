@@ -117,15 +117,42 @@ export const books = {
     return data;
   },
 
-  async search(query: string): Promise<Book[]> {
-    const { data, error } = await supabase
-      .from('book')
-      .select('*')
-      .or(`title.ilike.%${query}%, author.ilike.%${query}%`)
-      .order('title');
-    
-    if (error) throw error;
-    return data || [];
+  async search(query: string, filters?: {
+    activeFilters?: string[];
+    searchType?: string;
+  }): Promise<Book[]> {
+    try {
+      console.log('Frontend API: Searching for:', query);
+      
+      // Use our enhanced backend search endpoint instead of direct Supabase query
+      const response = await fetch(`http://localhost:3001/api/books/search/${encodeURIComponent(query)}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Search failed: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      console.log('Frontend API: Enhanced search returned', data.length, 'books');
+      return data || [];
+    } catch (error) {
+      console.error('Enhanced search failed, falling back to basic search:', error);
+      
+      // Fallback to basic Supabase search if backend is unavailable
+      const { data, error: supabaseError } = await supabase
+        .from('book')
+        .select('*')
+        .or(`title.ilike.%${query}%, author.ilike.%${query}%`)
+        .order('title');
+      
+      if (supabaseError) throw supabaseError;
+      console.log('Frontend API: Fallback search returned', data?.length || 0, 'books');
+      return data || [];
+    }
   },
 
   async create(bookData: Omit<Book, 'id' | 'createdAt' | 'updatedAt'>): Promise<Book> {

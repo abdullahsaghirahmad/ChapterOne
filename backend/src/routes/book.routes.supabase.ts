@@ -3,6 +3,7 @@ import { BookService } from '../services/book.service.supabase';
 
 const router = Router();
 const bookService = new BookService();
+const LOG_PREFIX = '[BOOK_ROUTES]';
 
 /**
  * GET /api/books
@@ -12,9 +13,10 @@ router.get('/', async (req, res) => {
   try {
     const { categories, themes, pace, professions, search } = req.query;
 
-    // Handle search functionality
+    // Handle search functionality with LLM enhancement
     if (search && typeof search === 'string') {
-      const books = await bookService.searchBooks(search);
+      console.log('[BOOK_ROUTES] Processing search request:', search);
+      const books = await bookService.searchBooksEnhanced(search);
       return res.json(books);
     }
 
@@ -72,7 +74,8 @@ router.get('/filters/options', async (req, res) => {
 router.get('/search/:query', async (req, res) => {
   try {
     const { query } = req.params;
-    const books = await bookService.searchBooks(query);
+    console.log('[BOOK_ROUTES] Processing enhanced search for:', query);
+    const books = await bookService.searchBooksEnhanced(query);
     res.json(books);
   } catch (error) {
     console.error('Error searching books:', error);
@@ -167,6 +170,92 @@ router.delete('/:id', async (req, res) => {
       message: 'Failed to delete book', 
       error: error instanceof Error ? error.message : 'Unknown error' 
     });
+  }
+});
+
+/**
+ * GET /api/books/llm/test
+ * Test LLM connection
+ */
+router.get('/llm/test', async (req, res) => {
+  try {
+    console.log('[BOOK_ROUTES] Testing LLM connection...');
+    const isConnected = await bookService.testLLMConnection();
+    res.json({ 
+      connected: isConnected,
+      message: isConnected ? 'LLM is working correctly' : 'LLM connection failed'
+    });
+  } catch (error) {
+    console.error('Error testing LLM connection:', error);
+    res.status(500).json({ 
+      message: 'Failed to test LLM connection', 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    });
+  }
+});
+
+/**
+ * POST /api/books/llm/config
+ * Update LLM configuration
+ */
+router.post('/llm/config', async (req, res) => {
+  try {
+    const { model, enabled } = req.body;
+    console.log('[BOOK_ROUTES] Updating LLM config:', { model, enabled });
+    
+    await bookService.updateLLMConfig({ model, enabled });
+    res.json({ 
+      message: 'LLM configuration updated successfully',
+      config: { model, enabled }
+    });
+  } catch (error) {
+    console.error('Error updating LLM config:', error);
+    res.status(500).json({ 
+      message: 'Failed to update LLM configuration', 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    });
+  }
+});
+
+/**
+ * GET /api/books/llm/analyze/:query
+ * Test LLM query analysis without database search
+ */
+router.get('/llm/analyze/:query', async (req, res) => {
+  try {
+    const { query } = req.params;
+    console.log('[BOOK_ROUTES] Testing LLM analysis for:', query);
+    
+    const analysis = await bookService.testLLMAnalysis(query);
+    res.json({
+      query,
+      analysis,
+      message: 'LLM analysis completed successfully'
+    });
+  } catch (error) {
+    console.error('Error testing LLM analysis:', error);
+    res.status(500).json({ 
+      message: 'Failed to test LLM analysis', 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    });
+  }
+});
+
+// Test LLM analysis
+router.get('/llm/analyze', async (req, res) => {
+  try {
+    const { query } = req.query;
+    
+    if (!query || typeof query !== 'string') {
+      return res.status(400).json({ error: 'Query parameter is required' });
+    }
+    
+    console.log(`${LOG_PREFIX} Testing LLM analysis for: ${query}`);
+    const analysis = await bookService.testLLMAnalysis(query);
+    res.json(analysis);
+  } catch (error) {
+    console.error(`${LOG_PREFIX} Error testing LLM analysis:`, error);
+    res.status(500).json({ error: 'Failed to analyze query' });
   }
 });
 
