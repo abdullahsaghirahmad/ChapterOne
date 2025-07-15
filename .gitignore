@@ -70,6 +70,28 @@ web_modules/
 .env.test.local
 .env.production.local
 .env.local
+*.env
+!*.env.template
+!*.env.example
+
+# Credential files (SECURITY)
+**/supabase.env
+**/*.key
+**/*.pem
+**/*.p12
+**/*.pfx
+**/credentials.json
+**/service-account.json
+**/*-key.json
+**/*_key.json
+**/config.json
+**/secrets.json
+
+# API Keys and tokens (patterns)
+**/.*rc
+**/.credentials
+**/auth.json
+**/token.json
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache/
@@ -188,6 +210,10 @@ coverage/
 
 # Custom files to ignore
 run-and-commit.md
-# Backend environment files
+
+# Backend environment files (CRITICAL SECURITY)
 backend/supabase.env
 backend/*.env
+backend/**/*.env
+!backend/*.env.template
+!backend/*.env.example
