@@ -6,27 +6,39 @@ const API_BASE_URL = 'http://localhost:3001/api';
 export const api = {
   // Books
   getBooks: async (includeExternal: boolean = false): Promise<Book[]> => {
-    const url = includeExternal 
-      ? `${API_BASE_URL}/books?external=true`
-      : `${API_BASE_URL}/books`;
+    try {
+      const { supabase } = await import('../lib/supabase');
+      const { data, error } = await supabase
+        .from('book')
+        .select('*')
+        .order('createdAt', { ascending: false });
       
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error('Failed to fetch books');
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching books:', error);
+      throw error;
     }
-    return response.json();
   },
 
   getBookById: async (id: string, includeExternal: boolean = false): Promise<Book | undefined> => {
-    const url = includeExternal 
-      ? `${API_BASE_URL}/books/${id}?external=true`
-      : `${API_BASE_URL}/books/${id}`;
+    try {
+      const { supabase } = await import('../lib/supabase');
+      const { data, error } = await supabase
+        .from('book')
+        .select('*')
+        .eq('id', id)
+        .single();
       
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error('Failed to fetch book');
+      if (error) {
+        if (error.code === 'PGRST116') return undefined; // Not found
+        throw error;
+      }
+      return data;
+    } catch (error) {
+      console.error('Error fetching book:', error);
+      throw error;
     }
-    return response.json();
   },
 
   searchBooks: async (
@@ -35,31 +47,32 @@ export const api = {
     includeExternal: boolean = true,
     limit: number = 100
   ): Promise<Book[]> => {
-    // Build query parameters
-    const params = new URLSearchParams();
-    params.append('query', query);
-    params.append('external', includeExternal.toString());
-    
-    if (searchType && searchType !== 'all') {
-      params.append('searchType', searchType);
-    }
-    
-    if (limit) {
-      params.append('limit', limit.toString());
-    }
-    
-    const url = `${API_BASE_URL}/books/search?${params.toString()}`;
-    console.log('Search URL:', url);
-    
     try {
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`Failed to search books: ${response.status} ${response.statusText}`);
-      }
-      return response.json();
+      console.log('API: Searching for:', query);
+      
+      // Use the new QueryRouterService for intelligent search routing
+      const { QueryRouterService } = await import('./queryRouter.service');
+      const queryRouter = new QueryRouterService();
+      
+      const result = await queryRouter.search(query);
+      
+      console.log(`API: ${result.searchMethod} search returned ${result.books.length} books (${result.queryType} query, ${result.processingTime}ms)`);
+      return result.books;
     } catch (error) {
-      console.error('Search error:', error);
-      throw error;
+      console.error('QueryRouter search failed:', error);
+      
+      // Fallback to direct supabase search
+      const { supabase } = await import('../lib/supabase');
+      const { data, error: supabaseError } = await supabase
+        .from('book')
+        .select('*')
+        .or(`title.ilike.%${query}%, author.ilike.%${query}%`)
+        .order('title')
+        .limit(limit);
+      
+      if (supabaseError) throw supabaseError;
+      console.log('API: Fallback search returned', data?.length || 0, 'books');
+      return data || [];
     }
   },
 

@@ -382,7 +382,7 @@ export const BooksPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchType, setSearchType] = useState('all');
 
-  // Handle URL search parameters when component loads
+  // Handle initial page load and external toggle
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -393,27 +393,28 @@ export const BooksPage = () => {
         const booksData = await api.books.getAll();
         setAllBooks(booksData);
         
+        // Check if there's a search query in URL (for direct URL access)
         const queryParams = new URLSearchParams(location.search);
         const queryFromUrl = queryParams.get('query');
         const typeFromUrl = queryParams.get('type');
         
-        let filteredBooks: Book[] = booksData;
-        
-        // If there's a search query in the URL, filter the books
         if (queryFromUrl) {
-          setSearchQuery(queryFromUrl);
-          if (typeFromUrl) {
-            setSearchType(typeFromUrl);
+          console.log('INITIAL_SEARCH: Performing search from URL on page load');
+          // Perform initial search from URL
+          try {
+            const results = await api.books.search(queryFromUrl, { 
+              searchType: typeFromUrl || 'all'
+            });
+            setBooks(results);
+          } catch (err) {
+            console.error('Initial URL search failed:', err);
+            setBooks(booksData);
           }
-          
-          filteredBooks = filterBooks(booksData, queryFromUrl, typeFromUrl || 'all');
-          
-          console.log(`SEARCH: Found ${filteredBooks.length} books matching "${queryFromUrl}"`);
         } else {
           console.log('FETCH: Using all books from database');
+          setBooks(booksData);
         }
         
-        setBooks(filteredBooks);
       } catch (err) {
         console.error('Error fetching books:', err);
         setError(err instanceof Error ? err.message : 'Failed to load books. Please try again later.');
@@ -423,7 +424,18 @@ export const BooksPage = () => {
     };
     
     fetchData();
-  }, [location.search, includeExternal]);
+  }, [includeExternal]); // Only depends on includeExternal, not location.search
+  
+  // Sync URL parameters with state (display only, no search)
+  useEffect(() => {
+    const queryParams = new URLSearchParams(location.search);
+    const queryFromUrl = queryParams.get('query');
+    const typeFromUrl = queryParams.get('type');
+    
+    // Just update state to match URL for display purposes
+    setSearchQuery(queryFromUrl || '');
+    setSearchType(typeFromUrl || 'all');
+  }, [location.search]);
 
   // Function to filter books based on search query and type
   const filterBooks = (allBooks: Book[], query: string, searchType: string): Book[] => {
@@ -480,13 +492,34 @@ export const BooksPage = () => {
     console.log('External toggle changed to:', newIncludeExternal);
   };
 
-  const handleSearch = (query: string, type?: string) => {
+  const handleSearch = async (query: string, type?: string) => {
     setSearchQuery(query || '');
     setSearchType(type || 'all');
+    setLoading(true);
+    setError(null);
     
-    // Filter books based on search
-    const filteredBooks = filterBooks(allBooks, query || '', type || 'all');
-    setBooks(filteredBooks);
+    try {
+      if (!query) {
+        // No query, show all books
+        setBooks(allBooks);
+      } else {
+        console.log('SearchBar: Performing search with query:', query);
+        // Use the API search which includes QueryRouterService
+        const results = await api.books.search(query, { 
+          searchType: type || 'all'
+        });
+        console.log('SearchBar: Search completed, found', results.length, 'books');
+        setBooks(results);
+      }
+    } catch (err) {
+      console.error('Search failed:', err);
+      setError('Search failed. Please try again.');
+      // Fallback to local filtering if API search fails
+      const filteredBooks = filterBooks(allBooks, query || '', type || 'all');
+      setBooks(filteredBooks);
+    } finally {
+      setLoading(false);
+    }
     
     // Update URL to reflect the search
     const searchParams = new URLSearchParams();

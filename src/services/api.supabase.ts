@@ -124,30 +124,24 @@ export const books = {
     try {
       console.log('Frontend API: Searching for:', query);
       
-      // Use our enhanced backend search endpoint instead of direct Supabase query
-      const response = await fetch(`http://localhost:3001/api/books/search/${encodeURIComponent(query)}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      // Use the new QueryRouterService for intelligent search routing
+      const { QueryRouterService } = await import('./queryRouter.service');
+      const queryRouter = new QueryRouterService();
       
-      if (!response.ok) {
-        throw new Error(`Search failed: ${response.statusText}`);
-      }
+      const result = await queryRouter.search(query);
       
-      const data = await response.json();
-      console.log('Frontend API: Enhanced search returned', data.length, 'books');
-      return data || [];
+      console.log(`Frontend API: ${result.searchMethod} search returned ${result.books.length} books (${result.queryType} query, ${result.processingTime}ms)`);
+      return result.books;
     } catch (error) {
-      console.error('Enhanced search failed, falling back to basic search:', error);
+      console.error('QueryRouter search failed, falling back to basic search:', error);
       
-      // Fallback to basic Supabase search if backend is unavailable
+      // Fallback to basic Supabase search if query router fails
       const { data, error: supabaseError } = await supabase
         .from('book')
         .select('*')
         .or(`title.ilike.%${query}%, author.ilike.%${query}%`)
-        .order('title');
+        .order('title')
+        .limit(50);
       
       if (supabaseError) throw supabaseError;
       console.log('Frontend API: Fallback search returned', data?.length || 0, 'books');

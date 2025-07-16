@@ -31,7 +31,25 @@ export class BookService {
           query = query.overlaps('themes', filters.themes);
         }
         if (filters.pace) {
-          query = query.eq('pace', filters.pace);
+          // Map UI reading styles to database pace values
+          let mappedPace = filters.pace;
+          switch (filters.pace.toLowerCase()) {
+            case 'quick read':
+              mappedPace = 'Fast';
+              break;
+            case 'deep dive':
+            case 'academic':
+              mappedPace = 'Slow';
+              break;
+            case 'light reading':
+            case 'standalone':
+            case 'series':
+            case 'visual':
+            case 'interactive':
+              mappedPace = 'Moderate';
+              break;
+          }
+          query = query.eq('pace', mappedPace);
         }
         if (filters.professions && filters.professions.length > 0) {
           query = query.overlaps('professions', filters.professions);
@@ -228,10 +246,30 @@ export class BookService {
           }
         }
 
-        // Pace matching
-        if (analysis.pace && book.pace === analysis.pace) {
-          score += 1; // Lower weight for pace
-          matches.push(`pace: ${analysis.pace}`);
+        // Pace matching with reading style mapping
+        if (analysis.pace) {
+          let mappedPace = analysis.pace;
+          switch (analysis.pace.toLowerCase()) {
+            case 'quick read':
+              mappedPace = 'Fast';
+              break;
+            case 'deep dive':
+            case 'academic':
+              mappedPace = 'Slow';
+              break;
+            case 'light reading':
+            case 'standalone':
+            case 'series':
+            case 'visual':
+            case 'interactive':
+              mappedPace = 'Moderate';
+              break;
+          }
+          
+          if (book.pace === mappedPace) {
+            score += 1; // Lower weight for pace
+            matches.push(`pace: ${analysis.pace} -> ${mappedPace}`);
+          }
         }
 
         // Boost score for text matches in title/author
