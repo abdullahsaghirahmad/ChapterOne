@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Book } from '../../types';
 import api from '../../services/api.supabase';
+import { useLocation } from 'react-router-dom';
 
 interface ColorInfo {
   name: string;
@@ -105,6 +106,7 @@ interface SelectedColor {
 
 export const ColorSearchPage = () => {
   const { theme } = useTheme();
+  const location = useLocation();
   const [books, setBooks] = useState<Book[]>([]);
   const [allBooks, setAllBooks] = useState<Book[]>([]);
   const [loading, setLoading] = useState(true);
@@ -135,6 +137,24 @@ export const ColorSearchPage = () => {
     
     fetchBooks();
   }, []);
+
+  // Handle URL parameters for pre-selecting colors
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const colorParam = searchParams.get('color');
+    
+    if (colorParam) {
+      // Find the color that matches the emotion from URL
+      const matchedColor = COLORS.find(color => 
+        color.emotion.toLowerCase() === colorParam.toLowerCase()
+      );
+      
+      if (matchedColor) {
+        // Pre-select the color
+        setSelectedColors([{ color: matchedColor, weight: 1 }]);
+      }
+    }
+  }, [location.search]);
 
   // Map emotions to book themes/tones for better matching
   const mapEmotionToBookAttributes = (emotion: string): string[] => {

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { MagnifyingGlassIcon, AdjustmentsHorizontalIcon, XMarkIcon, ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
 import { debounce } from 'lodash';
 import api from '../../services/api.supabase';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext';
 
 // Animated Beaker Component for Color Search
@@ -95,15 +95,39 @@ interface FilterCategory {
 
 export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
   const { theme } = useTheme();
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
   const [showFiltersSidebar, setShowFiltersSidebar] = useState(false);
   const [filterCategories, setFilterCategories] = useState<FilterCategory[]>([]);
+  const [currentPlaceholder, setCurrentPlaceholder] = useState('');
   
   const searchRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
+  
+  // Refs for typing animation - won't cause re-renders
+  const animationRef = useRef<{
+    currentIndex: number;
+    currentCharIndex: number;
+    isComplete: boolean;
+    timeoutId: NodeJS.Timeout | null;
+  }>({
+    currentIndex: 0,
+    currentCharIndex: 0,
+    isComplete: false,
+    timeoutId: null
+  });
+
+  // Smart rotating placeholders
+  const placeholderExamples = [
+    "Search books, authors, moods, or themes...",
+    "Try: 'feeling adventurous'",
+    "Search by color: 'warm orange vibes'",
+    "Find themes: 'coming of age stories'",
+    "Explore: 'cozy mystery novels'"
+  ];
 
   // Sample data - in real app, this would come from API
   const moods = [
@@ -131,6 +155,72 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
     { id: 'science', label: 'Science' }
   ];
 
+  // Color definitions from ColorSearchPage  
+  const colors = [
+    { name: 'Overwhelmed', value: '#64748b', emotion: 'overwhelmed' },
+    { name: 'Inspiration', value: '#f59e0b', emotion: 'inspiration' },
+    { name: 'Escape', value: '#14b8a6', emotion: 'escape' },
+    { name: 'Adventure', value: '#dc2626', emotion: 'adventure' },
+    { name: 'Nostalgic', value: '#b45309', emotion: 'nostalgic' },
+    { name: 'Learning', value: '#059669', emotion: 'learning' },
+    { name: 'Humor', value: '#eab308', emotion: 'humor' },
+    { name: 'Romantic', value: '#ec4899', emotion: 'romantic' },
+    { name: 'Mysterious', value: '#7c3aed', emotion: 'mysterious' },
+    { name: 'Serene', value: '#2563eb', emotion: 'serene' },
+    { name: 'Passionate', value: '#ea580c', emotion: 'passionate' },
+    { name: 'Sophisticated', value: '#4338ca', emotion: 'sophisticated' }
+  ];
+
+  // Safe typing animation with single useEffect
+  useEffect(() => {
+    const animate = () => {
+      const { currentIndex, currentCharIndex, isComplete } = animationRef.current;
+      const currentText = placeholderExamples[currentIndex];
+      
+      if (!isComplete) {
+        // Typing phase - 80ms → 50ms → 30ms
+        const progress = currentCharIndex / currentText.length;
+        const typingSpeed = Math.max(10, 50 - (progress * 60));
+        
+        if (currentCharIndex < currentText.length) {
+          // Type next character
+          const newText = currentText.slice(0, currentCharIndex + 1) + '|';
+          setCurrentPlaceholder(newText);
+          animationRef.current.currentCharIndex += 1;
+          
+          animationRef.current.timeoutId = setTimeout(animate, typingSpeed);
+        } else {
+          // Finished typing - show complete text with cursor for a moment
+          setCurrentPlaceholder(currentText + '|');
+          animationRef.current.isComplete = true;
+          animationRef.current.timeoutId = setTimeout(animate, 640); // 20% faster
+        }
+      } else {
+        // Pause phase - show text without cursor
+        setCurrentPlaceholder(currentText);
+        
+        // After pause, move to next text
+        animationRef.current.timeoutId = setTimeout(() => {
+          animationRef.current.currentIndex = (currentIndex + 1) % placeholderExamples.length;
+          animationRef.current.currentCharIndex = 0;
+          animationRef.current.isComplete = false;
+          animate();
+        }, 1200); // 20% faster (1.2 second pause)
+      }
+    };
+
+    // Start animation
+    animate();
+    
+    // Cleanup function
+    return () => {
+      if (animationRef.current.timeoutId) {
+        clearTimeout(animationRef.current.timeoutId);
+        animationRef.current.timeoutId = null;
+      }
+    };
+  }, []); // Empty dependency array - runs once only
+
   // Initialize filter categories
   useEffect(() => {
     setFilterCategories([
@@ -140,6 +230,13 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
         count: moods.length,
         items: moods,
         isExpanded: true
+      },
+      {
+        id: 'colors',
+        label: 'Search by color',
+        count: colors.length,
+        items: colors.map(c => c.emotion),
+        isExpanded: false
       },
       {
         id: 'themes',
@@ -303,6 +400,11 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
     setShowFiltersSidebar(!showFiltersSidebar);
   };
 
+  const handleColorClick = (color: typeof colors[0]) => {
+    // Navigate to color search page with selected color
+    navigate(`/color-search?color=${encodeURIComponent(color.emotion)}`);
+  };
+
   // Close suggestions when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -345,8 +447,8 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
               type="text"
               value={searchQuery}
               onChange={handleInputChange}
-              placeholder="Search books, authors, moods, or themes..."
-              className={`flex-1 px-4 py-3 bg-transparent border-none outline-none text-lg ${
+              placeholder={currentPlaceholder}
+              className={`flex-1 px-4 py-3 bg-transparent border-none outline-none text-lg transition-all duration-300 ${
                 theme === 'light'
                   ? 'text-gray-900 placeholder-gray-500'
                   : theme === 'dark'
@@ -360,7 +462,7 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
               type="button"
               onClick={toggleFiltersSidebar}
               data-filters-toggle
-              className={`mr-3 p-2 rounded-lg transition-all duration-200 ${
+              className={`group mr-3 flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 ${
                 showFiltersSidebar
                   ? theme === 'light'
                     ? 'bg-primary-100 text-primary-700'
@@ -375,6 +477,21 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
               }`}
             >
               <AdjustmentsHorizontalIcon className="w-5 h-5" />
+              <span className={`text-sm font-medium transition-all duration-200 whitespace-nowrap ${
+                showFiltersSidebar
+                  ? theme === 'light'
+                    ? 'text-primary-700'
+                    : theme === 'dark'
+                    ? 'text-white'
+                    : 'text-purple-700'
+                  : theme === 'light'
+                  ? 'text-primary-500 group-hover:text-primary-700'
+                  : theme === 'dark'
+                  ? 'text-gray-400 group-hover:text-gray-300'
+                  : 'text-purple-500 group-hover:text-purple-700'
+              }`}>
+                Advanced
+              </span>
             </button>
           </div>
         </form>
@@ -503,24 +620,24 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-6">
               {/* Search by mood - First Column */}
               <div className="animate-fade-in" style={{ animationDelay: '50ms' }}>
-                <h3 className={`text-sm font-medium mb-2 transition-colors duration-300 ${
+                <h3 className={`text-left text-sm font-medium mb-2 transition-colors duration-300 ${
                   theme === 'light'
                     ? 'text-primary-900'
                     : theme === 'dark'
                     ? 'text-white'
                     : 'text-purple-900'
                 }`}>
-                  Search by mood
+                  Mood
                 </h3>
-                <div className="flex flex-col gap-2 max-h-[200px] overflow-y-auto pr-1 mb-4">
+                <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto pr-1 mb-4">
                   {moods.map((mood) => (
                     <button
                       key={mood}
                       onClick={() => addFilter(mood)}
-                      className={`text-left text-sm p-2 rounded-lg transition-all duration-200 ${
+                      className={`text-left text-sm py-2 pr-2 pl-0 rounded-lg transition-all duration-200 ${
                         activeFilters.includes(mood)
                           ? theme === 'light'
                             ? 'bg-primary-100 text-primary-700'
@@ -538,69 +655,25 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
                     </button>
                   ))}
                 </div>
-                
-                {/* Color Search - Below mood */}
-                <div className="relative">
-                  {/* Small divider */}
-                  <div className={`w-full h-px my-3 ${
-                    theme === 'light'
-                      ? 'bg-primary-200'
-                      : theme === 'dark'
-                      ? 'bg-gray-600'
-                      : 'bg-purple-200'
-                  }`}></div>
-                  
-                  <Link
-                    to="/color-search"
-                    className={`group flex items-center w-full px-3 py-2 rounded-lg text-sm transition-all duration-200 hover:scale-[1.02] relative overflow-hidden ${
-                      theme === 'light'
-                        ? 'text-primary-600 hover:text-primary-700 hover:bg-primary-50'
-                        : theme === 'dark'
-                        ? 'text-gray-300 hover:text-white hover:bg-gray-700'
-                        : 'text-purple-600 hover:text-purple-700 hover:bg-purple-50'
-                    }`}
-                  >
-                    <AnimatedBeaker className="mr-2 flex-shrink-0" />
-                    <span className="flex-grow relative whitespace-nowrap">
-                      <span className="relative z-10 group-hover:opacity-0 transition-opacity duration-300">Try color search</span>
-                      {/* Rainbow glittering text with sparkles */}
-                      <span className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                        <span className="bg-gradient-to-r from-red-500 via-yellow-500 via-green-500 via-blue-500 via-indigo-500 to-purple-500 bg-clip-text text-transparent animate-pulse">
-                          Try color search
-                        </span>
-                        {/* Sparkles */}
-                        <span className="absolute -top-1 left-2 w-1 h-1 bg-yellow-400 rounded-full animate-ping opacity-75"></span>
-                        <span className="absolute -top-0.5 left-8 w-0.5 h-0.5 bg-pink-400 rounded-full animate-ping animation-delay-200 opacity-75"></span>
-                        <span className="absolute top-0 left-14 w-1 h-1 bg-blue-400 rounded-full animate-ping animation-delay-400 opacity-75"></span>
-                        <span className="absolute -bottom-1 left-4 w-0.5 h-0.5 bg-green-400 rounded-full animate-ping animation-delay-600 opacity-75"></span>
-                        <span className="absolute -bottom-0.5 left-10 w-1 h-1 bg-purple-400 rounded-full animate-ping animation-delay-800 opacity-75"></span>
-                        <span className="absolute top-0.5 right-8 w-0.5 h-0.5 bg-red-400 rounded-full animate-ping animation-delay-1000 opacity-75"></span>
-                      </span>
-                    </span>
-                    <svg className="w-3 h-3 ml-2 transition-transform duration-200 group-hover:translate-x-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </Link>
-                </div>
               </div>
               
               {/* Search by theme - Second Column */}
               <div className="animate-fade-in" style={{ animationDelay: '100ms' }}>
-                <h3 className={`text-sm font-medium mb-2 transition-colors duration-300 ${
+                <h3 className={`text-left text-sm font-medium mb-2 transition-colors duration-300 ${
                   theme === 'light'
                     ? 'text-primary-900'
                     : theme === 'dark'
                     ? 'text-white'
                     : 'text-purple-900'
                 }`}>
-                  Search by theme
+                  Theme
                 </h3>
                 <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto pr-1">
                   {themes.map((themeItem) => (
                     <button
                       key={themeItem}
                       onClick={() => addFilter(themeItem)}
-                      className={`text-left text-sm p-2 rounded-lg transition-all duration-200 ${
+                      className={`text-left text-sm py-2 pr-2 pl-0 rounded-lg transition-all duration-200 ${
                         activeFilters.includes(themeItem)
                           ? theme === 'light'
                             ? 'bg-primary-100 text-primary-700'
@@ -622,21 +695,21 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
 
               {/* Search by reading style - Third Column */}
               <div className="animate-fade-in" style={{ animationDelay: '150ms' }}>
-                <h3 className={`text-sm font-medium mb-2 transition-colors duration-300 ${
+                <h3 className={`text-left text-sm font-medium mb-2 transition-colors duration-300 ${
                   theme === 'light'
                     ? 'text-primary-900'
                     : theme === 'dark'
                     ? 'text-white'
                     : 'text-purple-900'
                 }`}>
-                  Search by reading style
+                  Reading Style
                 </h3>
                 <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto pr-1">
                   {readingStyles.map((style) => (
                     <button
                       key={style}
                       onClick={() => addFilter(style)}
-                      className={`text-left text-sm p-2 rounded-lg transition-all duration-200 ${
+                      className={`text-left text-sm py-2 pr-2 pl-0 rounded-lg transition-all duration-200 ${
                         activeFilters.includes(style)
                           ? theme === 'light'
                             ? 'bg-primary-100 text-primary-700'
@@ -658,21 +731,21 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
 
               {/* Search by profession - Fourth Column */}
               <div className="animate-fade-in" style={{ animationDelay: '200ms' }}>
-                <h3 className={`text-sm font-medium mb-2 transition-colors duration-300 ${
+                <h3 className={`text-left text-sm font-medium mb-2 transition-colors duration-300 ${
                   theme === 'light'
                     ? 'text-primary-900'
                     : theme === 'dark'
                     ? 'text-white'
                     : 'text-purple-900'
                 }`}>
-                  Search by profession
+                  Profession
                 </h3>
                 <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto pr-1">
                   {professions.map((profession) => (
                     <button
                       key={profession.id}
                       onClick={() => addFilter(profession.label)}
-                      className={`text-left text-sm p-2 rounded-lg transition-all duration-200 ${
+                      className={`text-left text-sm py-2 pr-2 pl-0 rounded-lg transition-all duration-200 ${
                         activeFilters.includes(profession.label)
                           ? theme === 'light'
                             ? 'bg-primary-100 text-primary-700'
@@ -687,6 +760,52 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
                       }`}
                     >
                       {profession.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Search by color - Fifth Column (rightmost) */}
+              <div className="animate-fade-in" style={{ animationDelay: '250ms' }}>
+                <div className={`group cursor-pointer transition-all duration-200 hover:scale-[1.01] relative overflow-hidden ${
+                  theme === 'light'
+                    ? 'hover:bg-primary-50'
+                    : theme === 'dark'
+                    ? 'hover:bg-gray-700'
+                    : 'hover:bg-purple-50'
+                }`}>
+                  <h3 className={`text-left text-sm font-medium mb-2 transition-colors duration-300 relative ${
+                    theme === 'light'
+                      ? 'text-primary-900'
+                      : theme === 'dark'
+                      ? 'text-white'
+                      : 'text-purple-900'
+                  }`}>
+                    <span className="relative z-10 group-hover:opacity-0 transition-opacity duration-300">Color</span>
+                    {/* Rainbow glittering text with sparkles */}
+                    <span className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      <span className="bg-gradient-to-r from-red-500 via-yellow-500 via-green-500 via-blue-500 via-indigo-500 to-purple-500 bg-clip-text text-transparent animate-pulse">
+                        Color
+                      </span>
+                      {/* Sparkles */}
+                      <span className="absolute -top-1 left-2 w-1 h-1 bg-yellow-400 rounded-full animate-ping opacity-75"></span>
+                      <span className="absolute -top-0.5 left-8 w-0.5 h-0.5 bg-pink-400 rounded-full animate-ping animation-delay-200 opacity-75"></span>
+                      <span className="absolute top-0 left-14 w-1 h-1 bg-blue-400 rounded-full animate-ping animation-delay-400 opacity-75"></span>
+                      <span className="absolute -bottom-1 left-4 w-0.5 h-0.5 bg-green-400 rounded-full animate-ping animation-delay-600 opacity-75"></span>
+                      <span className="absolute -bottom-0.5 left-10 w-1 h-1 bg-purple-400 rounded-full animate-ping animation-delay-800 opacity-75"></span>
+                      <span className="absolute top-0.5 right-8 w-0.5 h-0.5 bg-red-400 rounded-full animate-ping animation-delay-1000 opacity-75"></span>
+                    </span>
+                  </h3>
+                </div>
+                <div className="grid grid-cols-3 gap-2 max-h-[300px] overflow-y-auto pr-1">
+                  {colors.map((color) => (
+                    <button
+                      key={color.emotion}
+                      onClick={() => handleColorClick(color)}
+                      className="w-8 h-8 rounded-md border border-gray-200/50"
+                      style={{ backgroundColor: color.value }}
+                      title={color.name}
+                    >
                     </button>
                   ))}
                 </div>
