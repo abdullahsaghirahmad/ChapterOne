@@ -18,6 +18,7 @@ export interface Book {
   isExternal?: boolean;
   pageCount?: number;
   categories?: string[];
+  quote?: string;
 }
 
 export interface Thread {

@@ -1,3 +1,5 @@
+import axios from 'axios';
+
 export interface QueryAnalysis {
   originalQuery: string;
   themes?: string[];
@@ -431,5 +433,196 @@ Return only the JSON object, no additional text.`;
   private sanitizeArray(input: any): string[] | undefined {
     if (!Array.isArray(input)) return undefined;
     return input.filter(item => typeof item === 'string' && item.length > 0);
+  }
+
+  /**
+   * Generate a compelling 2-line description for a book
+   */
+  async generateDescription(title: string, author: string, existingDescription?: string): Promise<string> {
+    console.log(`${this.LOG_PREFIX} Generating description for: "${title}" by ${author}`);
+
+    if (!this.config.enabled || !this.config.apiKey) {
+      console.log(`${this.LOG_PREFIX} LLM disabled, using fallback description generation`);
+      return this.generateFallbackDescription(title, author, existingDescription);
+    }
+
+    try {
+      const prompt = this.buildDescriptionPrompt(title, author, existingDescription);
+      const response = await this.callDevsAI(prompt);
+      
+      // Parse the response to extract the description
+      const description = this.parseDescriptionResponse(response);
+      
+      if (description && description.length > 10) {
+        console.log(`${this.LOG_PREFIX} Generated description: ${description.substring(0, 50)}...`);
+        return description;
+      } else {
+        return this.generateFallbackDescription(title, author, existingDescription);
+      }
+    } catch (error) {
+      console.error(`${this.LOG_PREFIX} Description generation failed:`, error);
+      return this.generateFallbackDescription(title, author, existingDescription);
+    }
+  }
+
+  /**
+   * Generate a notable quote for a book
+   */
+  async generateQuote(title: string, author: string, description?: string): Promise<string> {
+    console.log(`${this.LOG_PREFIX} Generating quote for: "${title}" by ${author}`);
+
+    if (!this.config.enabled || !this.config.apiKey) {
+      console.log(`${this.LOG_PREFIX} LLM disabled, using fallback quote generation`);
+      return this.generateFallbackQuote(title, author);
+    }
+
+    try {
+      const prompt = this.buildQuotePrompt(title, author, description);
+      const response = await this.callDevsAI(prompt);
+      
+      // Parse the response to extract the quote
+      const quote = this.parseQuoteResponse(response);
+      
+      if (quote && quote.length > 10) {
+        console.log(`${this.LOG_PREFIX} Generated quote: ${quote.substring(0, 30)}...`);
+        return quote;
+      } else {
+        return this.generateFallbackQuote(title, author);
+      }
+    } catch (error) {
+      console.error(`${this.LOG_PREFIX} Quote generation failed:`, error);
+      return this.generateFallbackQuote(title, author);
+    }
+  }
+
+  /**
+   * Build prompt for description generation
+   */
+  private buildDescriptionPrompt(title: string, author: string, existingDescription?: string): string {
+    return `You are a book marketing expert. Create a compelling 2-line description for this book that would make readers want to read it.
+
+Book: "${title}" by ${author}
+${existingDescription ? `Current description: ${existingDescription}` : 'No existing description available.'}
+
+Requirements:
+- Maximum 2 lines (about 120-140 characters total)
+- Compelling and engaging
+- Captures the essence and appeal of the book
+- Makes readers curious to learn more
+- Professional marketing tone
+
+Return only the 2-line description, no quotes or additional text.`;
+  }
+
+  /**
+   * Build prompt for quote generation
+   */
+  private buildQuotePrompt(title: string, author: string, description?: string): string {
+    return `You are a literary expert. Generate a notable, inspiring quote that would be associated with this book.
+
+Book: "${title}" by ${author}
+${description ? `Description: ${description}` : ''}
+
+Requirements:
+- Create a memorable, quotable line that fits the book's theme
+- Should sound like it could be from the book or about the book's message
+- Inspiring, thought-provoking, or emotionally resonant
+- 10-25 words maximum
+- No attribution needed
+
+Return only the quote, no quotation marks or additional text.`;
+  }
+
+  /**
+   * Parse description response
+   */
+  private parseDescriptionResponse(response: string): string {
+    // Clean up the response
+    let description = response.trim();
+    
+    // Remove quotes if present
+    description = description.replace(/^["']|["']$/g, '');
+    
+    // Ensure it's not too long (max 2 lines ≈ 140 chars)
+    if (description.length > 140) {
+      const sentences = description.split('. ');
+      if (sentences.length > 1) {
+        description = sentences[0] + '. ' + sentences[1].substring(0, 140 - sentences[0].length - 2);
+      } else {
+        description = description.substring(0, 137) + '...';
+      }
+    }
+    
+    return description;
+  }
+
+  /**
+   * Parse quote response
+   */
+  private parseQuoteResponse(response: string): string {
+    // Clean up the response
+    let quote = response.trim();
+    
+    // Remove outer quotes if present
+    quote = quote.replace(/^["']|["']$/g, '');
+    
+    // Ensure reasonable length
+    if (quote.length > 150) {
+      quote = quote.substring(0, 147) + '...';
+    }
+    
+    return quote;
+  }
+
+  /**
+   * Generate fallback description when LLM is unavailable
+   */
+  private generateFallbackDescription(title: string, author: string, existingDescription?: string): string {
+    if (existingDescription && existingDescription !== 'No description available') {
+      // Truncate existing description to 2 lines
+      const sentences = existingDescription.split('. ');
+      if (sentences.length >= 2) {
+        let result = sentences[0] + '. ' + sentences[1];
+        if (result.length > 140) {
+          result = result.substring(0, 137) + '...';
+        }
+        return result;
+      } else if (existingDescription.length > 140) {
+        return existingDescription.substring(0, 137) + '...';
+      }
+      return existingDescription;
+    }
+    
+    // Generate basic description
+    const templates = [
+      `A compelling story by ${author} that explores profound themes. Discover what makes "${title}" a remarkable read.`,
+      `${author} crafts an engaging narrative in "${title}". A book that promises to captivate and inspire readers.`,
+      `"${title}" by ${author} offers readers an unforgettable journey. A thoughtfully written work worth exploring.`,
+      `An insightful work by ${author} that delves into meaningful themes. "${title}" provides a rich reading experience.`
+    ];
+    
+    const hash = (title.length + author.length) % templates.length;
+    return templates[hash];
+  }
+
+  /**
+   * Generate fallback quote when LLM is unavailable
+   */
+  private generateFallbackQuote(title: string, author: string): string {
+    const quotes = [
+      "The journey of a thousand miles begins with one step.",
+      "Sometimes the heart sees what is invisible to the eye.",
+      "Tell me and I forget, teach me and I may remember, involve me and I learn.",
+      "The future belongs to those who believe in the beauty of their dreams.",
+      "In the end, we will remember not the words of our enemies, but the silence of our friends.",
+      "The greatest glory in living lies not in never falling, but in rising every time we fall.",
+      "It is during our darkest moments that we must focus to see the light.",
+      "Life is what happens to you while you're busy making other plans.",
+      "The way to get started is to quit talking and begin doing.",
+      "Innovation distinguishes between a leader and a follower."
+    ];
+    
+    const hash = (title.length + author.length) % quotes.length;
+    return quotes[hash];
   }
 } 
