@@ -8,6 +8,7 @@ import {
   FireIcon,
   BookOpenIcon
 } from '@heroicons/react/24/outline';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Pace } from '../../types';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -469,6 +470,7 @@ export const BookCard = ({
               </span>
             </div>
           )}
+
         </div>
 
         {/* Clickable Themes */}
@@ -493,34 +495,65 @@ export const BookCard = ({
           </div>
         )}
 
-        {/* Description - Truncated in collapsed state, full in expanded state */}
-        <p className={`text-sm mb-3 leading-relaxed ${
+        {/* Description - Smooth text transition only on toggle */}
+        <div className={`text-sm mb-3 leading-relaxed transition-all duration-300 ease-out ${
           theme === 'light'
             ? 'text-primary-600'
             : theme === 'dark'
             ? 'text-gray-300'
             : 'text-purple-600'
         }`}>
-          {isExpanded ? bookDescription : truncatedDescription}
-        </p>
+          <p>{isExpanded ? bookDescription : truncatedDescription}</p>
+        </div>
 
         {/* Expanded Content */}
-        {isExpanded && bookQuote && (
-          <div className="mb-3 animate-fade-in">
-            <div className={`pl-3 border-l-2 italic text-sm mb-3 ${
-              theme === 'light'
-                ? 'border-primary-300 text-primary-600'
-                : theme === 'dark'
-                ? 'border-gray-600 text-gray-300'
-                : 'border-purple-300 text-purple-600'
-            }`}>
-              <p>"{bookQuote}"</p>
-            </div>
-          </div>
-        )}
+        <AnimatePresence>
+          {isExpanded && bookQuote && (
+            <motion.div
+              initial={{ 
+                opacity: 0, 
+                height: 0,
+                marginBottom: 0
+              }}
+              animate={{ 
+                opacity: 1, 
+                height: 'auto',
+                marginBottom: 12 // mb-3 equivalent
+              }}
+              exit={{ 
+                opacity: 0, 
+                height: 0,
+                marginBottom: 0
+              }}
+              transition={{
+                duration: 0.3,
+                ease: [0.4, 0.0, 0.2, 1]
+              }}
+              className="overflow-hidden"
+            >
+              <motion.div 
+                className={`pl-3 border-l-2 italic text-sm ${
+                  theme === 'light'
+                    ? 'border-primary-300 text-primary-600'
+                    : theme === 'dark'
+                    ? 'border-gray-600 text-gray-300'
+                    : 'border-purple-300 text-purple-600'
+                }`}
+                initial={{ x: -10, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                transition={{ 
+                  duration: 0.2,
+                  delay: 0.15 // Stagger after height animation
+                }}
+              >
+                <p>"{bookQuote}"</p>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Action Button */}
-        <button
+        <motion.button
           onClick={() => setIsExpanded(!isExpanded)}
           className={`self-start text-sm font-medium flex items-center transition-all duration-300 hover:scale-105 ${
             theme === 'light'
@@ -529,25 +562,73 @@ export const BookCard = ({
               ? 'text-blue-400 hover:text-blue-300'
               : 'text-purple-500 hover:text-purple-700'
           }`}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.98 }}
         >
-          <BookOpenIcon className="h-4 w-4 mr-1" />
-          {isExpanded ? 'Show less' : 'Read more'}
-        </button>
+          <motion.div
+            animate={{ rotate: isExpanded ? 180 : 0 }}
+            transition={{ duration: 0.3, ease: [0.4, 0.0, 0.2, 1] }}
+            className="mr-1"
+          >
+            <BookOpenIcon className="h-4 w-4" />
+          </motion.div>
+          <span className="transition-all duration-200">
+            {isExpanded ? 'Show less' : 'Read more'}
+          </span>
+        </motion.button>
 
         {/* Start Reading Button (only in expanded state) */}
-        {isExpanded && (
-          <div className="mt-3">
-            <button className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-300 hover:scale-105 ${
-              theme === 'light'
-                ? 'bg-primary-600 hover:bg-primary-700 text-white'
-                : theme === 'dark'
-                ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                : 'bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white'
-            }`}>
-              📖 Start Reading
-            </button>
-          </div>
-        )}
+        <AnimatePresence>
+          {isExpanded && (
+            <motion.div 
+              initial={{ 
+                opacity: 0, 
+                y: 10,
+                height: 0,
+                marginTop: 0
+              }}
+              animate={{ 
+                opacity: 1, 
+                y: 0,
+                height: 'auto',
+                marginTop: 12 // mt-3 equivalent
+              }}
+              exit={{ 
+                opacity: 0, 
+                y: -5,
+                height: 0,
+                marginTop: 0
+              }}
+              transition={{
+                duration: 0.3,
+                ease: [0.4, 0.0, 0.2, 1],
+                delay: 0.1 // Appear after quote
+              }}
+              className="overflow-hidden"
+            >
+              <motion.button 
+                className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-300 hover:scale-105 ${
+                  theme === 'light'
+                    ? 'bg-primary-600 hover:bg-primary-700 text-white'
+                    : theme === 'dark'
+                    ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                    : 'bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white'
+                }`}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.98 }}
+                initial={{ scale: 0.9 }}
+                animate={{ scale: 1 }}
+                transition={{ 
+                  duration: 0.2,
+                  type: "spring",
+                  stiffness: 200
+                }}
+              >
+                📖 Start Reading
+              </motion.button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

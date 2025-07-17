@@ -354,7 +354,7 @@ export const SearchBar = ({ onSearch, onMoodSelect, onColorSearch }: SearchBarPr
 
   const handleSuggestionClick = (suggestion: Suggestion) => {
     if (suggestion.type === 'mood') {
-      addFilter(suggestion.title);
+      // Apple-style: Instant search, no filter pills
       onMoodSelect?.(suggestion.title);
     } else {
       setSearchQuery(suggestion.title);
@@ -363,31 +363,20 @@ export const SearchBar = ({ onSearch, onMoodSelect, onColorSearch }: SearchBarPr
     setShowSuggestions(false);
   };
 
-  const addFilter = (filter: string) => {
-    if (!activeFilters.includes(filter)) {
-      setActiveFilters([...activeFilters, filter]);
-    }
-  };
-
-  const removeFilter = (filter: string) => {
-    setActiveFilters(activeFilters.filter(f => f !== filter));
+  // Remove filter pill functionality - use instant search instead
+  const handleFilterClick = (filter: string, type: string = 'all') => {
+    // Apple-style: Immediate search response
+    onSearch(filter, type);
+    setShowFiltersSidebar(false); // Close sidebar after selection
   };
 
   const clearAllFilters = () => {
     setActiveFilters([]);
+    // Clear search results by showing all
+    onSearch('');
   };
 
-  // Automatically search when filters change
-  useEffect(() => {
-    // Only trigger search if we have filters or a search query
-    if (activeFilters.length > 0) {
-      const timeoutId = setTimeout(() => {
-        performSearch();
-      }, 300); // Debounce to avoid too many searches
-      
-      return () => clearTimeout(timeoutId);
-    }
-  }, [activeFilters, performSearch]); // Watch for filter changes
+  // Remove the automatic search delay effect - we want instant responses
 
   const toggleFilterCategory = (categoryId: string) => {
     setFilterCategories(categories =>
@@ -558,51 +547,7 @@ export const SearchBar = ({ onSearch, onMoodSelect, onColorSearch }: SearchBarPr
         )}
       </div>
 
-      {/* Active Filters */}
-      {activeFilters.length > 0 && (
-        <div className="flex flex-wrap gap-2 mt-4">
-          {activeFilters.map((filter) => (
-            <span
-              key={filter}
-              className={`inline-flex items-center px-3 py-1 rounded-full text-sm transition-all duration-200 ${
-                theme === 'light'
-                  ? 'bg-primary-100 text-primary-700'
-                  : theme === 'dark'
-                  ? 'bg-gray-700 text-gray-300'
-                  : 'bg-gradient-to-r from-pink-200 to-purple-200 text-purple-800'
-              }`}
-            >
-              {filter}
-              <button
-                onClick={() => removeFilter(filter)}
-                className={`ml-2 transition-colors duration-200 ${
-                  theme === 'light'
-                    ? 'text-primary-500 hover:text-primary-700'
-                    : theme === 'dark'
-                    ? 'text-gray-400 hover:text-gray-300'
-                    : 'text-purple-500 hover:text-purple-700'
-                }`}
-              >
-                <XMarkIcon className="w-4 h-4" />
-              </button>
-            </span>
-          ))}
-          {activeFilters.length > 1 && (
-            <button
-              onClick={clearAllFilters}
-              className={`text-sm px-3 py-1 rounded-full transition-colors duration-200 ${
-                theme === 'light'
-                  ? 'text-primary-600 hover:text-primary-800 hover:bg-primary-50'
-                  : theme === 'dark'
-                  ? 'text-blue-400 hover:text-blue-300 hover:bg-gray-700'
-                  : 'text-purple-600 hover:text-purple-800 hover:bg-purple-50'
-              }`}
-            >
-              Clear all
-            </button>
-          )}
-        </div>
-      )}
+      {/* Apple-style: No filter pills - search results show immediately */}
 
       {/* Filters Sidebar - Apple-style Animation */}
       <AnimatePresence>
@@ -698,23 +643,17 @@ export const SearchBar = ({ onSearch, onMoodSelect, onColorSearch }: SearchBarPr
                 </h3>
                 <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto pr-1 mb-4">
                   {moods.map((mood) => (
-                    <button
-                      key={mood}
-                      onClick={() => addFilter(mood)}
-                      className={`text-left text-sm py-2 pr-2 pl-0 rounded-lg transition-all duration-200 ${
-                        activeFilters.includes(mood)
-                          ? theme === 'light'
-                            ? 'bg-primary-100 text-primary-700'
+                                          <button
+                        key={mood}
+                        onClick={() => handleFilterClick(mood)}
+                        className={`text-left text-sm py-2 pr-2 pl-0 rounded-lg transition-all duration-200 ${
+                          theme === 'light'
+                            ? 'text-primary-700 hover:bg-primary-50'
                             : theme === 'dark'
-                            ? 'bg-gray-700 text-white'
-                            : 'bg-purple-100 text-purple-700'
-                          : theme === 'light'
-                          ? 'text-primary-700 hover:bg-primary-50'
-                          : theme === 'dark'
-                          ? 'text-gray-300 hover:bg-gray-700'
-                          : 'text-purple-700 hover:bg-purple-50'
-                      }`}
-                    >
+                            ? 'text-gray-300 hover:bg-gray-700'
+                            : 'text-purple-700 hover:bg-purple-50'
+                        }`}
+                      >
                       {mood}
                     </button>
                   ))}
@@ -745,15 +684,9 @@ export const SearchBar = ({ onSearch, onMoodSelect, onColorSearch }: SearchBarPr
                   {themes.map((themeItem) => (
                     <button
                       key={themeItem}
-                      onClick={() => addFilter(themeItem)}
+                      onClick={() => handleFilterClick(themeItem)}
                       className={`text-left text-sm py-2 pr-2 pl-0 rounded-lg transition-all duration-200 ${
-                        activeFilters.includes(themeItem)
-                          ? theme === 'light'
-                            ? 'bg-primary-100 text-primary-700'
-                            : theme === 'dark'
-                            ? 'bg-gray-700 text-white'
-                            : 'bg-purple-100 text-purple-700'
-                          : theme === 'light'
+                        theme === 'light'
                           ? 'text-primary-700 hover:bg-primary-50'
                           : theme === 'dark'
                           ? 'text-gray-300 hover:bg-gray-700'
@@ -790,15 +723,9 @@ export const SearchBar = ({ onSearch, onMoodSelect, onColorSearch }: SearchBarPr
                   {readingStyles.map((style) => (
                     <button
                       key={style}
-                      onClick={() => addFilter(style)}
+                      onClick={() => handleFilterClick(style)}
                       className={`text-left text-sm py-2 pr-2 pl-0 rounded-lg transition-all duration-200 ${
-                        activeFilters.includes(style)
-                          ? theme === 'light'
-                            ? 'bg-primary-100 text-primary-700'
-                            : theme === 'dark'
-                            ? 'bg-gray-700 text-white'
-                            : 'bg-purple-100 text-purple-700'
-                          : theme === 'light'
+                        theme === 'light'
                           ? 'text-primary-700 hover:bg-primary-50'
                           : theme === 'dark'
                           ? 'text-gray-300 hover:bg-gray-700'
@@ -835,15 +762,9 @@ export const SearchBar = ({ onSearch, onMoodSelect, onColorSearch }: SearchBarPr
                   {professions.map((profession) => (
                     <button
                       key={profession.id}
-                      onClick={() => addFilter(profession.label)}
+                      onClick={() => handleFilterClick(profession.label)}
                       className={`text-left text-sm py-2 pr-2 pl-0 rounded-lg transition-all duration-200 ${
-                        activeFilters.includes(profession.label)
-                          ? theme === 'light'
-                            ? 'bg-primary-100 text-primary-700'
-                            : theme === 'dark'
-                            ? 'bg-gray-700 text-white'
-                            : 'bg-purple-100 text-purple-700'
-                          : theme === 'light'
+                        theme === 'light'
                           ? 'text-primary-700 hover:bg-primary-50'
                           : theme === 'dark'
                           ? 'text-gray-300 hover:bg-gray-700'

@@ -4,7 +4,7 @@ import { ThreadCard } from './ThreadCard';
 import { BookCard } from './BookCard';
 import { Book, Thread, Pace } from '../../types';
 import api from '../../services/api.supabase';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRightIcon } from '@heroicons/react/24/outline';
 import { normalizeTag } from './ThreadPage'; // Import the normalizeTag function
 import { useTheme } from '../../contexts/ThemeContext';
@@ -23,6 +23,7 @@ export const HomePage = () => {
   const [error, setError] = useState<string | null>(null);
   const [visibleBooks, setVisibleBooks] = useState(4); // Show 4 books initially
   const [visibleThreads, setVisibleThreads] = useState(4); // Show 4 threads initially
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -131,13 +132,18 @@ export const HomePage = () => {
   };
 
   const handleSearch = async (query: string, searchType: string = 'all') => {
-    // When searching, redirect to the Books page instead of filtering the featured books
-    window.location.href = `/books?query=${encodeURIComponent(query)}&type=${searchType}`;
+    // Use React Router navigation to preserve smooth transitions
+    const searchParams = new URLSearchParams();
+    searchParams.set('query', query);
+    if (searchType && searchType !== 'all') {
+      searchParams.set('type', searchType);
+    }
+    navigate(`/books?${searchParams.toString()}`);
   };
 
   const handleColorSearch = (color: any) => {
-    // When color searching, redirect to the Books page with color parameter
-    window.location.href = `/books?color=${encodeURIComponent(color.emotion)}`;
+    // Use React Router navigation for color search
+    navigate(`/books?color=${encodeURIComponent(color.emotion)}`);
   };
 
   if (isLoading) {

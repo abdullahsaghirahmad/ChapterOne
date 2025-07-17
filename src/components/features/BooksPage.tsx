@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { BookCard } from './BookCard';
 import { SearchBar } from './SearchBar';
 import { Book, Pace } from '../../types';
@@ -6,6 +6,7 @@ import { Switch } from '../ui/Switch';
 import { useLocation, useNavigate } from 'react-router-dom';
 import api from '../../services/api.supabase';
 import { useTheme } from '../../contexts/ThemeContext';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // Interface for Pace objects that might be returned from API
 interface PaceObject {
@@ -387,6 +388,9 @@ export const BooksPage = () => {
   const [selectedColor, setSelectedColor] = useState<any>(null);
   const [selectedColors, setSelectedColors] = useState<any[]>([]);
   const [colorIntensity, setColorIntensity] = useState(1);
+  
+  // Track processed URLs to prevent duplicate processing
+  const processedUrlRef = useRef<string>('');
 
   // Color definitions (from SearchBar)
   const colors = [
@@ -419,6 +423,7 @@ export const BooksPage = () => {
         const queryParams = new URLSearchParams(location.search);
         const queryFromUrl = queryParams.get('query');
         const typeFromUrl = queryParams.get('type');
+        const colorFromUrl = queryParams.get('color');
         
         if (queryFromUrl) {
           console.log('INITIAL_SEARCH: Performing search from URL on page load');
@@ -432,6 +437,9 @@ export const BooksPage = () => {
             console.error('Initial URL search failed:', err);
             setBooks(booksData);
           }
+        } else if (colorFromUrl) {
+          console.log('FETCH: Color search detected, skipping initial setBooks to avoid override');
+          // Don't set books here - let the color search useEffect handle it
         } else {
           console.log('FETCH: Using all books from database');
           setBooks(booksData);
@@ -448,29 +456,55 @@ export const BooksPage = () => {
     fetchData();
   }, [includeExternal]); // Only depends on includeExternal, not location.search
   
-  // Sync URL parameters with state and handle color search from URL
+  // Handle color search from URL when books are loaded
+  useEffect(() => {
+    if (allBooks.length === 0) return; // Wait for books to load
+    
+    const queryParams = new URLSearchParams(location.search);
+    const colorFromUrl = queryParams.get('color');
+    const currentUrl = location.search;
+    
+    // Only process if we have a color URL and haven't processed this exact URL yet
+    if (colorFromUrl && currentUrl !== processedUrlRef.current) {
+      const matchedColor = colors.find(color => 
+        color.emotion.toLowerCase() === colorFromUrl.toLowerCase()
+      );
+      
+      if (matchedColor) {
+        processedUrlRef.current = currentUrl; // Mark this URL as processed
+        
+        setIsColorSearchMode(true);
+        setSelectedColor(matchedColor);
+        setSelectedColors([{ ...matchedColor, intensity: 1 }]);
+        setLoading(true);
+        
+        try {
+          const filteredBooks = filterBooksByColor(matchedColor, allBooks);
+          setBooks(filteredBooks);
+          setSearchQuery(`Color: ${matchedColor.name}`);
+          setSearchType('color');
+        } catch (err) {
+          console.error('Color search failed:', err);
+          setBooks(allBooks);
+        } finally {
+          setLoading(false);
+        }
+      }
+    }
+  }, [allBooks, location.search]); // Remove isColorSearchMode from dependencies
+  
+  // Sync other URL parameters with state (non-color searches)
   useEffect(() => {
     const queryParams = new URLSearchParams(location.search);
     const queryFromUrl = queryParams.get('query');
     const typeFromUrl = queryParams.get('type');
     const colorFromUrl = queryParams.get('color');
     
-    // Handle color search from URL (e.g., from HomePage)
-    if (colorFromUrl && !isColorSearchMode) {
-      const matchedColor = colors.find(color => 
-        color.emotion.toLowerCase() === colorFromUrl.toLowerCase()
-      );
-      
-      if (matchedColor) {
-        // Trigger color search
-        handleColorSearch(matchedColor);
-        return; // Exit early to avoid overriding with regular search
-      }
+    // Only handle non-color URL parameters
+    if (!colorFromUrl) {
+      setSearchQuery(queryFromUrl || '');
+      setSearchType(typeFromUrl || 'all');
     }
-    
-    // Just update state to match URL for display purposes
-    setSearchQuery(queryFromUrl || '');
-    setSearchType(typeFromUrl || 'all');
   }, [location.search]);
 
   // Function to filter books based on search query and type
@@ -949,27 +983,39 @@ export const BooksPage = () => {
               </div>
             )}
             
-            {/* Books grid */}
-            <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
-              {books.map((book) => (
-                <BookCard
-                  key={book.id || `${book.title}-${book.author}`}
-                  title={book.title}
-                  author={book.author}
-                  coverImage={book.coverImage}
-                  pace={book.pace as Pace}
-                  tone={book.tone}
-                  themes={book.themes}
-                  description={book.description || "No description available"}
-                  bestFor={book.bestFor}
-                  isExternal={book.isExternal || false}
-                                  isColorSearchMode={isColorSearchMode}
-                colorMatchPercentage={isColorSearchMode ? (book as any).colorMatchPercentage : undefined}
-                selectedColor={selectedColor}
-                selectedColors={selectedColors}
-                />
-              ))}
-            </div>
+                        {/* Books grid with Apple-style transitions */}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={`${searchQuery}-${searchType}-${selectedColor?.emotion || ''}-${loading}`}
+                className="grid gap-6 grid-cols-1 lg:grid-cols-2"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{
+                  duration: 0.3,
+                  ease: [0.4, 0.0, 0.2, 1] // Apple's standard easing
+                }}
+              >
+                {books.map((book, index) => (
+                  <BookCard
+                    key={book.id || `${book.title}-${book.author}`}
+                    title={book.title}
+                    author={book.author}
+                    coverImage={book.coverImage}
+                    pace={book.pace as Pace}
+                    tone={book.tone}
+                    themes={book.themes}
+                    description={book.description || "No description available"}
+                    bestFor={book.bestFor}
+                    isExternal={book.isExternal || false}
+                    isColorSearchMode={isColorSearchMode}
+                    colorMatchPercentage={isColorSearchMode ? (book as any).colorMatchPercentage : undefined}
+                    selectedColor={selectedColor}
+                    selectedColors={selectedColors}
+                  />
+                ))}
+              </motion.div>
+            </AnimatePresence>
           </div>
 
           {/* Color Sidebar - Only show in color search mode */}
