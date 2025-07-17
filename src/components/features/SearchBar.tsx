@@ -4,6 +4,7 @@ import { debounce } from 'lodash';
 import api from '../../services/api.supabase';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // Animated Beaker Component for Color Search
 const AnimatedBeaker = ({ className }: { className?: string }) => {
@@ -104,6 +105,7 @@ export const SearchBar = ({ onSearch, onMoodSelect, onColorSearch }: SearchBarPr
   const [showFiltersSidebar, setShowFiltersSidebar] = useState(false);
   const [filterCategories, setFilterCategories] = useState<FilterCategory[]>([]);
   const [currentPlaceholder, setCurrentPlaceholder] = useState('');
+  const [buttonPressed, setButtonPressed] = useState(false);
   
   const searchRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
@@ -398,7 +400,14 @@ export const SearchBar = ({ onSearch, onMoodSelect, onColorSearch }: SearchBarPr
   };
 
   const toggleFiltersSidebar = () => {
-    setShowFiltersSidebar(!showFiltersSidebar);
+    // Apple-style button press feedback
+    setButtonPressed(true);
+    
+    // Quick scale down, then spring back
+    setTimeout(() => {
+      setButtonPressed(false);
+      setShowFiltersSidebar(!showFiltersSidebar);
+    }, 100);
   };
 
   const handleColorClick = (color: typeof colors[0]) => {
@@ -461,23 +470,32 @@ export const SearchBar = ({ onSearch, onMoodSelect, onColorSearch }: SearchBarPr
               onFocus={() => searchQuery && setShowSuggestions(true)}
             />
 
-            <button
+            <motion.button
               type="button"
               onClick={toggleFiltersSidebar}
               data-filters-toggle
               className={`group mr-3 flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 ${
                 showFiltersSidebar
                   ? theme === 'light'
-                    ? 'bg-primary-100 text-primary-700'
+                    ? 'bg-primary-100 text-primary-700 shadow-sm'
                     : theme === 'dark'
-                    ? 'bg-gray-700 text-white'
-                    : 'bg-purple-100 text-purple-700'
+                    ? 'bg-gray-700 text-white shadow-lg'
+                    : 'bg-purple-100 text-purple-700 shadow-sm'
                   : theme === 'light'
                   ? 'text-primary-500 hover:bg-primary-50'
                   : theme === 'dark'
                   ? 'text-gray-400 hover:bg-gray-700'
                   : 'text-purple-500 hover:bg-purple-50'
               }`}
+              animate={{
+                scale: buttonPressed ? 0.95 : 1,
+                y: buttonPressed ? 1 : 0
+              }}
+              transition={{
+                type: "spring",
+                stiffness: 500,
+                damping: 30
+              }}
             >
               <AdjustmentsHorizontalIcon className="w-5 h-5" />
               <span className={`text-sm font-medium transition-all duration-200 whitespace-nowrap ${
@@ -495,7 +513,7 @@ export const SearchBar = ({ onSearch, onMoodSelect, onColorSearch }: SearchBarPr
               }`}>
                 Advanced
               </span>
-            </button>
+            </motion.button>
           </div>
         </form>
 
@@ -586,18 +604,52 @@ export const SearchBar = ({ onSearch, onMoodSelect, onColorSearch }: SearchBarPr
         </div>
       )}
 
-      {/* Filters Sidebar - Original 4-Column Grid Layout */}
-      {showFiltersSidebar && (
-        <div
-          ref={sidebarRef}
-          className={`absolute right-0 top-full mt-2 w-full max-w-4xl rounded-lg shadow-xl border z-30 ${
-            theme === 'light'
-              ? 'bg-white border-primary-200'
-              : theme === 'dark'
-              ? 'bg-gray-800 border-gray-600'
-              : 'bg-gradient-to-br from-pink-50 to-purple-50 border-purple-200'
-          }`}
-        >
+      {/* Filters Sidebar - Apple-style Animation */}
+      <AnimatePresence>
+        {showFiltersSidebar && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              className="fixed inset-0 bg-black/10 z-20"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={toggleFiltersSidebar}
+            />
+            
+            {/* Panel */}
+            <motion.div
+              ref={sidebarRef}
+              className={`absolute right-0 top-full w-full max-w-4xl rounded-lg shadow-xl border z-30 ${
+                theme === 'light'
+                  ? 'bg-white border-primary-200'
+                  : theme === 'dark'
+                  ? 'bg-gray-800 border-gray-600'
+                  : 'bg-gradient-to-br from-pink-50 to-purple-50 border-purple-200'
+              }`}
+              initial={{ 
+                opacity: 0,
+                y: -20,
+                scale: 0.95
+              }}
+              animate={{ 
+                opacity: 1,
+                y: 8,
+                scale: 1
+              }}
+              exit={{ 
+                opacity: 0,
+                y: -10,
+                scale: 0.98
+              }}
+              transition={{
+                type: "spring",
+                stiffness: 400,
+                damping: 30,
+                duration: 0.4
+              }}
+            >
           <div className="p-4">
             <div className="flex items-center justify-between mb-4">
               <h3 className={`text-lg font-semibold ${
@@ -624,8 +676,17 @@ export const SearchBar = ({ onSearch, onMoodSelect, onColorSearch }: SearchBarPr
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-              {/* Search by mood - First Column */}
-              <div className="animate-fade-in" style={{ animationDelay: '50ms' }}>
+              {/* Search by mood - Wave 1 */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  type: "spring",
+                  stiffness: 300,
+                  damping: 25,
+                  delay: 0.1
+                }}
+              >
                 <h3 className={`text-left text-sm font-medium mb-2 transition-colors duration-300 ${
                   theme === 'light'
                     ? 'text-primary-900'
@@ -658,10 +719,19 @@ export const SearchBar = ({ onSearch, onMoodSelect, onColorSearch }: SearchBarPr
                     </button>
                   ))}
                 </div>
-              </div>
+              </motion.div>
               
-              {/* Search by theme - Second Column */}
-              <div className="animate-fade-in" style={{ animationDelay: '100ms' }}>
+              {/* Search by theme - Wave 1 */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  type: "spring",
+                  stiffness: 300,
+                  damping: 25,
+                  delay: 0.15
+                }}
+              >
                 <h3 className={`text-left text-sm font-medium mb-2 transition-colors duration-300 ${
                   theme === 'light'
                     ? 'text-primary-900'
@@ -694,10 +764,19 @@ export const SearchBar = ({ onSearch, onMoodSelect, onColorSearch }: SearchBarPr
                     </button>
                   ))}
                 </div>
-              </div>
+              </motion.div>
 
-              {/* Search by reading style - Third Column */}
-              <div className="animate-fade-in" style={{ animationDelay: '150ms' }}>
+              {/* Search by reading style - Wave 2 */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  type: "spring",
+                  stiffness: 300,
+                  damping: 25,
+                  delay: 0.25
+                }}
+              >
                 <h3 className={`text-left text-sm font-medium mb-2 transition-colors duration-300 ${
                   theme === 'light'
                     ? 'text-primary-900'
@@ -730,10 +809,19 @@ export const SearchBar = ({ onSearch, onMoodSelect, onColorSearch }: SearchBarPr
                     </button>
                   ))}
                 </div>
-              </div>
+              </motion.div>
 
-              {/* Search by profession - Fourth Column */}
-              <div className="animate-fade-in" style={{ animationDelay: '200ms' }}>
+              {/* Search by profession - Wave 2 */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  type: "spring",
+                  stiffness: 300,
+                  damping: 25,
+                  delay: 0.3
+                }}
+              >
                 <h3 className={`text-left text-sm font-medium mb-2 transition-colors duration-300 ${
                   theme === 'light'
                     ? 'text-primary-900'
@@ -766,39 +854,72 @@ export const SearchBar = ({ onSearch, onMoodSelect, onColorSearch }: SearchBarPr
                     </button>
                   ))}
                 </div>
-              </div>
+              </motion.div>
 
-              {/* Search by color - Fifth Column (rightmost) */}
-              <div className="animate-fade-in" style={{ animationDelay: '250ms' }}>
-                <div className={`group cursor-pointer transition-all duration-200 hover:scale-[1.01] relative overflow-hidden ${
-                  theme === 'light'
-                    ? 'hover:bg-primary-50'
-                    : theme === 'dark'
-                    ? 'hover:bg-gray-700'
-                    : 'hover:bg-purple-50'
-                }`}>
-                  <h3 className={`text-left text-sm font-medium mb-2 transition-colors duration-300 relative ${
-                    theme === 'light'
-                      ? 'text-primary-900'
-                      : theme === 'dark'
-                      ? 'text-white'
-                      : 'text-purple-900'
-                  }`}>
-                    <span className="relative z-10 group-hover:opacity-0 transition-opacity duration-300">Color</span>
-                    {/* Rainbow glittering text with sparkles */}
-                    <span className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                      <span className="bg-gradient-to-r from-red-500 via-yellow-500 via-green-500 via-blue-500 via-indigo-500 to-purple-500 bg-clip-text text-transparent animate-pulse">
-                        Color
+              {/* Search by color - Wave 3 (Experimental) */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  type: "spring",
+                  stiffness: 300,
+                  damping: 25,
+                  delay: 0.4
+                }}
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className={`text-left text-sm font-medium transition-colors duration-300 ${
+                      theme === 'light'
+                        ? 'text-primary-900'
+                        : theme === 'dark'
+                        ? 'text-white'
+                        : 'text-purple-900'
+                    }`}>
+                      Color
+                    </h3>
+                    {/* Experimental Feature Indicator - Apple Style */}
+                    <div className="flex items-center space-x-1">
+                      <div className={`w-4 h-4 ${
+                        theme === 'light'
+                          ? 'text-orange-500'
+                          : theme === 'dark'
+                          ? 'text-orange-400'
+                          : 'text-orange-500'
+                      }`}>
+                        {/* Chemistry Flask Icon with gentle bubbling animation */}
+                        <svg 
+                          viewBox="0 0 16 16" 
+                          fill="currentColor" 
+                          className="w-4 h-4"
+                        >
+                          <path d="M6 3V2.5C6 1.67 6.67 1 7.5 1h1C9.33 1 10 1.67 10 2.5V3h1.5c.28 0 .5.22.5.5s-.22.5-.5.5H11v2.5l3.7 6.2c.2.33-.05.8-.45.8H1.75c-.4 0-.65-.47-.45-.8L5 6.5V4h-.5c-.28 0-.5-.22-.5-.5s.22-.5.5-.5H6zm1 1v2.5c0 .13-.05.26-.15.35L3.6 13.5h8.8l-3.25-5.65c-.1-.09-.15-.22-.15-.35V4H7z"/>
+                                                     {/* Gentle bubbles animation - larger and more visible */}
+                           <circle cx="8" cy="9.5" r="1.2" opacity="0" fill="currentColor">
+                             <animate attributeName="opacity" values="0;0.4;0" dur="4s" repeatCount="indefinite"/>
+                             <animate attributeName="r" values="0.8;1.2;0.8" dur="4s" repeatCount="indefinite"/>
+                           </circle>
+                           <circle cx="7" cy="11" r="1" opacity="0" fill="currentColor">
+                             <animate attributeName="opacity" values="0;0.5;0" dur="3.5s" repeatCount="indefinite" begin="1s"/>
+                             <animate attributeName="r" values="0.6;1;0.6" dur="3.5s" repeatCount="indefinite" begin="1s"/>
+                           </circle>
+                           <circle cx="9" cy="10.2" r="0.8" opacity="0" fill="currentColor">
+                             <animate attributeName="opacity" values="0;0.6;0" dur="3s" repeatCount="indefinite" begin="2s"/>
+                             <animate attributeName="r" values="0.4;0.8;0.4" dur="3s" repeatCount="indefinite" begin="2s"/>
+                           </circle>
+                        </svg>
+                      </div>
+                      <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
+                        theme === 'light'
+                          ? 'bg-orange-100 text-orange-700'
+                          : theme === 'dark'
+                          ? 'bg-orange-900/30 text-orange-400'
+                          : 'bg-orange-100 text-orange-700'
+                      }`}>
+                        Beta
                       </span>
-                      {/* Sparkles */}
-                      <span className="absolute -top-1 left-2 w-1 h-1 bg-yellow-400 rounded-full animate-ping opacity-75"></span>
-                      <span className="absolute -top-0.5 left-8 w-0.5 h-0.5 bg-pink-400 rounded-full animate-ping animation-delay-200 opacity-75"></span>
-                      <span className="absolute top-0 left-14 w-1 h-1 bg-blue-400 rounded-full animate-ping animation-delay-400 opacity-75"></span>
-                      <span className="absolute -bottom-1 left-4 w-0.5 h-0.5 bg-green-400 rounded-full animate-ping animation-delay-600 opacity-75"></span>
-                      <span className="absolute -bottom-0.5 left-10 w-1 h-1 bg-purple-400 rounded-full animate-ping animation-delay-800 opacity-75"></span>
-                      <span className="absolute top-0.5 right-8 w-0.5 h-0.5 bg-red-400 rounded-full animate-ping animation-delay-1000 opacity-75"></span>
-                    </span>
-                  </h3>
+                    </div>
+                  </div>
                 </div>
                 <div className="grid grid-cols-3 gap-2 max-h-[300px] overflow-y-auto pr-1">
                   {colors.map((color) => (
@@ -812,11 +933,13 @@ export const SearchBar = ({ onSearch, onMoodSelect, onColorSearch }: SearchBarPr
                     </button>
                   ))}
                 </div>
-              </div>
+              </motion.div>
             </div>
           </div>
-        </div>
-      )}
+        </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }; 
