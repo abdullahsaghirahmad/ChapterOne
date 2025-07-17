@@ -135,6 +135,11 @@ export const HomePage = () => {
     window.location.href = `/books?query=${encodeURIComponent(query)}&type=${searchType}`;
   };
 
+  const handleColorSearch = (color: any) => {
+    // When color searching, redirect to the Books page with color parameter
+    window.location.href = `/books?color=${encodeURIComponent(color.emotion)}`;
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -177,6 +182,7 @@ export const HomePage = () => {
           <SearchBar 
             onSearch={handleSearch}
             onMoodSelect={(mood) => handleSearch(mood, 'mood')}
+            onColorSearch={handleColorSearch}
           />
         </div>
         

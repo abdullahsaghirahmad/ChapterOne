@@ -5,6 +5,7 @@ import { Book, Pace } from '../../types';
 import { Switch } from '../ui/Switch';
 import { useLocation, useNavigate } from 'react-router-dom';
 import api from '../../services/api.supabase';
+import { useTheme } from '../../contexts/ThemeContext';
 
 // Interface for Pace objects that might be returned from API
 interface PaceObject {
@@ -372,6 +373,7 @@ const featuredBooks: Book[] = [
 ];
 
 export const BooksPage = () => {
+  const { theme } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
   const [books, setBooks] = useState<Book[]>([]);
@@ -381,6 +383,26 @@ export const BooksPage = () => {
   const [includeExternal, setIncludeExternal] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchType, setSearchType] = useState('all');
+  const [isColorSearchMode, setIsColorSearchMode] = useState(false);
+  const [selectedColor, setSelectedColor] = useState<any>(null);
+  const [selectedColors, setSelectedColors] = useState<any[]>([]);
+  const [colorIntensity, setColorIntensity] = useState(1);
+
+  // Color definitions (from SearchBar)
+  const colors = [
+    { name: 'Overwhelmed', value: '#64748b', emotion: 'overwhelmed' },
+    { name: 'Inspiration', value: '#f59e0b', emotion: 'inspiration' },
+    { name: 'Escape', value: '#14b8a6', emotion: 'escape' },
+    { name: 'Adventure', value: '#dc2626', emotion: 'adventure' },
+    { name: 'Nostalgic', value: '#b45309', emotion: 'nostalgic' },
+    { name: 'Learning', value: '#059669', emotion: 'learning' },
+    { name: 'Humor', value: '#eab308', emotion: 'humor' },
+    { name: 'Romantic', value: '#ec4899', emotion: 'romantic' },
+    { name: 'Mysterious', value: '#7c3aed', emotion: 'mysterious' },
+    { name: 'Serene', value: '#2563eb', emotion: 'serene' },
+    { name: 'Passionate', value: '#ea580c', emotion: 'passionate' },
+    { name: 'Sophisticated', value: '#4338ca', emotion: 'sophisticated' }
+  ];
 
   // Handle initial page load and external toggle
   useEffect(() => {
@@ -426,11 +448,25 @@ export const BooksPage = () => {
     fetchData();
   }, [includeExternal]); // Only depends on includeExternal, not location.search
   
-  // Sync URL parameters with state (display only, no search)
+  // Sync URL parameters with state and handle color search from URL
   useEffect(() => {
     const queryParams = new URLSearchParams(location.search);
     const queryFromUrl = queryParams.get('query');
     const typeFromUrl = queryParams.get('type');
+    const colorFromUrl = queryParams.get('color');
+    
+    // Handle color search from URL (e.g., from HomePage)
+    if (colorFromUrl && !isColorSearchMode) {
+      const matchedColor = colors.find(color => 
+        color.emotion.toLowerCase() === colorFromUrl.toLowerCase()
+      );
+      
+      if (matchedColor) {
+        // Trigger color search
+        handleColorSearch(matchedColor);
+        return; // Exit early to avoid overriding with regular search
+      }
+    }
     
     // Just update state to match URL for display purposes
     setSearchQuery(queryFromUrl || '');
@@ -493,6 +529,11 @@ export const BooksPage = () => {
   };
 
   const handleSearch = async (query: string, type?: string) => {
+    // Reset color search mode when doing regular search
+    setIsColorSearchMode(false);
+    setSelectedColor(null);
+    setSelectedColors([]);
+    
     setSearchQuery(query || '');
     setSearchType(type || 'all');
     setLoading(true);
@@ -538,6 +579,313 @@ export const BooksPage = () => {
     handleSearch(mood, 'mood');
   };
 
+  // Map emotions to book themes/tones for better matching (from ColorSearchPage)
+  const mapEmotionToBookAttributes = (emotion: string): string[] => {
+    const emotionMap: { [key: string]: string[] } = {
+      'overwhelmed': ['Self-Help', 'Psychology', 'Meditation', 'Mindfulness'],
+      'inspiration': ['Self-Help', 'Biography', 'Motivation', 'Personal Development'],
+      'serene': ['Philosophy', 'Meditation', 'Nature', 'Spiritual'],
+      'learning': ['Education', 'Science', 'History', 'Academic'],
+      'escape': ['Fiction', 'Fantasy', 'Adventure', 'Science Fiction'],
+      'adventure': ['Adventure', 'Travel', 'Action', 'Exploration'],
+      'mysterious': ['Mystery', 'Thriller', 'Crime', 'Suspense'],
+      'humor': ['Comedy', 'Humor', 'Satirical', 'Funny'],
+      'romantic': ['Romance', 'Love', 'Relationships'],
+      'sophisticated': ['Literary Fiction', 'Classic', 'Philosophy'],
+      'nostalgic': ['Historical Fiction', 'Classic', 'Memory'],
+      'passionate': ['Romance', 'Biography', 'Intense'],
+    };
+    
+    return emotionMap[emotion] || [];
+  };
+
+  // Filter and score books based on color selection and emotions (from ColorSearchPage)
+  const filterBooksByColor = (color: any, allBooks: Book[]): Book[] => {
+    // Map emotion to book attributes
+    const searchTerms = mapEmotionToBookAttributes(color.emotion);
+    
+    if (searchTerms.length === 0) return allBooks;
+    
+    const booksWithScores = allBooks.map(book => {
+      let score = 0;
+      let matches = 0;
+      
+      // Check themes (weight: 3)
+      if (book.themes) {
+        const themeMatches = book.themes.filter(theme => 
+          searchTerms.some(term => 
+            String(theme).toLowerCase().includes(term.toLowerCase())
+          )
+        ).length;
+        score += themeMatches * 3;
+        matches += themeMatches;
+      }
+      
+      // Check tone (weight: 2)
+      if (book.tone) {
+        const toneMatches = book.tone.filter(tone => 
+          searchTerms.some(term => 
+            String(tone).toLowerCase().includes(term.toLowerCase())
+          )
+        ).length;
+        score += toneMatches * 2;
+        matches += toneMatches;
+      }
+      
+      // Check categories (weight: 2)
+      if (book.categories) {
+        const categoryMatches = book.categories.filter(category => 
+          searchTerms.some(term => 
+            String(category).toLowerCase().includes(term.toLowerCase())
+          )
+        ).length;
+        score += categoryMatches * 2;
+        matches += categoryMatches;
+      }
+      
+      // Check description (weight: 1)
+      if (book.description) {
+        const descriptionMatches = searchTerms.filter(term => 
+          book.description!.toLowerCase().includes(term.toLowerCase())
+        ).length;
+        score += descriptionMatches * 1;
+        matches += descriptionMatches;
+      }
+      
+      // Calculate percentage (80-99 range for good matches, 0 for no matches)
+      const matchPercentage = matches > 0 ? Math.min(80 + (score * 3), 99) : 0;
+      
+      return {
+        ...book,
+        colorScore: score,
+        colorMatchPercentage: matchPercentage
+      };
+    })
+    .filter(book => book.colorScore > 0)
+    .sort((a, b) => b.colorMatchPercentage - a.colorMatchPercentage); // Sort by match % descending
+    
+    return booksWithScores;
+  };
+
+  // Color blending utilities
+  const hexToRgb = (hex: string): [number, number, number] => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? [
+      parseInt(result[1], 16),
+      parseInt(result[2], 16),
+      parseInt(result[3], 16)
+    ] : [0, 0, 0];
+  };
+
+  const rgbToHex = (r: number, g: number, b: number): string => {
+    return "#" + ((1 << 24) + (Math.round(r) << 16) + (Math.round(g) << 8) + Math.round(b)).toString(16).slice(1);
+  };
+
+  const blendColors = (selectedColors: any[]): string => {
+    if (selectedColors.length === 0) return '#f3f4f6';
+    
+    let totalWeight = 0;
+    let weightedR = 0, weightedG = 0, weightedB = 0;
+
+    selectedColors.forEach((colorData) => {
+      const [r, g, b] = hexToRgb(colorData.value);
+      const weight = colorData.intensity || 1;
+      weightedR += r * weight;
+      weightedG += g * weight;
+      weightedB += b * weight;
+      totalWeight += weight;
+    });
+
+    const blendedR = weightedR / totalWeight;
+    const blendedG = weightedG / totalWeight;
+    const blendedB = weightedB / totalWeight;
+
+    return rgbToHex(blendedR, blendedG, blendedB);
+  };
+
+  const handleColorSearch = async (color: any) => {
+    setIsColorSearchMode(true);
+    setSelectedColor(color);
+    // Initialize with single color selection
+    setSelectedColors([{ ...color, intensity: 1 }]);
+    setLoading(true);
+    setError(null);
+    
+    try {
+      console.log('Color search triggered with:', color.emotion);
+      console.log('Mapping to attributes:', mapEmotionToBookAttributes(color.emotion));
+      
+      // Use proper color psychology matching instead of API search
+      const filteredBooks = filterBooksByColor(color, allBooks);
+      
+      console.log('Color search completed, found', filteredBooks.length, 'books');
+      setBooks(filteredBooks);
+      setSearchQuery(`Color: ${color.name}`);
+      setSearchType('color');
+    } catch (err) {
+      console.error('Color search failed:', err);
+      setError('Color search failed. Please try again.');
+      // Fallback to all books
+      setBooks(allBooks);
+    } finally {
+      setLoading(false);
+    }
+    
+    // Update URL to reflect color search
+    navigate(`/books?color=${encodeURIComponent(color.emotion)}`);
+  };
+
+  const handleColorAdd = (color: any) => {
+    const existing = selectedColors.find(sc => sc.emotion === color.emotion);
+    let newSelectedColors: any[];
+    
+    if (existing) {
+      // Increase intensity (max 3)
+      const newIntensity = Math.min(existing.intensity + 1, 3);
+      newSelectedColors = selectedColors.map(sc => 
+        sc.emotion === color.emotion 
+          ? { ...sc, intensity: newIntensity }
+          : sc
+      );
+    } else {
+      // Add new color
+      newSelectedColors = [...selectedColors, { ...color, intensity: 1 }];
+    }
+    
+    setSelectedColors(newSelectedColors);
+    // Refresh search with updated colors
+    setTimeout(() => refreshColorSearchWithColors(newSelectedColors), 100);
+  };
+
+  const handleColorRemove = (colorEmotion: string) => {
+    const newSelectedColors = selectedColors.filter(sc => sc.emotion !== colorEmotion);
+    setSelectedColors(newSelectedColors);
+    setTimeout(() => refreshColorSearchWithColors(newSelectedColors), 100);
+  };
+
+  const refreshColorSearchWithColors = (colors: any[]) => {
+    if (colors.length === 0) {
+      setBooks(allBooks);
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      // Combine all selected colors for matching
+      const allEmotions = colors.map(sc => sc.emotion);
+      const allSearchTerms = allEmotions.flatMap(emotion => mapEmotionToBookAttributes(emotion));
+      const uniqueSearchTerms = Array.from(new Set(allSearchTerms));
+      
+      const booksWithScores = allBooks.map(book => {
+        let score = 0;
+        let matches = 0;
+        
+        // Check themes (weight: 3)
+        if (book.themes) {
+          const themeMatches = book.themes.filter(theme => 
+            uniqueSearchTerms.some(term => 
+              String(theme).toLowerCase().includes(term.toLowerCase())
+            )
+          ).length;
+          score += themeMatches * 3;
+          matches += themeMatches;
+        }
+        
+        // Check tone (weight: 2)
+        if (book.tone) {
+          const toneMatches = book.tone.filter(tone => 
+            uniqueSearchTerms.some(term => 
+              String(tone).toLowerCase().includes(term.toLowerCase())
+            )
+          ).length;
+          score += toneMatches * 2;
+          matches += toneMatches;
+        }
+        
+        // Check categories (weight: 2)
+        if (book.categories) {
+          const categoryMatches = book.categories.filter(category => 
+            uniqueSearchTerms.some(term => 
+              String(category).toLowerCase().includes(term.toLowerCase())
+            )
+          ).length;
+          score += categoryMatches * 2;
+          matches += categoryMatches;
+        }
+        
+        // Check description (weight: 1)
+        if (book.description) {
+          const descriptionMatches = uniqueSearchTerms.filter(term => 
+            book.description!.toLowerCase().includes(term.toLowerCase())
+          ).length;
+          score += descriptionMatches * 1;
+          matches += descriptionMatches;
+        }
+        
+        // Calculate percentage with intensity bonus
+        const totalIntensity = colors.reduce((sum, c) => sum + (c.intensity || 1), 0);
+        const intensityBonus = Math.min(totalIntensity * 2, 10); // Max 10 bonus points
+        const matchPercentage = matches > 0 ? Math.min(80 + (score * 3) + intensityBonus, 99) : 0;
+        
+        return {
+          ...book,
+          colorScore: score,
+          colorMatchPercentage: matchPercentage
+        };
+      })
+      .filter(book => book.colorScore > 0)
+      .sort((a, b) => b.colorMatchPercentage - a.colorMatchPercentage);
+      
+      setBooks(booksWithScores);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const refreshColorSearch = () => {
+    if (selectedColors.length === 0) return;
+    
+    setLoading(true);
+    try {
+      // Combine all selected colors for matching
+      const allEmotions = selectedColors.map(sc => sc.emotion);
+      const allSearchTerms = allEmotions.flatMap(emotion => mapEmotionToBookAttributes(emotion));
+      const uniqueSearchTerms = Array.from(new Set(allSearchTerms));
+      
+      const filteredBooks = allBooks.filter(book => {
+        const themeMatch = book.themes && book.themes.some(theme => 
+          uniqueSearchTerms.some(term => 
+            String(theme).toLowerCase().includes(term.toLowerCase())
+          )
+        );
+        
+        const toneMatch = book.tone && book.tone.some(tone => 
+          uniqueSearchTerms.some(term => 
+            String(tone).toLowerCase().includes(term.toLowerCase())
+          )
+        );
+        
+        const categoryMatch = book.categories && book.categories.some(category => 
+          uniqueSearchTerms.some(term => 
+            String(category).toLowerCase().includes(term.toLowerCase())
+          )
+        );
+        
+        const descriptionMatch = book.description && uniqueSearchTerms.some(term => 
+          book.description!.toLowerCase().includes(term.toLowerCase())
+        );
+        
+        return themeMatch || toneMatch || categoryMatch || descriptionMatch;
+      });
+      
+      setBooks(filteredBooks);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+
   // Debug information for rendering
   useEffect(() => {
     console.log('RENDER DEBUG - Books length:', books.length);
@@ -568,6 +916,7 @@ export const BooksPage = () => {
         <SearchBar 
           onSearch={handleSearch}
           onMoodSelect={handleMoodSelect}
+          onColorSearch={handleColorSearch}
         />
         
         {/* External API Toggle */}
@@ -581,7 +930,7 @@ export const BooksPage = () => {
         </div>
       </div>
 
-      {/* Books Grid */}
+      {/* Books Grid with Color Sidebar */}
       {books.length === 0 ? (
         <div className="text-center py-10">
           {searchQuery ? 
@@ -590,32 +939,225 @@ export const BooksPage = () => {
           }
         </div>
       ) : (
-        <div>
-          {/* Search result info */}
-          <div className="mb-4 text-sm text-gray-600">
-            {searchQuery ? 
-              `Found ${books.length} books for "${searchQuery}"${searchType !== 'all' ? ` by ${searchType}` : ''}` :
-              `⏰ Updated at ${new Date().toLocaleTimeString()} - Showing all ${books.length} books from our collection ⏰`
-            }
+        <div className={isColorSearchMode ? "flex gap-8 items-start" : ""}>
+          {/* Main Content */}
+          <div className={isColorSearchMode ? "flex-1" : ""}>
+            {/* Search result info - Only show for actual searches */}
+            {!isColorSearchMode && searchQuery && (
+              <div className="mb-4 text-sm text-gray-600">
+                Found {books.length} books for "{searchQuery}"{searchType !== 'all' ? ` by ${searchType}` : ''}
+              </div>
+            )}
+            
+            {/* Books grid */}
+            <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
+              {books.map((book) => (
+                <BookCard
+                  key={book.id || `${book.title}-${book.author}`}
+                  title={book.title}
+                  author={book.author}
+                  coverImage={book.coverImage}
+                  pace={book.pace as Pace}
+                  tone={book.tone}
+                  themes={book.themes}
+                  description={book.description || "No description available"}
+                  bestFor={book.bestFor}
+                  isExternal={book.isExternal || false}
+                                  isColorSearchMode={isColorSearchMode}
+                colorMatchPercentage={isColorSearchMode ? (book as any).colorMatchPercentage : undefined}
+                selectedColor={selectedColor}
+                selectedColors={selectedColors}
+                />
+              ))}
+            </div>
           </div>
-          
-          {/* Books grid */}
-          <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
-            {books.map((book) => (
-              <BookCard
-                key={book.id || `${book.title}-${book.author}`}
-                title={book.title}
-                author={book.author}
-                coverImage={book.coverImage}
-                pace={book.pace as Pace}
-                tone={book.tone}
-                themes={book.themes}
-                description={book.description || "No description available"}
-                bestFor={book.bestFor}
-                isExternal={book.isExternal || false}
-              />
-            ))}
-          </div>
+
+          {/* Color Sidebar - Only show in color search mode */}
+          {isColorSearchMode && (
+            <div className="w-[275px] flex-shrink-0">
+              <div className={`rounded-lg shadow-lg p-6 sticky top-4 transition-colors duration-300 border ${
+                theme === 'light'
+                  ? 'bg-white border-gray-200'
+                  : theme === 'dark'
+                  ? 'bg-gray-800 border-gray-700'
+                  : 'bg-gradient-to-br from-pink-50 to-purple-50 border-purple-200'
+              }`}>
+                <h3 className={`text-lg font-semibold mb-4 transition-colors duration-300 ${
+                  theme === 'light'
+                    ? 'text-gray-900'
+                    : theme === 'dark'
+                    ? 'text-white'
+                    : 'text-purple-900'
+                }`}>
+                  Color Mood Blending
+                </h3>
+                
+                {/* Selected Colors */}
+                {selectedColors.length > 0 && (
+                  <div className="mb-6">
+                                         <h4 className={`text-sm font-medium mb-3 transition-colors duration-300 ${
+                       theme === 'light'
+                         ? 'text-gray-700'
+                         : theme === 'dark'
+                         ? 'text-gray-300'
+                         : 'text-purple-700'
+                     }`}>Active Colors</h4>
+                    <div className="space-y-2">
+                      {selectedColors.map((color) => (
+                        <div key={color.emotion} className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                                                         <div 
+                               className={`w-6 h-6 rounded-md border transition-colors duration-300 ${
+                                 theme === 'light'
+                                   ? 'border-gray-200'
+                                   : theme === 'dark'
+                                   ? 'border-gray-600'
+                                   : 'border-purple-200'
+                               }`}
+                               style={{ backgroundColor: color.value }}
+                             />
+                                                         <span className={`text-sm font-medium transition-colors duration-300 ${
+                               theme === 'light'
+                                 ? 'text-gray-900'
+                                 : theme === 'dark'
+                                 ? 'text-white'
+                                 : 'text-purple-900'
+                             }`}>{color.name}</span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            {/* Intensity dots */}
+                            <div className="flex space-x-1">
+                              {[1, 2, 3].map((dot) => (
+                                <div
+                                  key={dot}
+                                                                     className={`w-2 h-2 rounded-full transition-colors duration-300 ${
+                                     dot <= color.intensity 
+                                       ? theme === 'light'
+                                         ? 'bg-gray-800'
+                                         : theme === 'dark'
+                                         ? 'bg-white'
+                                         : 'bg-purple-800'
+                                       : theme === 'light'
+                                       ? 'bg-gray-300'
+                                       : theme === 'dark'
+                                       ? 'bg-gray-600'
+                                       : 'bg-purple-300'
+                                   }`}
+                                />
+                              ))}
+                            </div>
+                            <button
+                              onClick={() => handleColorRemove(color.emotion)}
+                              className="text-red-500 hover:text-red-700 text-sm"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Color Blend Visualization */}
+                {selectedColors.length > 1 && (
+                  <div className="mb-6">
+                                         <h4 className={`text-sm font-medium mb-3 transition-colors duration-300 ${
+                       theme === 'light'
+                         ? 'text-gray-700'
+                         : theme === 'dark'
+                         ? 'text-gray-300'
+                         : 'text-purple-700'
+                     }`}>Your Emotional Blend</h4>
+                                         <div 
+                       className={`w-full h-16 rounded-lg border transition-colors duration-300 ${
+                         theme === 'light'
+                           ? 'border-gray-200'
+                           : theme === 'dark'
+                           ? 'border-gray-600'
+                           : 'border-purple-200'
+                       }`}
+                       style={{ backgroundColor: blendColors(selectedColors) }}
+                     />
+                                         <p className={`text-xs mt-2 transition-colors duration-300 ${
+                       theme === 'light'
+                         ? 'text-gray-600'
+                         : theme === 'dark'
+                         ? 'text-gray-400'
+                         : 'text-purple-600'
+                     }`}>
+                       Blending {selectedColors.map(c => c.name).join(' + ')}
+                     </p>
+                  </div>
+                )}
+
+                {/* Add More Colors */}
+                <div className="mb-4">
+                                     <h4 className={`text-sm font-medium mb-3 transition-colors duration-300 ${
+                     theme === 'light'
+                       ? 'text-gray-700'
+                       : theme === 'dark'
+                       ? 'text-gray-300'
+                       : 'text-purple-700'
+                   }`}>Add More Colors</h4>
+                  <div className="grid grid-cols-6 gap-2">
+                    {colors.map((color) => (
+                      <button
+                        key={color.emotion}
+                        onClick={() => handleColorAdd(color)}
+                                                 className={`w-8 h-8 rounded-md border hover:scale-105 transition-all duration-300 ${
+                           theme === 'light'
+                             ? 'border-gray-200'
+                             : theme === 'dark'
+                             ? 'border-gray-600'
+                             : 'border-purple-200'
+                         }`}
+                        style={{ backgroundColor: color.value }}
+                        title={color.name}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Clear All and Exit Buttons */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      setSelectedColors([]);
+                      // Stay in color mode, but reset to all books
+                      setBooks(allBooks);
+                    }}
+                    className={`flex-1 px-3 py-2 text-sm rounded-lg transition-colors duration-300 ${
+                      theme === 'light'
+                        ? 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                        : theme === 'dark'
+                        ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                        : 'bg-purple-100 hover:bg-purple-200 text-purple-700'
+                    }`}
+                  >
+                    Clear All
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSelectedColors([]);
+                      setIsColorSearchMode(false);
+                      setBooks(allBooks);
+                      navigate('/books');
+                    }}
+                    className={`flex-1 px-3 py-2 text-sm rounded-lg font-medium transition-all duration-300 hover:scale-105 ${
+                      theme === 'light'
+                        ? 'bg-primary-600 hover:bg-primary-700 text-white'
+                        : theme === 'dark'
+                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                        : 'bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white'
+                    }`}
+                  >
+                    Exit Mode
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

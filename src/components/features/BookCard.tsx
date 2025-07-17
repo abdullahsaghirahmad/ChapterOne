@@ -95,6 +95,11 @@ interface BookCardProps {
   isExternal?: boolean;
   quote?: string;
   mostQuoted?: string;
+  // Color search props
+  isColorSearchMode?: boolean;
+  colorMatchPercentage?: number;
+  selectedColor?: any;
+  selectedColors?: any[]; // For multiple color blending
 }
 
 // Helper function to safely get a value from an object or return the value itself
@@ -116,7 +121,11 @@ export const BookCard = ({
   themes = [],
   description = 'No description available',
   quote,
-  mostQuoted
+  mostQuoted,
+  isColorSearchMode = false,
+  colorMatchPercentage,
+  selectedColor,
+  selectedColors = []
 }: BookCardProps) => {
   const navigate = useNavigate();
   const { theme } = useTheme();
@@ -302,14 +311,81 @@ export const BookCard = ({
     console.log('Save clicked for:', title);
   };
 
+  // Color blending utilities
+  const hexToRgbArray = (hex: string): [number, number, number] => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? [
+      parseInt(result[1], 16),
+      parseInt(result[2], 16),
+      parseInt(result[3], 16)
+    ] : [0, 0, 0];
+  };
+
+  const rgbToHex = (r: number, g: number, b: number): string => {
+    return "#" + ((1 << 24) + (Math.round(r) << 16) + (Math.round(g) << 8) + Math.round(b)).toString(16).slice(1);
+  };
+
+  const blendColors = (colors: any[]): string => {
+    if (colors.length === 0) return '#f3f4f6';
+    
+    let totalWeight = 0;
+    let weightedR = 0, weightedG = 0, weightedB = 0;
+
+    colors.forEach((colorData) => {
+      const [r, g, b] = hexToRgbArray(colorData.value);
+      const weight = colorData.intensity || 1;
+      weightedR += r * weight;
+      weightedG += g * weight;
+      weightedB += b * weight;
+      totalWeight += weight;
+    });
+
+    const blendedR = weightedR / totalWeight;
+    const blendedG = weightedG / totalWeight;
+    const blendedB = weightedB / totalWeight;
+
+    return rgbToHex(blendedR, blendedG, blendedB);
+  };
+
+  // Generate subtle glow styles for color search mode
+  const getColorSearchStyles = () => {
+    if (!isColorSearchMode || !colorMatchPercentage) {
+      return {};
+    }
+    
+    // Use blended color if multiple colors are selected, otherwise use single color
+    const colorValue = selectedColors.length > 0 
+      ? (selectedColors.length > 1 ? blendColors(selectedColors) : selectedColors[0]?.value)
+      : selectedColor?.value || '#f3f4f6';
+    
+    const baseOpacity = Math.min(colorMatchPercentage / 100 * 0.25, 0.25); // Max 25% opacity (subtle)
+    const borderOpacity = Math.min(colorMatchPercentage / 100 * 0.2, 0.2); // Max 20% border opacity
+    
+    const rgbValues = hexToRgb(colorValue);
+    
+    return {
+      boxShadow: `0 0 20px rgba(${rgbValues}, ${baseOpacity})`,
+      borderColor: `rgba(${rgbValues}, ${borderOpacity})`
+    };
+  };
+
+  // Convert hex color to RGB string for rgba usage
+  const hexToRgb = (hex: string): string => {
+    const [r, g, b] = hexToRgbArray(hex);
+    return `${r}, ${g}, ${b}`;
+  };
+
   return (
-    <div className={`transition-all duration-300 hover:shadow-lg flex overflow-hidden rounded-lg ${
-      theme === 'light'
-        ? 'bg-white border border-gray-200 hover:border-primary-300'
-        : theme === 'dark'
-        ? 'bg-gray-800 border border-gray-700 hover:border-gray-600'
-        : 'bg-gradient-to-br from-pink-50 to-purple-50 border border-purple-200 hover:border-purple-300'
-    }`}>
+    <div 
+      className={`transition-all duration-300 hover:shadow-lg flex overflow-hidden rounded-lg ${
+        theme === 'light'
+          ? 'bg-white border border-gray-200 hover:border-primary-300'
+          : theme === 'dark'
+          ? 'bg-gray-800 border border-gray-700 hover:border-gray-600'
+          : 'bg-gradient-to-br from-pink-50 to-purple-50 border border-purple-200 hover:border-purple-300'
+      }`}
+      style={getColorSearchStyles()}
+    >
       {/* Book Cover */}
       <div className={`w-32 flex-shrink-0 ${
         theme === 'light'
@@ -365,16 +441,34 @@ export const BookCard = ({
           {author}
         </p>
 
-        {/* Pace */}
-        <div className={`flex items-center mb-2 text-sm ${
+        {/* Pace and Color Match */}
+        <div className={`flex items-center justify-between mb-2 text-sm ${
           theme === 'light'
             ? 'text-primary-700'
             : theme === 'dark'
             ? 'text-gray-300'
             : 'text-purple-700'
         }`}>
-          {getPaceIcon()}
-          <span className="ml-1">{paceString} paced</span>
+          <div className="flex items-center">
+            {getPaceIcon()}
+            <span className="ml-1">{paceString} paced</span>
+          </div>
+          
+          {/* Color Match Percentage - Only show in color search mode */}
+          {isColorSearchMode && colorMatchPercentage && (
+            <div className="flex items-center">
+              <span 
+                className="text-sm"
+                style={{ 
+                  color: selectedColors.length > 0 
+                    ? (selectedColors.length > 1 ? blendColors(selectedColors) : selectedColors[0]?.value)
+                    : selectedColor?.value || '#666666'
+                }}
+              >
+                {colorMatchPercentage}% match
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Clickable Themes */}

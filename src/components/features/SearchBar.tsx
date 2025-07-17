@@ -77,6 +77,7 @@ const AnimatedBeaker = ({ className }: { className?: string }) => {
 interface SearchBarProps {
   onSearch: (query: string, type?: string) => void;
   onMoodSelect?: (mood: string) => void;
+  onColorSearch?: (color: any) => void;
 }
 
 interface Suggestion {
@@ -93,7 +94,7 @@ interface FilterCategory {
   isExpanded: boolean;
 }
 
-export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
+export const SearchBar = ({ onSearch, onMoodSelect, onColorSearch }: SearchBarProps) => {
   const { theme } = useTheme();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
@@ -401,8 +402,10 @@ export const SearchBar = ({ onSearch, onMoodSelect }: SearchBarProps) => {
   };
 
   const handleColorClick = (color: typeof colors[0]) => {
-    // Navigate to color search page with selected color
-    navigate(`/color-search?color=${encodeURIComponent(color.emotion)}`);
+    // Trigger color search mode instead of navigating
+    if (onColorSearch) {
+      onColorSearch(color);
+    }
   };
 
   // Close suggestions when clicking outside
