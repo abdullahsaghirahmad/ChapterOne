@@ -68,8 +68,40 @@ router.get('/filters/options', async (req, res) => {
 });
 
 /**
+ * GET /api/books/search?query=...&external=true/false
+ * Search books with query parameters (supports external API integration)
+ */
+router.get('/search', async (req, res) => {
+  try {
+    const query = req.query.query as string || req.query.q as string;
+    if (!query) {
+      return res.status(400).json({ message: 'Search query is required' });
+    }
+    
+    // Check if we should include results from external API
+    const fetchExternal = req.query.external === 'true';
+    
+    // Get search params
+    const searchType = req.query.searchType as string || req.query.type as string || 'all';
+    const limit = parseInt(req.query.limit as string) || 100;
+    
+    console.log(`[BOOK_ROUTES] Processing search query: "${query}", external: ${fetchExternal}, type: ${searchType}`);
+    
+    // Use the unified Supabase search method that handles both local and external
+    const books = await bookService.searchBooksWithExternal(query, fetchExternal, searchType, limit);
+    res.json(books);
+  } catch (error) {
+    console.error('Error searching books:', error);
+    res.status(500).json({ 
+      message: 'Failed to search books', 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    });
+  }
+});
+
+/**
  * GET /api/books/search/:query
- * Search books by title or author
+ * Search books by title or author (path parameter version)
  */
 router.get('/search/:query', async (req, res) => {
   try {

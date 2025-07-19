@@ -1,14 +1,17 @@
 import { supabase, Book } from '../lib/supabase';
 import { LLMService } from './llm.service';
+import { OpenLibraryAPI } from './openLibrary.service';
 import { QueryAnalysis } from '../types/llm.types';
 
 export class BookService {
   private llmService: LLMService;
+  private openLibraryAPI: OpenLibraryAPI;
   private readonly LOG_PREFIX = '[BOOK_SERVICE]';
 
   constructor() {
     this.llmService = new LLMService();
-    console.log(`${this.LOG_PREFIX} Initialized with LLM integration`);
+    this.openLibraryAPI = new OpenLibraryAPI();
+    console.log(`${this.LOG_PREFIX} Initialized with LLM integration and external APIs`);
   }
   /**
    * Get all books with optional filtering
@@ -492,6 +495,87 @@ export class BookService {
       return analysis;
     } catch (error) {
       console.error(`${this.LOG_PREFIX} LLM analysis test failed:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Search books including external sources
+   */
+  async searchBooksWithExternal(
+    query: string, 
+    fetchExternal: boolean = false,
+    searchType: string = 'all',
+    limit: number = 100
+  ): Promise<Book[]> {
+    const startTime = Date.now();
+    console.log(`${this.LOG_PREFIX} Searching for "${query}" (external: ${fetchExternal}, type: ${searchType})`);
+
+    try {
+      // First get local results
+      let localBooks: Book[] = [];
+      
+      if (searchType === 'all' || !query) {
+        // Use enhanced search for local books
+        localBooks = await this.searchBooksEnhanced(query);
+      } else {
+        // Use basic search for specific types
+        localBooks = await this.searchBooks(query);
+      }
+
+      console.log(`${this.LOG_PREFIX} Found ${localBooks.length} local books`);
+
+      if (!fetchExternal) {
+        return localBooks;
+      }
+
+      // Fetch from external API
+      console.log(`${this.LOG_PREFIX} Fetching from external sources...`);
+      try {
+        const externalBooks = await this.openLibraryAPI.searchBooks(query, limit, searchType);
+        console.log(`${this.LOG_PREFIX} Found ${externalBooks.length} external books`);
+        
+        // Format external results to match our Book interface
+        const formattedExternalBooks = externalBooks.map(book => ({
+          id: `external-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          title: book.title,
+          author: book.author,
+          publishedYear: book.publishedYear,
+          coverImage: book.coverImage,
+          description: (typeof book.description === 'string' ? book.description : 'No description available'),
+          pace: book.pace || 'Moderate',
+          tone: book.tone || [],
+          themes: book.themes || [],
+          bestFor: book.bestFor || [],
+          professions: book.professions || [],
+          categories: book.themes || [],
+          pageCount: book.pageCount,
+          rating: 0,
+          isExternal: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }));
+        
+        // Filter out books we already have locally (by title and author)
+        const uniqueExternalBooks = formattedExternalBooks.filter(extBook => 
+          !localBooks.some(localBook => 
+            localBook.title.toLowerCase() === extBook.title.toLowerCase() && 
+            localBook.author.toLowerCase() === extBook.author.toLowerCase()
+          )
+        );
+        
+        console.log(`${this.LOG_PREFIX} After deduplication: ${uniqueExternalBooks.length} unique external books`);
+        const processingTime = Date.now() - startTime;
+        console.log(`${this.LOG_PREFIX} Search completed in ${processingTime}ms`);
+        
+        return [...localBooks, ...uniqueExternalBooks];
+      } catch (externalError) {
+        console.error(`${this.LOG_PREFIX} External API search failed:`, externalError);
+        console.log(`${this.LOG_PREFIX} Falling back to local results only`);
+        return localBooks;
+      }
+    } catch (error) {
+      console.error(`${this.LOG_PREFIX} Search failed:`, error);
       throw error;
     }
   }

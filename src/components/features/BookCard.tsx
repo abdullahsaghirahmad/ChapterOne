@@ -229,7 +229,7 @@ export const BookCard = ({
 
   // Process description to ensure it's max 2 lines
   const processDescription = (desc: string): string => {
-    if (!desc || desc === 'No description available') {
+    if (!desc || desc === 'No description available' || typeof desc !== 'string') {
       return `A compelling story by ${author} exploring meaningful themes.`;
     }
 

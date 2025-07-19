@@ -80,6 +80,7 @@ export const books = {
     themes?: string[];
     pace?: string;
     professions?: string[];
+    includeExternal?: boolean;
   }): Promise<Book[]> {
     let query = supabase.from('book').select('*');
 
@@ -120,11 +121,32 @@ export const books = {
   async search(query: string, filters?: {
     activeFilters?: string[];
     searchType?: string;
+    includeExternal?: boolean;
   }): Promise<Book[]> {
     try {
       console.log('Frontend API: Searching for:', query);
       
-      // Use the new QueryRouterService for intelligent search routing
+      // If external sources are requested, use backend API directly
+      if (filters?.includeExternal) {
+        console.log('Frontend API: Including external sources, calling backend API');
+        const searchParams = new URLSearchParams({
+          query: query,
+          external: 'true',
+          searchType: filters?.searchType || 'all',
+          limit: '100'
+        });
+        
+        const response = await fetch(`http://localhost:3001/api/books/search?${searchParams}`);
+        if (!response.ok) {
+          throw new Error(`Backend search failed: ${response.statusText}`);
+        }
+        
+        const books = await response.json();
+        console.log(`Frontend API: Backend search with external sources returned ${books.length} books`);
+        return books;
+      }
+      
+      // Use the new QueryRouterService for intelligent search routing (local only)
       const { QueryRouterService } = await import('./queryRouter.service');
       const queryRouter = new QueryRouterService();
       

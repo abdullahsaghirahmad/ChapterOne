@@ -50,7 +50,27 @@ export const api = {
     try {
       console.log('API: Searching for:', query);
       
-      // Use the new QueryRouterService for intelligent search routing
+      // If external sources are requested, use backend API directly
+      if (includeExternal) {
+        console.log('API: Including external sources, calling backend API');
+        const searchParams = new URLSearchParams({
+          query: query,
+          external: 'true',
+          searchType: searchType,
+          limit: limit.toString()
+        });
+        
+        const response = await fetch(`http://localhost:3001/api/books/search?${searchParams}`);
+        if (!response.ok) {
+          throw new Error(`Backend search failed: ${response.statusText}`);
+        }
+        
+        const books = await response.json();
+        console.log(`API: Backend search with external sources returned ${books.length} books`);
+        return books;
+      }
+      
+      // Use the new QueryRouterService for intelligent search routing (local only)
       const { QueryRouterService } = await import('./queryRouter.service');
       const queryRouter = new QueryRouterService();
       

@@ -381,7 +381,8 @@ export const BooksPage = () => {
   const [allBooks, setAllBooks] = useState<Book[]>([]); // Store all books for filtering
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [includeExternal, setIncludeExternal] = useState(true);
+  const [externalLoading, setExternalLoading] = useState(false);
+  const [includeExternal, setIncludeExternal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchType, setSearchType] = useState('all');
   const [isColorSearchMode, setIsColorSearchMode] = useState(false);
@@ -416,7 +417,9 @@ export const BooksPage = () => {
       
       try {
         // Fetch all books from database
-        const booksData = await api.books.getAll();
+        const booksData = await api.books.getAll({
+          includeExternal: includeExternal
+        });
         setAllBooks(booksData);
         
         // Check if there's a search query in URL (for direct URL access)
@@ -430,7 +433,8 @@ export const BooksPage = () => {
           // Perform initial search from URL
           try {
             const results = await api.books.search(queryFromUrl, { 
-              searchType: typeFromUrl || 'all'
+              searchType: typeFromUrl || 'all',
+              includeExternal: includeExternal
             });
             setBooks(results);
           } catch (err) {
@@ -553,13 +557,29 @@ export const BooksPage = () => {
     });
   };
 
-  const handleExternalToggle = () => {
+  const handleExternalToggle = async () => {
     const newIncludeExternal = !includeExternal;
     setIncludeExternal(newIncludeExternal);
     
-    // Note: External API functionality can be implemented later if needed
-    // For now, we're working with database books only
     console.log('External toggle changed to:', newIncludeExternal);
+    
+    // If turning on external sources and there's an active search, re-run it
+    if (newIncludeExternal && searchQuery) {
+      setExternalLoading(true);
+      try {
+        console.log('Re-running search with external sources enabled');
+        const results = await api.books.search(searchQuery, { 
+          searchType: searchType || 'all',
+          includeExternal: newIncludeExternal
+        });
+        setBooks(results);
+      } catch (err) {
+        console.error('External search failed:', err);
+        setError('Failed to fetch external sources. Please try again.');
+      } finally {
+        setExternalLoading(false);
+      }
+    }
   };
 
   const handleSearch = async (query: string, type?: string) => {
@@ -573,6 +593,11 @@ export const BooksPage = () => {
     setLoading(true);
     setError(null);
     
+    // Set external loading if external sources are enabled and we have a query
+    if (includeExternal && query) {
+      setExternalLoading(true);
+    }
+    
     try {
       if (!query) {
         // No query, show all books
@@ -581,7 +606,8 @@ export const BooksPage = () => {
         console.log('SearchBar: Performing search with query:', query);
         // Use the API search which includes QueryRouterService
         const results = await api.books.search(query, { 
-          searchType: type || 'all'
+          searchType: type || 'all',
+          includeExternal: includeExternal
         });
         console.log('SearchBar: Search completed, found', results.length, 'books');
         setBooks(results);
@@ -594,6 +620,7 @@ export const BooksPage = () => {
       setBooks(filteredBooks);
     } finally {
       setLoading(false);
+      setExternalLoading(false);
     }
     
     // Update URL to reflect the search
@@ -955,22 +982,46 @@ export const BooksPage = () => {
         
         {/* External API Toggle */}
         <div className="flex items-center justify-end mt-4 space-x-2">
-          <span className="text-sm text-gray-600">Include more books from external sources</span>
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-gray-600">Include more books from external sources</span>
+            {externalLoading && (
+              <div className="flex items-center space-x-1">
+                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-green-500"></div>
+                <span className="text-xs text-green-600 font-medium">Fetching...</span>
+              </div>
+            )}
+          </div>
           <Switch
             checked={includeExternal}
-            onChange={handleExternalToggle}
-            className="data-[state=checked]:bg-green-500"
+            onChange={externalLoading ? () => {} : handleExternalToggle}
+            className={`data-[state=checked]:bg-green-500 ${externalLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
           />
         </div>
       </div>
 
       {/* Books Grid with Color Sidebar */}
-      {books.length === 0 ? (
+      {books.length === 0 && !externalLoading ? (
         <div className="text-center py-10">
-          {searchQuery ? 
-            `No books found matching "${searchQuery}"${searchType !== 'all' ? ` by ${searchType}` : ''}. Try a different search.` :
+          {searchQuery ? (
+            <div className="space-y-2">
+              <p>{`No books found matching "${searchQuery}"${searchType !== 'all' ? ` by ${searchType}` : ''}.`}</p>
+              {!includeExternal && (
+                <p className="text-sm text-gray-500">
+                  Try enabling "Include more books from external sources" for more results.
+                </p>
+              )}
+            </div>
+          ) : (
             'No books found. Try enabling external sources or check back later.'
-          }
+          )}
+        </div>
+      ) : externalLoading && books.length === 0 ? (
+        <div className="text-center py-10">
+          <div className="flex items-center justify-center space-x-3">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-500"></div>
+            <span className="text-lg text-gray-600">Searching external sources...</span>
+          </div>
+          <p className="text-sm text-gray-500 mt-2">This may take a few seconds</p>
         </div>
       ) : (
         <div className={isColorSearchMode ? "flex gap-8 items-start" : ""}>
@@ -980,6 +1031,14 @@ export const BooksPage = () => {
             {!isColorSearchMode && searchQuery && (
               <div className="mb-4 text-sm text-gray-600">
                 Found {books.length} books for "{searchQuery}"{searchType !== 'all' ? ` by ${searchType}` : ''}
+              </div>
+            )}
+            
+            {/* External loading indicator when books are already shown */}
+            {externalLoading && books.length > 0 && (
+              <div className="mb-4 flex items-center justify-center space-x-2 py-3 bg-green-50 rounded-lg border border-green-200">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-500"></div>
+                <span className="text-sm text-green-700 font-medium">Adding books from external sources...</span>
               </div>
             )}
             
