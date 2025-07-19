@@ -22,7 +22,6 @@ export const HomePage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [visibleBooks, setVisibleBooks] = useState(4); // Show 4 books initially
-  const [visibleThreads, setVisibleThreads] = useState(4); // Show 4 threads initially
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -251,24 +250,22 @@ export const HomePage = () => {
           }`}>
             Popular Threads
           </h2>
-          {threads.length > visibleThreads && (
-            <Link 
-              to="/threads" 
-              className={`flex items-center space-x-1 transition-all duration-300 hover:scale-105 ${
-                theme === 'light'
-                  ? 'text-primary-600 hover:text-primary-800'
-                  : theme === 'dark'
-                  ? 'text-blue-400 hover:text-blue-300'
-                  : 'text-purple-600 hover:text-purple-800'
-              }`}
-            >
-              <span>View All</span>
-              <ArrowRightIcon className="w-4 h-4" />
-            </Link>
-          )}
+          <Link 
+            to="/threads" 
+            className={`flex items-center space-x-1 transition-all duration-300 hover:scale-105 ${
+              theme === 'light'
+                ? 'text-primary-600 hover:text-primary-800'
+                : theme === 'dark'
+                ? 'text-blue-400 hover:text-blue-300'
+                : 'text-purple-600 hover:text-purple-800'
+            }`}
+          >
+            <span>View All</span>
+            <ArrowRightIcon className="w-4 h-4" />
+          </Link>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
-          {threads.slice(0, visibleThreads).map((thread) => (
+          {threads.slice(0, 4).map((thread) => (
             <ThreadCard
               key={thread.id}
               id={thread.id}
@@ -281,16 +278,6 @@ export const HomePage = () => {
             />
           ))}
         </div>
-        {threads.length > visibleThreads && (
-          <div className="text-center mt-6">
-            <button
-              onClick={() => setVisibleThreads(prev => Math.min(prev + 4, threads.length))}
-              className="btn btn-secondary"
-            >
-              Show More Threads
-            </button>
-          </div>
-        )}
       </section>
     </div>
   );
