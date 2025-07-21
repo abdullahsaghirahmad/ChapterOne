@@ -8,6 +8,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRightIcon } from '@heroicons/react/24/outline';
 import { normalizeTag } from './ThreadPage'; // Import the normalizeTag function
 import { useTheme } from '../../contexts/ThemeContext';
+import PersonalizedRecommendations from './PersonalizedRecommendations';
+import { usePersonalization } from '../../hooks/usePersonalization';
 
 // Add interface for pace object
 interface PaceObject {
@@ -17,6 +19,7 @@ interface PaceObject {
 
 export const HomePage = () => {
   const { theme } = useTheme();
+  const { isPersonalizationEnabled } = usePersonalization();
   const [trendingBooks, setTrendingBooks] = useState<Book[]>([]);
   const [threads, setThreads] = useState<Thread[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -204,6 +207,18 @@ export const HomePage = () => {
           </div>
         )}
       </section>
+
+      {/* Personalized Recommendations */}
+      {isPersonalizationEnabled && (
+        <section>
+          <PersonalizedRecommendations 
+            availableBooks={trendingBooks}
+            maxRecommendations={6}
+            showInsights={true}
+            className="mx-auto max-w-7xl"
+          />
+        </section>
+      )}
 
       {/* Featured Books */}
       <section>

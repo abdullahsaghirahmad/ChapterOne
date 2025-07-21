@@ -7,6 +7,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import api from '../../services/api.supabase';
 import { useTheme } from '../../contexts/ThemeContext';
 import { motion, AnimatePresence } from 'framer-motion';
+import { usePersonalization, useSearchTracking } from '../../hooks/usePersonalization';
 
 // Interface for Pace objects that might be returned from API
 interface PaceObject {
@@ -392,6 +393,10 @@ export const BooksPage = () => {
   
   // Track processed URLs to prevent duplicate processing
   const processedUrlRef = useRef<string>('');
+  
+  // Personalization hooks
+  const { trackSearch, getRecommendations, isPersonalizationEnabled } = usePersonalization();
+  const { startSearchTracking, endSearchTracking } = useSearchTracking();
 
   // Color definitions (from SearchBar)
   const colors = [
@@ -598,19 +603,36 @@ export const BooksPage = () => {
       setExternalLoading(true);
     }
     
+    const searchStartTime = Date.now();
+    
+    // Start personalization tracking for authenticated users
+    if (query && isPersonalizationEnabled) {
+      startSearchTracking();
+    }
+    
     try {
       if (!query) {
         // No query, show all books
         setBooks(allBooks);
+        const responseTime = Date.now() - searchStartTime;
+        console.log(`SearchBar: Showing all books (${allBooks.length}) in ${responseTime}ms`);
       } else {
         console.log('SearchBar: Performing search with query:', query);
-        // Use the API search which includes QueryRouterService
+        
+        // API layer handles caching transparently
         const results = await api.books.search(query, { 
           searchType: type || 'all',
           includeExternal: includeExternal
         });
-        console.log('SearchBar: Search completed, found', results.length, 'books');
+        
+        const responseTime = Date.now() - searchStartTime;
+        console.log(`SearchBar: Search completed in ${responseTime}ms (${results.length} books)`);
         setBooks(results);
+        
+        // Track search completion for personalization
+        if (query && isPersonalizationEnabled) {
+          endSearchTracking(query, type || 'all', results.length);
+        }
       }
     } catch (err) {
       console.error('Search failed:', err);
@@ -618,6 +640,13 @@ export const BooksPage = () => {
       // Fallback to local filtering if API search fails
       const filteredBooks = filterBooks(allBooks, query || '', type || 'all');
       setBooks(filteredBooks);
+      const responseTime = Date.now() - searchStartTime;
+      console.log(`SearchBar: Fallback search completed in ${responseTime}ms (${filteredBooks.length} books)`);
+      
+      // Track fallback search completion for personalization
+      if (query && isPersonalizationEnabled) {
+        endSearchTracking(query, type || 'all', filteredBooks.length);
+      }
     } finally {
       setLoading(false);
       setExternalLoading(false);
@@ -986,15 +1015,15 @@ export const BooksPage = () => {
             <span className="text-sm text-gray-600">Include more books from external sources</span>
             {externalLoading && (
               <div className="flex items-center space-x-1">
-                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-green-500"></div>
-                <span className="text-xs text-green-600 font-medium">Fetching...</span>
+                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-500"></div>
+                <span className="text-xs text-blue-600 font-medium">Fetching from external sources...</span>
               </div>
             )}
           </div>
           <Switch
             checked={includeExternal}
             onChange={externalLoading ? () => {} : handleExternalToggle}
-            className={`data-[state=checked]:bg-green-500 ${externalLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className={`data-[state=checked]:bg-blue-500 ${externalLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
           />
         </div>
       </div>
@@ -1018,8 +1047,8 @@ export const BooksPage = () => {
       ) : externalLoading && books.length === 0 ? (
         <div className="text-center py-10">
           <div className="flex items-center justify-center space-x-3">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-500"></div>
-            <span className="text-lg text-gray-600">Searching external sources...</span>
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+            <span className="text-lg text-gray-600">Fetching from external sources...</span>
           </div>
           <p className="text-sm text-gray-500 mt-2">This may take a few seconds</p>
         </div>
@@ -1036,9 +1065,9 @@ export const BooksPage = () => {
             
             {/* External loading indicator when books are already shown */}
             {externalLoading && books.length > 0 && (
-              <div className="mb-4 flex items-center justify-center space-x-2 py-3 bg-green-50 rounded-lg border border-green-200">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-500"></div>
-                <span className="text-sm text-green-700 font-medium">Adding books from external sources...</span>
+              <div className="mb-4 flex items-center justify-center space-x-2 py-3 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                <span className="text-sm text-blue-700 font-medium">Fetching from external sources...</span>
               </div>
             )}
             

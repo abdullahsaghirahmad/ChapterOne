@@ -217,3 +217,5 @@ backend/*.env
 backend/**/*.env
 !backend/*.env.template
 !backend/*.env.example
+
+EXTERNAL_BOOKS_ENHANCEMENT_GUIDE.md

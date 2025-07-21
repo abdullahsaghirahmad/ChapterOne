@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { Book, Thread } from '../types';
+import { cacheManager, SearchCacheKey } from './cacheManager.service';
 
 // Authentication functions
 export const auth = {
@@ -123,8 +124,27 @@ export const books = {
     searchType?: string;
     includeExternal?: boolean;
   }): Promise<Book[]> {
+    const startTime = Date.now();
+    const searchParams: SearchCacheKey = {
+      query,
+      searchType: filters?.searchType || 'all',
+      includeExternal: filters?.includeExternal || false
+      // userId will be added by the cache manager from auth context
+    };
+
     try {
       console.log('Frontend API: Searching for:', query);
+      
+      // Check cache first
+      const cachedResults = await cacheManager.getCachedSearchResults(searchParams);
+      if (cachedResults) {
+        const responseTime = Date.now() - startTime;
+        console.log(`Frontend API: Cache hit in ${responseTime}ms (${cachedResults.length} books)`);
+        return cachedResults;
+      }
+
+      console.log('Frontend API: Cache miss, performing fresh search');
+      let books: Book[] = [];
       
       // If external sources are requested, use backend API directly
       if (filters?.includeExternal) {
@@ -141,33 +161,53 @@ export const books = {
           throw new Error(`Backend search failed: ${response.statusText}`);
         }
         
-        const books = await response.json();
+        books = await response.json();
         console.log(`Frontend API: Backend search with external sources returned ${books.length} books`);
-        return books;
+      } else {
+        // Use the new QueryRouterService for intelligent search routing (local only)
+        const { QueryRouterService } = await import('./queryRouter.service');
+        const queryRouter = new QueryRouterService();
+        
+        const result = await queryRouter.search(query);
+        
+        console.log(`Frontend API: ${result.searchMethod} search returned ${result.books.length} books (${result.queryType} query, ${result.processingTime}ms)`);
+        books = result.books;
       }
+
+      // Cache the results
+      await cacheManager.cacheSearchResults(searchParams, books);
       
-      // Use the new QueryRouterService for intelligent search routing (local only)
-      const { QueryRouterService } = await import('./queryRouter.service');
-      const queryRouter = new QueryRouterService();
+      const responseTime = Date.now() - startTime;
+      console.log(`Frontend API: Search completed in ${responseTime}ms (cached for future use)`);
       
-      const result = await queryRouter.search(query);
-      
-      console.log(`Frontend API: ${result.searchMethod} search returned ${result.books.length} books (${result.queryType} query, ${result.processingTime}ms)`);
-      return result.books;
+      return books;
     } catch (error) {
-      console.error('QueryRouter search failed, falling back to basic search:', error);
+      console.error('Search failed, falling back to basic search:', error);
       
-      // Fallback to basic Supabase search if query router fails
-      const { data, error: supabaseError } = await supabase
-        .from('book')
-        .select('*')
-        .or(`title.ilike.%${query}%, author.ilike.%${query}%`)
-        .order('title')
-        .limit(50);
-      
-      if (supabaseError) throw supabaseError;
-      console.log('Frontend API: Fallback search returned', data?.length || 0, 'books');
-      return data || [];
+      // Fallback to basic Supabase search
+      try {
+        const { data, error: supabaseError } = await supabase
+          .from('book')
+          .select('*')
+          .or(`title.ilike.%${query}%, author.ilike.%${query}%`)
+          .order('title')
+          .limit(50);
+        
+        if (supabaseError) throw supabaseError;
+        
+        const fallbackResults = data || [];
+        console.log('Frontend API: Fallback search returned', fallbackResults.length, 'books');
+        
+        // Cache fallback results too (they're still valid)
+        if (fallbackResults.length > 0) {
+          await cacheManager.cacheSearchResults(searchParams, fallbackResults);
+        }
+        
+        return fallbackResults;
+      } catch (fallbackError) {
+        console.error('Fallback search also failed:', fallbackError);
+        return [];
+      }
     }
   },
 
@@ -459,6 +499,20 @@ export const threads = {
     });
 
     return Array.from(tags).sort();
+  },
+
+  // Batch processor monitoring
+  async getBatchStats() {
+    try {
+      const response = await fetch('http://localhost:3001/api/books/batch-stats');
+      if (!response.ok) {
+        throw new Error(`Failed to get batch stats: ${response.statusText}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error getting batch stats:', error);
+      return null;
+    }
   }
 };
 

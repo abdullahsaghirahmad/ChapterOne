@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { BookService } from '../services/book.service.supabase';
+import { batchProcessor } from '../services/batchProcessor.service';
 
 const router = Router();
 const bookService = new BookService();
@@ -115,6 +116,34 @@ router.get('/search/:query', async (req, res) => {
       message: 'Failed to search books', 
       error: error instanceof Error ? error.message : 'Unknown error' 
     });
+  }
+});
+
+/**
+ * GET /api/books/batch-stats
+ * Get batch processor statistics and status
+ */
+router.get('/batch-stats', async (req, res) => {
+  try {
+    const stats = batchProcessor.getStats();
+    const queueStatus = batchProcessor.getQueueStatus();
+    
+    res.json({
+      statistics: stats,
+      queueStatus: queueStatus,
+      timestamp: new Date().toISOString(),
+      efficiency: {
+        batchingEfficiency: stats.totalRequests > 0 ? (stats.batchedRequests / stats.totalRequests * 100).toFixed(1) + '%' : '0%',
+        deduplicationRate: stats.totalRequests > 0 ? (stats.duplicatesAvoided / stats.totalRequests * 100).toFixed(1) + '%' : '0%',
+        apiCallsSaved: stats.apiCallsSaved,
+        averageResponseTime: Math.round(stats.averageProcessingTime) + 'ms'
+      }
+    });
+    
+    console.log(`${LOG_PREFIX} Batch processor stats requested`);
+  } catch (error) {
+    console.error(`${LOG_PREFIX} Error getting batch stats:`, error);
+    res.status(500).json({ error: 'Failed to get batch processor statistics' });
   }
 });
 

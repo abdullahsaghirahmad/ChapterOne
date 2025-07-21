@@ -13,6 +13,7 @@ import { Pace } from '../../types';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext';
 import { LLMService } from '../../services/llm.service';
+import { useBookCardTracking } from '../../hooks/usePersonalization';
 
 // UI filter themes that are available in the system
 const UI_FILTER_THEMES = [
@@ -123,6 +124,7 @@ export const BookCard = ({
   description = 'No description available',
   quote,
   mostQuoted,
+  isExternal = false,
   isColorSearchMode = false,
   colorMatchPercentage,
   selectedColor,
@@ -137,10 +139,29 @@ export const BookCard = ({
   const [bookQuote, setBookQuote] = useState(quote || mostQuoted || '');
   const [llmService] = useState(() => new LLMService());
 
+  // Create a minimal book object for tracking
+  const bookForTracking = {
+    id: `${title}-${author}`.replace(/\s+/g, '-').toLowerCase(),
+    title,
+    author
+  };
+
+  // Initialize personalization tracking
+  const { onViewStart, onViewEnd, onBookClick, isTracking } = useBookCardTracking(
+    bookForTracking as any,
+    isColorSearchMode ? 'color_search' : 'search_result'
+  );
+
   // Process themes to handle both string and object formats
   const processedThemes = Array.isArray(themes) 
     ? themes.map(t => extractValue(t)).slice(0, 3) // Max 3 themes for clean design
     : [];
+
+  // Track card view when component mounts
+  useEffect(() => {
+    onViewStart();
+    return () => onViewEnd();
+  }, [onViewStart, onViewEnd]);
 
   // Handle image loading errors
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
@@ -376,25 +397,66 @@ export const BookCard = ({
     return `${r}, ${g}, ${b}`;
   };
 
-  return (
-    <div 
-      className={`transition-all duration-300 hover:shadow-lg flex overflow-hidden rounded-lg ${
+  // External Book Badge Component - Apple-style bottom-right positioning
+  const ExternalBookBadge = () => {
+    if (!isExternal) return null;
+    
+    return (
+      <div className={`absolute bottom-2 right-2 z-10 flex items-center px-2 py-1 rounded-full text-xs font-medium shadow-lg transition-all duration-200 ${
+        theme === 'light'
+          ? 'bg-white/95 text-blue-700 border border-blue-200 backdrop-blur-sm'
+          : theme === 'dark'
+          ? 'bg-gray-900/95 text-blue-200 border border-blue-600/50 backdrop-blur-sm'
+          : 'bg-white/95 text-blue-800 border border-blue-300 backdrop-blur-sm'
+      }`}>
+        <CloudIcon className="w-3 h-3 mr-1" />
+        <span>External</span>
+      </div>
+    );
+  };
+
+  // Get card styling with subtle external book distinction
+  const getCardStyling = () => {
+    const baseClasses = `transition-all duration-300 hover:shadow-lg flex overflow-hidden rounded-lg`;
+    
+    if (isExternal) {
+      // Subtle visual distinction for external books
+      return `${baseClasses} ${
+        theme === 'light'
+          ? 'bg-white border-l-4 border-l-blue-300 border-r border-t border-b border-gray-200 hover:border-blue-400 hover:shadow-blue-100'
+          : theme === 'dark'
+          ? 'bg-gray-800 border-l-4 border-l-blue-500 border-r border-t border-b border-gray-700 hover:border-blue-400 hover:shadow-blue-900/20'
+          : 'bg-gradient-to-br from-blue-50 to-purple-50 border-l-4 border-l-blue-400 border-r border-t border-b border-blue-200 hover:border-blue-300 hover:shadow-blue-200'
+      }`;
+    } else {
+      // Original styling for local books
+      return `${baseClasses} ${
         theme === 'light'
           ? 'bg-white border border-gray-200 hover:border-primary-300'
           : theme === 'dark'
           ? 'bg-gray-800 border border-gray-700 hover:border-gray-600'
           : 'bg-gradient-to-br from-pink-50 to-purple-50 border border-purple-200 hover:border-purple-300'
-      }`}
+      }`;
+    }
+  };
+
+  return (
+    <div 
+      className={getCardStyling()}
       style={getColorSearchStyles()}
+      onClick={onBookClick}
     >
       {/* Book Cover */}
-      <div className={`w-32 flex-shrink-0 ${
+      <div className={`w-32 flex-shrink-0 relative ${
         theme === 'light'
           ? 'bg-gray-100'
           : theme === 'dark'
           ? 'bg-gray-700'
           : 'bg-gradient-to-br from-pink-100 to-purple-100'
       }`}>
+        {/* External Book Badge - positioned on cover */}
+        <ExternalBookBadge />
+        
         <img 
           src={getImageUrl()} 
           alt={`Cover of ${title}`} 

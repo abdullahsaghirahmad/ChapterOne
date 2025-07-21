@@ -41,8 +41,16 @@ class OpenLibraryAPI {
                     break;
             }
             const response = await axios_1.default.get(this.searchUrl, { params });
-            const books = await Promise.all(response.data.docs.map(async (doc) => {
-                const details = await this.getBookDetails(doc.key);
+            const books = await Promise.all(response.data.docs.map(async (doc, index) => {
+                // Only fetch detailed info for first 5 books to avoid rate limiting
+                let details = null;
+                if (index < 5) {
+                    // Add delay to avoid rate limiting
+                    if (index > 0) {
+                        await new Promise(resolve => setTimeout(resolve, 200)); // 200ms delay
+                    }
+                    details = await this.getBookDetails(doc.key);
+                }
                 // Process moods and themes based on searchType
                 let tone = this.extractTone(details?.description);
                 let themes = this.extractThemes(doc.subject, details?.description);
@@ -83,7 +91,7 @@ class OpenLibraryAPI {
                         `https://covers.openlibrary.org/b/id/${doc.cover_i}-L.jpg` :
                         undefined,
                     pageCount: doc.number_of_pages_median,
-                    description: details?.description,
+                    description: this.formatDescription(details?.description),
                     firstSentence: details?.first_sentence,
                     subjects: doc.subject || [],
                     pace: this.determinePace(doc.number_of_pages_median),
@@ -326,6 +334,40 @@ class OpenLibraryAPI {
         }
         // If no match found, capitalize the first letter and return
         return term.charAt(0).toUpperCase() + term.slice(1);
+    }
+    /**
+     * Format description to ensure it's a valid string
+     */
+    formatDescription(description) {
+        if (!description) {
+            return 'No description available';
+        }
+        // If it's already a string, return it
+        if (typeof description === 'string') {
+            return description;
+        }
+        // If it's an object with a value property (common in OpenLibrary)
+        if (typeof description === 'object' && description.value) {
+            return typeof description.value === 'string' ? description.value : 'No description available';
+        }
+        // If it's an array, take the first string element
+        if (Array.isArray(description)) {
+            const firstString = description.find(item => typeof item === 'string');
+            return firstString || 'No description available';
+        }
+        // If it's an object, try to stringify it safely
+        if (typeof description === 'object') {
+            try {
+                const stringified = JSON.stringify(description);
+                // Don't return raw JSON, it's not user-friendly
+                return 'No description available';
+            }
+            catch {
+                return 'No description available';
+            }
+        }
+        // Fallback for any other type
+        return 'No description available';
     }
 }
 exports.OpenLibraryAPI = OpenLibraryAPI;

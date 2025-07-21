@@ -89,10 +89,31 @@ class BookService {
                 break;
             case 'readingStyle':
             case 'pace':
+                // Map UI reading styles to database pace values
+                let paceValue = query;
+                switch (query.toLowerCase()) {
+                    case 'quick read':
+                        paceValue = 'Fast';
+                        break;
+                    case 'deep dive':
+                    case 'academic':
+                        paceValue = 'Slow';
+                        break;
+                    case 'light reading':
+                    case 'standalone':
+                    case 'series':
+                    case 'visual':
+                    case 'interactive':
+                        paceValue = 'Moderate';
+                        break;
+                    default:
+                        // Keep original value for 'Fast', 'Slow', 'Moderate'
+                        break;
+                }
                 // Search by pace (reading style)
                 localBooks = await this.bookRepository
                     .createQueryBuilder('book')
-                    .where('book.pace = :query', { query })
+                    .where('book.pace = :query', { query: paceValue })
                     .limit(limit)
                     .getMany();
                 break;

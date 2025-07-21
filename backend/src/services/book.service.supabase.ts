@@ -2,6 +2,7 @@ import { supabase, Book } from '../lib/supabase';
 import { LLMService } from './llm.service';
 import { OpenLibraryAPI } from './openLibrary.service';
 import { QueryAnalysis } from '../types/llm.types';
+import { batchProcessor, RequestPriority } from './batchProcessor.service';
 
 export class BookService {
   private llmService: LLMService;
@@ -529,15 +530,22 @@ export class BookService {
         return localBooks;
       }
 
-      // Fetch from external API
-      console.log(`${this.LOG_PREFIX} Fetching from external sources...`);
+      // Fetch from external API using batch processor
+      console.log(`${this.LOG_PREFIX} Fetching from external sources via batch processor...`);
       try {
-        const externalBooks = await this.openLibraryAPI.searchBooks(query, limit, searchType);
-        console.log(`${this.LOG_PREFIX} Found ${externalBooks.length} external books`);
+        // Use batch processor for intelligent request handling
+        const externalBooks = await batchProcessor.processSearchRequest(
+          query,
+          searchType,
+          RequestPriority.HIGH, // User-facing requests get high priority
+          undefined // userId could be passed here if available
+        );
+        
+        console.log(`${this.LOG_PREFIX} Batch processor returned ${externalBooks.length} external books`);
         
         // Format external results to match our Book interface
-        const formattedExternalBooks = externalBooks.map(book => ({
-          id: `external-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        const formattedExternalBooks = externalBooks.map((book, index) => ({
+          id: `external-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 5)}`,
           title: book.title,
           author: book.author,
           publishedYear: book.publishedYear,
