@@ -1087,6 +1087,7 @@ export const BooksPage = () => {
                 {books.map((book, index) => (
                   <BookCard
                     key={book.id || `${book.title}-${book.author}`}
+                    id={book.id}
                     title={book.title}
                     author={book.author}
                     coverImage={book.coverImage}

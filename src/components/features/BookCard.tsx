@@ -8,11 +8,17 @@ import {
   FireIcon,
   BookOpenIcon
 } from '@heroicons/react/24/outline';
+import { BookmarkIcon as BookmarkIconSolid } from '@heroicons/react/24/solid';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Pace } from '../../types';
+import { Pace, Book } from '../../types';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { useAuthModal } from '../../contexts/AuthModalContext';
 import { LLMService } from '../../services/llm.service';
+import { SavedBooksService } from '../../services/savedBooks.service';
+import { PostSaveSurveyModal } from '../ui/PostSaveSurveyModal';
+import { Toast } from '../ui/Toast';
 import { useBookCardTracking } from '../../hooks/usePersonalization';
 
 // UI filter themes that are available in the system
@@ -86,6 +92,7 @@ const THEME_MAPPING: Record<string, string> = {
 };
 
 interface BookCardProps {
+  id?: string;
   title: string;
   author: string;
   coverImage?: string;
@@ -116,6 +123,7 @@ const extractValue = (item: any): string => {
 };
 
 export const BookCard = ({
+  id,
   title,
   author,
   coverImage = 'https://via.placeholder.com/150x225?text=No+Cover',
@@ -124,6 +132,8 @@ export const BookCard = ({
   description = 'No description available',
   quote,
   mostQuoted,
+  tone = [],
+  bestFor = [],
   isExternal = false,
   isColorSearchMode = false,
   colorMatchPercentage,
@@ -132,12 +142,35 @@ export const BookCard = ({
 }: BookCardProps) => {
   const navigate = useNavigate();
   const { theme } = useTheme();
+  const { user } = useAuth();
+  const { showAuthModal } = useAuthModal();
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [showSaveSurvey, setShowSaveSurvey] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
   const [imgError, setImgError] = useState(false);
   const [bookDescription, setBookDescription] = useState(description);
   const [truncatedDescription, setTruncatedDescription] = useState('');
   const [bookQuote, setBookQuote] = useState(quote || mostQuoted || '');
   const [llmService] = useState(() => new LLMService());
+
+  // Check if book is saved when component mounts or user changes
+  useEffect(() => {
+    const checkIfSaved = async () => {
+      if (!user || !id) return;
+      
+      try {
+        const saved = await SavedBooksService.isBookSaved(id);
+        setIsSaved(saved);
+      } catch (error) {
+        console.error('Error checking if book is saved:', error);
+      }
+    };
+
+    checkIfSaved();
+  }, [user, id]);
 
   // Create a minimal book object for tracking
   const bookForTracking = {
@@ -328,9 +361,101 @@ export const BookCard = ({
   };
 
   // Handle save action - will trigger signup for anonymous users
-  const handleSave = () => {
-    // TODO: Implement save logic / signup modal
-    console.log('Save clicked for:', title);
+  const handleSave = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card navigation
+    
+    if (!user) {
+      // Trigger signup for anonymous users
+      showAuthModal('signup');
+      return;
+    }
+
+    if (isSaved) {
+      // If already saved, unsave it
+      await handleUnsave();
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      // Create book object from props
+      const book: Book = {
+        id: id || `${title}-${author}`.replace(/\s+/g, '-').toLowerCase(),
+        title,
+        author,
+        coverImage: coverImage || '',
+        description: description || '',
+        pace,
+        tone: tone || [],
+        themes: (themes || []).map(theme => 
+          typeof theme === 'string' ? theme : (theme as any)?.value || String(theme)
+        ),
+        bestFor: bestFor || [],
+        isExternal: isExternal || false,
+        pageCount: 0, // Default - we don't have this in props
+        categories: (themes || []).map(theme => 
+          typeof theme === 'string' ? theme : (theme as any)?.value || String(theme)
+        ),
+      };
+
+      await SavedBooksService.saveBook({
+        bookId: book.id,
+        bookData: book,
+      });
+
+      // Update UI state
+      setIsSaved(true);
+      
+      // Show success toast
+      setToastMessage(`"${title}" saved to library!`);
+      setShowToast(true);
+      
+      // Show post-save survey modal (with slight delay for better UX)
+      setTimeout(() => {
+        setShowSaveSurvey(true);
+      }, 1000);
+      
+    } catch (error: any) {
+      console.error('Error saving book:', error);
+      if (error.message.includes('already saved')) {
+        setIsSaved(true); // Update state if it was already saved
+      }
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Handle unsave action
+  const handleUnsave = async () => {
+    if (!user || !id) return;
+
+    setIsSaving(true);
+
+    try {
+      await SavedBooksService.unsaveBook(id);
+      setIsSaved(false);
+      
+      // Show success toast
+      setToastMessage(`"${title}" removed from library`);
+      setShowToast(true);
+    } catch (error: any) {
+      console.error('Error unsaving book:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Handle card click navigation to book detail page
+  const handleCardClick = () => {
+    onBookClick(); // Track click for analytics
+    
+    // Navigate to book detail page if we have an ID
+    if (id) {
+      navigate(`/books/${id}`);
+    } else {
+      console.warn('Book ID not provided for navigation');
+    }
   };
 
   // Color blending utilities
@@ -442,9 +567,9 @@ export const BookCard = ({
 
   return (
     <div 
-      className={getCardStyling()}
+      className={`${getCardStyling()} cursor-pointer`}
       style={getColorSearchStyles()}
-      onClick={onBookClick}
+      onClick={handleCardClick}
     >
       {/* Book Cover */}
       <div className={`w-32 flex-shrink-0 relative ${
@@ -481,15 +606,29 @@ export const BookCard = ({
           </h3>
           <button 
             onClick={handleSave}
-            className={`ml-2 p-1 transition-all duration-300 hover:scale-110 ${
-              theme === 'light'
+            disabled={isSaving}
+            className={`ml-2 p-1 transition-all duration-300 hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed ${
+              isSaved
+                ? theme === 'light'
+                  ? 'text-primary-600 hover:text-primary-700'
+                  : theme === 'dark'
+                  ? 'text-blue-400 hover:text-blue-300'
+                  : 'text-purple-600 hover:text-purple-700'
+                : theme === 'light'
                 ? 'text-primary-400 hover:text-primary-700'
                 : theme === 'dark'
                 ? 'text-gray-500 hover:text-gray-300'
                 : 'text-purple-400 hover:text-purple-600'
             }`}
+            title={isSaved ? 'Remove from library' : 'Save to library'}
           >
-            <BookmarkIcon className="h-5 w-5" />
+            {isSaving ? (
+              <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+            ) : isSaved ? (
+              <BookmarkIconSolid className="h-5 w-5" />
+            ) : (
+              <BookmarkIcon className="h-5 w-5" />
+            )}
           </button>
         </div>
 
@@ -541,7 +680,10 @@ export const BookCard = ({
             {processedThemes.map((themeItem, index) => (
               <button
                 key={`${themeItem}-${index}`}
-                onClick={() => handleThemeClick(themeItem)}
+                onClick={(e) => {
+                  e.stopPropagation(); // Prevent card navigation
+                  handleThemeClick(themeItem);
+                }}
                 className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full transition-all duration-200 hover:scale-105 cursor-pointer ${
                   theme === 'light'
                     ? 'bg-primary-50 text-primary-600 border border-primary-200 hover:bg-primary-100'
@@ -616,7 +758,10 @@ export const BookCard = ({
 
         {/* Action Button */}
         <motion.button
-          onClick={() => setIsExpanded(!isExpanded)}
+          onClick={(e) => {
+            e.stopPropagation(); // Prevent card navigation
+            setIsExpanded(!isExpanded);
+          }}
           className={`self-start text-sm font-medium flex items-center transition-all duration-300 hover:scale-105 ${
             theme === 'light'
               ? 'text-primary-500 hover:text-primary-700'
@@ -692,6 +837,26 @@ export const BookCard = ({
           )}
         </AnimatePresence>
       </div>
+      
+      {/* Post-Save Survey Modal */}
+      <PostSaveSurveyModal
+        isOpen={showSaveSurvey}
+        onClose={() => setShowSaveSurvey(false)}
+        bookTitle={title}
+        bookId={id || `${title}-${author}`.replace(/\s+/g, '-').toLowerCase()}
+        onComplete={() => {
+          console.log('Survey completed for:', title);
+          // Could add analytics or user preference updates here
+        }}
+      />
+
+      {/* Toast Notification */}
+      <Toast
+        isOpen={showToast}
+        onClose={() => setShowToast(false)}
+        message={toastMessage}
+        type="success"
+      />
     </div>
   );
 }; 

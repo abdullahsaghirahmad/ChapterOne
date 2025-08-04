@@ -208,18 +208,6 @@ export const HomePage = () => {
         )}
       </section>
 
-      {/* Personalized Recommendations */}
-      {isPersonalizationEnabled && (
-        <section>
-          <PersonalizedRecommendations 
-            availableBooks={trendingBooks}
-            maxRecommendations={6}
-            showInsights={true}
-            className="mx-auto max-w-7xl"
-          />
-        </section>
-      )}
-
       {/* Featured Books */}
       <section>
         <div className="flex justify-between items-center mb-6">
@@ -294,6 +282,18 @@ export const HomePage = () => {
           ))}
         </div>
       </section>
+
+      {/* Personalized Recommendations - Bottom CTA */}
+      {isPersonalizationEnabled && (
+        <section>
+          <PersonalizedRecommendations 
+            availableBooks={trendingBooks}
+            maxRecommendations={6}
+            showInsights={true}
+            className="mx-auto max-w-7xl"
+          />
+        </section>
+      )}
     </div>
   );
 }; 

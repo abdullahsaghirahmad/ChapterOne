@@ -3,8 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeftIcon, ChatBubbleLeftIcon, ArrowUpIcon } from '@heroicons/react/24/outline';
 import api from '../../services/api.supabase';
 import { BookCard } from './BookCard';
+import { CommentThread } from '../ui/CommentThread';
+import { ThreadFollowButton } from '../ui/ThreadFollowButton';
 import { normalizeTag } from './ThreadPage';
 import { useTheme } from '../../contexts/ThemeContext';
+import { Comment, CommentInput } from '../../types';
 
 interface Thread {
   id: string;
@@ -39,6 +42,8 @@ export const ThreadDetailPage: React.FC = () => {
   const [thread, setThread] = useState<Thread | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
 
   useEffect(() => {
     const fetchThreadDetails = async () => {
@@ -84,6 +89,83 @@ export const ThreadDetailPage: React.FC = () => {
         } as Thread);
         
         setLoading(false);
+        
+        // Load comments after thread is loaded
+        setCommentsLoading(true);
+        
+        // Mock comments data - TODO: Replace with real API calls
+        const mockComments: Comment[] = [
+          {
+            id: '1',
+            threadId: id || '',
+            userId: 'user1',
+            content: "This is such a great recommendation! I've been looking for books exactly like this. Thanks for sharing!",
+            upvotes: 12,
+            isEdited: false,
+            createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), // 2 hours ago
+            updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
+            username: 'bookworm_jane',
+            displayName: 'Jane Smith',
+            avatarUrl: '',
+            depth: 0,
+            replyCount: 2
+          },
+          {
+            id: '2',
+            threadId: id || '',
+            userId: 'user2',
+            parentId: '1',
+            content: "I completely agree! Have you read the sequel yet?",
+            upvotes: 3,
+            isEdited: false,
+            createdAt: new Date(Date.now() - 1000 * 60 * 60).toISOString(), // 1 hour ago
+            updatedAt: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
+            username: 'reader_mike',
+            displayName: 'Mike Johnson',
+            avatarUrl: '',
+            depth: 1,
+            replyCount: 0
+          },
+          {
+            id: '3',
+            threadId: id || '',
+            userId: 'user1',
+            parentId: '1',
+            content: "Not yet, but it's definitely on my reading list now!",
+            upvotes: 1,
+            isEdited: false,
+            createdAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(), // 30 minutes ago
+            updatedAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
+            username: 'bookworm_jane',
+            displayName: 'Jane Smith',
+            avatarUrl: '',
+            depth: 1,
+            replyCount: 0
+          },
+          {
+            id: '4',
+            threadId: id || '',
+            userId: 'user3',
+            content: "Also check out the author's other works - they have a similar writing style that you might enjoy.",
+            upvotes: 8,
+            isEdited: true,
+            editedAt: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
+            createdAt: new Date(Date.now() - 1000 * 60 * 45).toISOString(), // 45 minutes ago
+            updatedAt: new Date(Date.now() - 1000 * 60 * 15).toISOString(), // edited 15 minutes ago
+            username: 'lit_expert',
+            displayName: 'Sarah Chen',
+            avatarUrl: '',
+            depth: 0,
+            replyCount: 0
+          }
+        ];
+        
+        // Simulate API delay
+        setTimeout(() => {
+          setComments(mockComments);
+          setCommentsLoading(false);
+        }, 500);
+        
       } catch (err) {
         console.error('Error fetching thread details:', err);
         setError('Failed to load thread details. Please try again later.');
@@ -110,6 +192,59 @@ export const ThreadDetailPage: React.FC = () => {
       console.error('Error upvoting thread:', err);
       alert('Failed to upvote. Please try again.');
     }
+  };
+
+  // Comment handlers - TODO: Replace with real API calls
+  const handleAddComment = async (input: CommentInput) => {
+    console.log('Adding comment:', input);
+    // Simulate API call
+    const newComment: Comment = {
+      id: Date.now().toString(),
+      threadId: input.threadId,
+      userId: 'current-user',
+      parentId: input.parentId,
+      content: input.content,
+      upvotes: 0,
+      isEdited: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      username: 'you',
+      displayName: 'You',
+      avatarUrl: '',
+      depth: input.parentId ? 1 : 0,
+      replyCount: 0
+    };
+    
+    setComments(prev => [...prev, newComment]);
+    
+    // Update thread comment count
+    setThread(prev => prev ? { ...prev, comments: prev.comments + 1 } : null);
+  };
+
+  const handleEditComment = async (commentId: string, content: string) => {
+    console.log('Editing comment:', commentId, content);
+    setComments(prev => prev.map(comment => 
+      comment.id === commentId 
+        ? { ...comment, content, isEdited: true, editedAt: new Date().toISOString() }
+        : comment
+    ));
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    console.log('Deleting comment:', commentId);
+    setComments(prev => prev.filter(comment => comment.id !== commentId));
+    
+    // Update thread comment count
+    setThread(prev => prev ? { ...prev, comments: Math.max(0, prev.comments - 1) } : null);
+  };
+
+  const handleUpvoteComment = async (commentId: string) => {
+    console.log('Upvoting comment:', commentId);
+    setComments(prev => prev.map(comment => 
+      comment.id === commentId 
+        ? { ...comment, upvotes: comment.upvotes + 1 }
+        : comment
+    ));
   };
 
   if (loading) {
@@ -179,7 +314,7 @@ export const ThreadDetailPage: React.FC = () => {
           : 'bg-gradient-to-br from-pink-50 to-purple-50 border border-purple-200'
       }`}>
         <div className="flex flex-col gap-4">
-          <div className="flex justify-between">
+          <div className="flex justify-between items-start">
             <h1 className={`text-2xl font-bold transition-colors duration-300 ${
               theme === 'light'
                 ? 'text-primary-900'
@@ -189,19 +324,33 @@ export const ThreadDetailPage: React.FC = () => {
             }`}>
               {thread.title}
             </h1>
-            <button
-              onClick={handleUpvote}
-              className={`flex items-center gap-1 px-3 py-2 rounded-lg transition-all duration-300 hover:scale-105 ${
-                theme === 'light'
-                  ? 'text-primary-600 hover:bg-primary-50 hover:text-primary-700'
-                  : theme === 'dark'
-                  ? 'text-gray-400 hover:bg-gray-700 hover:text-gray-300'
-                  : 'text-purple-600 hover:bg-purple-100 hover:text-purple-700'
-              }`}
-            >
-              <ArrowUpIcon className="w-5 h-5" />
-              <span>{thread.upvotes}</span>
-            </button>
+            <div className="flex items-center gap-3">
+              {/* Follow Button */}
+              <ThreadFollowButton 
+                threadId={thread.id}
+                onFollowChange={(isFollowing, followerCount) => {
+                  console.log(`Thread ${isFollowing ? 'followed' : 'unfollowed'}, ${followerCount} followers`);
+                }}
+                size="md"
+                variant="default"
+                showFollowerCount={true}
+              />
+              
+              {/* Upvote Button */}
+              <button
+                onClick={handleUpvote}
+                className={`flex items-center gap-1 px-3 py-2 rounded-lg transition-all duration-300 hover:scale-105 ${
+                  theme === 'light'
+                    ? 'text-primary-600 hover:bg-primary-50 hover:text-primary-700'
+                    : theme === 'dark'
+                    ? 'text-gray-400 hover:bg-gray-700 hover:text-gray-300'
+                    : 'text-purple-600 hover:bg-purple-100 hover:text-purple-700'
+                }`}
+              >
+                <ArrowUpIcon className="w-5 h-5" />
+                <span>{thread.upvotes}</span>
+              </button>
+            </div>
           </div>
 
           <p className={`transition-colors duration-300 ${
@@ -271,6 +420,7 @@ export const ThreadDetailPage: React.FC = () => {
             {thread.books.map((book) => (
               <BookCard
                 key={book.id}
+                id={book.id}
                 title={book.title}
                 author={book.author}
                 coverImage={book.coverImage || 'https://via.placeholder.com/150x225?text=No+Cover'}
@@ -293,6 +443,27 @@ export const ThreadDetailPage: React.FC = () => {
             No books associated with this thread
           </div>
         )}
+      </div>
+
+      {/* Comments Section */}
+      <div className={`rounded-lg border transition-colors duration-300 ${
+        theme === 'light'
+          ? 'bg-white border-gray-200'
+          : theme === 'dark'
+          ? 'bg-gray-800 border-gray-700'
+          : 'bg-gradient-to-br from-pink-50 to-purple-50 border-purple-200'
+      }`}>
+        <div className="p-6">
+          <CommentThread
+            threadId={thread.id}
+            comments={comments}
+            onAddComment={handleAddComment}
+            onEditComment={handleEditComment}
+            onDeleteComment={handleDeleteComment}
+            onUpvoteComment={handleUpvoteComment}
+            loading={commentsLoading}
+          />
+        </div>
       </div>
     </div>
   );

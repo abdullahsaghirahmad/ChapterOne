@@ -210,6 +210,7 @@ coverage/
 
 # Custom files to ignore
 run-and-commit.md
+THREADS_MVP_ROADMAP.md
 
 # Backend environment files (CRITICAL SECURITY)
 backend/supabase.env
