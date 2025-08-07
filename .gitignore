@@ -220,3 +220,29 @@ backend/**/*.env
 !backend/*.env.example
 
 EXTERNAL_BOOKS_ENHANCEMENT_GUIDE.md
+CONTEXTUAL_ML_SETUP.md
+MIGRATION_INSTRUCTIONS.md
+# Additional security and temp file patterns
+**/temp_data.sql
+**/dump.sql
+**/*_dump.sql
+**/*_backup.sql
+**/migration_data.sql
+**/sensitive_*.sql
+**/production_*.sql
+
+# Performance analysis and temporary files
+**/*_analysis.md
+**/*_performance.log
+**/*_debug.log
+**/debug_*.json
+
+# Database exports and sensitive data
+**/db_export.*
+**/database_dump.*
+**/user_data.*
+
+# Exclude documentation files except README
+*.md
+!README.md
+!readme.md

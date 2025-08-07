@@ -11,6 +11,7 @@ import { Book } from '../types';
 export interface UsePersonalizationReturn {
   // Core functionality
   trackSearch: (query: string, searchType: string, resultsCount: number, searchDuration: number) => Promise<void>;
+  trackInteraction: (type: string, title: string, durationMs?: number) => Promise<void>;
   trackBookInteraction: (
     bookId: string, 
     title: string, 
@@ -117,44 +118,73 @@ export const usePersonalization = (): UsePersonalizationReturn => {
   }, [user?.id, isPersonalizationEnabled]);
 
   /**
+   * Track simple interaction - wrapper around trackBookInteraction
+   */
+  const trackInteraction = useCallback(async (
+    type: string, 
+    title: string, 
+    durationMs?: number
+  ): Promise<void> => {
+    if (!user?.id || !isPersonalizationEnabled) return;
+
+    try {
+      // Use trackBookInteraction with simplified parameters
+      await personalizationService.trackBookInteraction(
+        user.id,
+        '', // bookId - empty for simple tracking
+        title,
+        '', // author - empty for simple tracking
+        type as any, // interactionType
+        'general', // context
+        durationMs
+      );
+      
+      console.log('[PERSONALIZATION_HOOK] Simple interaction tracked:', type, title);
+    } catch (error) {
+      console.error('[PERSONALIZATION_HOOK] Error tracking simple interaction:', error);
+    }
+  }, [user?.id, isPersonalizationEnabled]);
+
+  /**
    * Get personalized recommendations
    */
   const getRecommendations = useCallback(async (
     availableBooks: Book[],
     count: number = 10
   ): Promise<PersonalizedRecommendation[]> => {
-    if (!user?.id || !isPersonalizationEnabled) return [];
+    if (!isPersonalizationEnabled || !user?.id || availableBooks.length === 0) {
+      return [];
+    }
 
-    setLoadingRecommendations(true);
     try {
-      const recommendations = await personalizationService.getPersonalizedRecommendations(
+      setLoadingRecommendations(true);
+      const recs = await personalizationService.getPersonalizedRecommendations(
         user.id,
         availableBooks,
         count
       );
-      
-      setRecommendations(recommendations);
-      console.log(`[PERSONALIZATION_HOOK] Generated ${recommendations.length} recommendations`);
-      return recommendations;
+      setRecommendations(recs);
+      return recs;
     } catch (error) {
       console.error('[PERSONALIZATION_HOOK] Error getting recommendations:', error);
       return [];
     } finally {
       setLoadingRecommendations(false);
     }
-  }, [user?.id, isPersonalizationEnabled]);
+  }, [user?.id, isPersonalizationEnabled]); // Stable dependencies only
 
   /**
    * Get personalization insights
    */
   const getInsights = useCallback(async (): Promise<PersonalizationInsights | null> => {
-    if (!user?.id || !isPersonalizationEnabled) return null;
+    if (!isPersonalizationEnabled || !user?.id) {
+      return null;
+    }
 
-    setLoadingInsights(true);
     try {
+      setLoadingInsights(true);
       const insights = await personalizationService.getPersonalizationInsights(user.id);
       setInsights(insights);
-      console.log('[PERSONALIZATION_HOOK] Generated insights:', insights);
       return insights;
     } catch (error) {
       console.error('[PERSONALIZATION_HOOK] Error getting insights:', error);
@@ -168,12 +198,13 @@ export const usePersonalization = (): UsePersonalizationReturn => {
    * Get prefetch suggestions
    */
   const getPrefetchSuggestions = useCallback(async (): Promise<string[]> => {
-    if (!user?.id || !isPersonalizationEnabled) return [];
+    if (!isPersonalizationEnabled || !user?.id) {
+      return [];
+    }
 
     try {
       const suggestions = await personalizationService.getPrefetchSuggestions(user.id);
       setPrefetchSuggestions(suggestions);
-      console.log('[PERSONALIZATION_HOOK] Generated prefetch suggestions:', suggestions);
       return suggestions;
     } catch (error) {
       console.error('[PERSONALIZATION_HOOK] Error getting prefetch suggestions:', error);
@@ -198,15 +229,17 @@ export const usePersonalization = (): UsePersonalizationReturn => {
     }
   }, [user?.id]);
 
-  // Auto-load prefetch suggestions when user logs in
-  useEffect(() => {
-    if (user?.id && isPersonalizationEnabled) {
-      getPrefetchSuggestions();
-    }
-  }, [user?.id, isPersonalizationEnabled, getPrefetchSuggestions]);
+  // Auto-load prefetch suggestions when user logs in - TEMPORARILY DISABLED
+  // useEffect(() => {
+  //   if (user?.id && isPersonalizationEnabled) {
+  //     getPrefetchSuggestions();
+  //   }
+  //   // eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, [user?.id, isPersonalizationEnabled]);
 
   return {
     trackSearch,
+    trackInteraction,
     trackBookInteraction,
     getRecommendations,
     recommendations,
@@ -228,54 +261,40 @@ export const useBookCardTracking = (
   book: Book,
   context: string = 'search_result'
 ) => {
-  const { trackBookInteraction, isPersonalizationEnabled } = usePersonalization();
+  const { trackInteraction, isPersonalizationEnabled } = usePersonalization();
+  const [isVisible, setIsVisible] = useState(false);
   const [viewStartTime, setViewStartTime] = useState<number | null>(null);
 
-  // Track when book card comes into view
   const onViewStart = useCallback(() => {
-    if (isPersonalizationEnabled) {
+    if (isPersonalizationEnabled && !isVisible) {
+      setIsVisible(true);
       setViewStartTime(Date.now());
+      console.log('[BOOK_TRACKING] View started:', book.id);
     }
-  }, [isPersonalizationEnabled]);
+  }, [book.id, isPersonalizationEnabled, isVisible]); // Use book.id, not book object
 
-  // Track when user clicks on the book
+  const onViewEnd = useCallback(() => {
+    if (isPersonalizationEnabled && isVisible && viewStartTime) {
+      const viewDuration = Date.now() - viewStartTime;
+      trackInteraction('view', book.title, viewDuration);
+      setIsVisible(false);
+      setViewStartTime(null);
+      console.log('[BOOK_TRACKING] View ended:', book.id, 'Duration:', viewDuration);
+    }
+  }, [book.id, book.title, isPersonalizationEnabled, isVisible, viewStartTime, trackInteraction]);
+
   const onBookClick = useCallback(() => {
     if (isPersonalizationEnabled) {
-      const durationMs = viewStartTime ? Date.now() - viewStartTime : undefined;
-      trackBookInteraction(
-        book.id,
-        book.title,
-        book.author,
-        'click',
-        context,
-        durationMs
-      );
+      trackInteraction('click', book.title);
+      console.log('[BOOK_TRACKING] Book clicked:', book.id);
     }
-  }, [book, context, trackBookInteraction, viewStartTime, isPersonalizationEnabled]);
-
-  // Track when book card goes out of view
-  const onViewEnd = useCallback(() => {
-    if (isPersonalizationEnabled && viewStartTime) {
-      const durationMs = Date.now() - viewStartTime;
-      if (durationMs > 2000) { // Only track if viewed for more than 2 seconds
-        trackBookInteraction(
-          book.id,
-          book.title,
-          book.author,
-          'view',
-          context,
-          durationMs
-        );
-      }
-      setViewStartTime(null);
-    }
-  }, [book, context, trackBookInteraction, viewStartTime, isPersonalizationEnabled]);
+  }, [book.id, book.title, isPersonalizationEnabled, trackInteraction]);
 
   return {
     onViewStart,
     onViewEnd,
     onBookClick,
-    isTracking: isPersonalizationEnabled && viewStartTime !== null
+    isTracking: isPersonalizationEnabled
   };
 };
 

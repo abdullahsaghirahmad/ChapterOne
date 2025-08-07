@@ -25,7 +25,9 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "build-and-start": "npm run build --prefix backend && npm run build && npx concurrently \"npm start --prefix backend\" \"serve -s build -l 3000\""
+    "build-and-start": "npm run build --prefix backend && npm run build && npx concurrently \"npm start --prefix backend\" \"serve -s build -l 3000\"",
+    "setup-embeddings": "node scripts/setup-embeddings.js",
+    "generate-embeddings": "npx tsx src/scripts/generateBookEmbeddings.ts"
   },
   "eslintConfig": {
     "extends": [

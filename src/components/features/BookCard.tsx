@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
   ClockIcon, 
-  HeartIcon, 
   BookmarkIcon, 
   CloudIcon, 
   BoltIcon,
@@ -15,8 +14,9 @@ import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAuthModal } from '../../contexts/AuthModalContext';
-import { LLMService } from '../../services/llm.service';
+// Note: LLMService removed - content now generated during book creation, not display
 import { SavedBooksService } from '../../services/savedBooks.service';
+import { useRewardTracking } from '../../services/rewardSignal.service';
 import { PostSaveSurveyModal } from '../ui/PostSaveSurveyModal';
 import { Toast } from '../ui/Toast';
 import { useBookCardTracking } from '../../hooks/usePersonalization';
@@ -104,11 +104,23 @@ interface BookCardProps {
   isExternal?: boolean;
   quote?: string;
   mostQuoted?: string;
+  
+  // Content source tracking (from hybrid content system)
+  description_source?: string;
+  quote_source?: string;
+  description_quality_score?: number;
+  quote_quality_score?: number;
+  ai_enhancement_needed?: boolean;
+  
   // Color search props
   isColorSearchMode?: boolean;
   colorMatchPercentage?: number;
   selectedColor?: any;
   selectedColors?: any[]; // For multiple color blending
+  
+  // Save state and interaction props
+  isSaved?: boolean;
+  onInteraction?: (type: 'click' | 'save' | 'unsave' | 'dismiss') => void;
 }
 
 // Helper function to safely get a value from an object or return the value itself
@@ -128,6 +140,7 @@ export const BookCard = ({
   author,
   coverImage = 'https://via.placeholder.com/150x225?text=No+Cover',
   pace = 'Moderate',
+  isSaved = false,
   themes = [],
   description = 'No description available',
   quote,
@@ -135,17 +148,27 @@ export const BookCard = ({
   tone = [],
   bestFor = [],
   isExternal = false,
+  
+  // Content source tracking
+  description_source,
+  quote_source,
+  description_quality_score,
+  quote_quality_score,
+  ai_enhancement_needed,
+  
+  // Color search props
   isColorSearchMode = false,
   colorMatchPercentage,
   selectedColor,
-  selectedColors = []
+  selectedColors = [],
+  onInteraction
 }: BookCardProps) => {
   const navigate = useNavigate();
   const { theme } = useTheme();
   const { user } = useAuth();
   const { showAuthModal } = useAuthModal();
+  const { recordAction } = useRewardTracking();
   const [isExpanded, setIsExpanded] = useState(false);
-  const [isSaved, setIsSaved] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showSaveSurvey, setShowSaveSurvey] = useState(false);
   const [showToast, setShowToast] = useState(false);
@@ -154,23 +177,11 @@ export const BookCard = ({
   const [bookDescription, setBookDescription] = useState(description);
   const [truncatedDescription, setTruncatedDescription] = useState('');
   const [bookQuote, setBookQuote] = useState(quote || mostQuoted || '');
-  const [llmService] = useState(() => new LLMService());
+  const [sessionId] = useState(() => 
+    user?.id ? undefined : `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  );
 
-  // Check if book is saved when component mounts or user changes
-  useEffect(() => {
-    const checkIfSaved = async () => {
-      if (!user || !id) return;
-      
-      try {
-        const saved = await SavedBooksService.isBookSaved(id);
-        setIsSaved(saved);
-      } catch (error) {
-        console.error('Error checking if book is saved:', error);
-      }
-    };
 
-    checkIfSaved();
-  }, [user, id]);
 
   // Create a minimal book object for tracking
   const bookForTracking = {
@@ -245,41 +256,40 @@ export const BookCard = ({
     setImgError(false);
   }, [coverImage]);
 
-  // Generate description and quote when component mounts
+  // Process stored content (no more AI generation on display)
   useEffect(() => {
-    const initializeContent = async () => {
-      try {
-        let fullDescription = description;
-        
-        // Generate description if missing or generic
-        if (!description || description === 'No description available' || description.length < 50) {
-          fullDescription = await llmService.generateDescription(title, author, description);
-          setBookDescription(fullDescription);
+    const initializeStoredContent = () => {
+      // Use stored description or show graceful fallback
+      let displayDescription = description;
+      
+      if (!description || description === 'No description available') {
+        // Show graceful fallback based on content source
+        if (ai_enhancement_needed) {
+          displayDescription = `"${title}" by ${author} - AI-enhanced description coming soon. Click to explore this book.`;
         } else {
-          setBookDescription(description);
-        }
-
-        // Create truncated version for collapsed state
-        const truncated = processDescription(fullDescription);
-        setTruncatedDescription(truncated);
-
-        // Generate quote if missing
-        if (!quote && !mostQuoted) {
-          const generatedQuote = await llmService.generateQuote(title, author, fullDescription);
-          setBookQuote(generatedQuote);
-        }
-      } catch (error) {
-        console.error('Error generating content:', error);
-        // Fallback to existing content
-        if (description && description !== 'No description available') {
-          setBookDescription(description);
-          setTruncatedDescription(processDescription(description));
+          displayDescription = `"${title}" by ${author} - Click to discover more about this book.`;
         }
       }
+      
+      setBookDescription(displayDescription);
+      setTruncatedDescription(processDescription(displayDescription));
+
+      // Use stored quote or show graceful fallback
+      let displayQuote = quote || mostQuoted;
+      
+      if (!displayQuote) {
+        if (ai_enhancement_needed) {
+          displayQuote = `"Discovering the perfect quote from ${title}..." - AI content loading`;
+        } else {
+          displayQuote = `"A journey awaits within ${title}..." - Explore to discover more`;
+        }
+      }
+      
+      setBookQuote(displayQuote);
     };
 
-    initializeContent();
-  }, [title, author, description, quote, mostQuoted, llmService]);
+    initializeStoredContent();
+  }, [title, author, description, quote, mostQuoted, ai_enhancement_needed]);
 
   // Process description to ensure it's max 2 lines
   const processDescription = (desc: string): string => {
@@ -404,8 +414,19 @@ export const BookCard = ({
         bookData: book,
       });
 
-      // Update UI state
-      setIsSaved(true);
+      // Note: UI state now managed by parent via props
+      
+      // 🎯 Record save action for reward tracking
+      await recordAction(
+        book.id,
+        'save',
+        undefined, // No value for save action
+        user?.id,
+        sessionId
+      );
+      
+      // 🤖 Record bandit learning for save action
+      onInteraction?.('save');
       
       // Show success toast
       setToastMessage(`"${title}" saved to library!`);
@@ -419,7 +440,7 @@ export const BookCard = ({
     } catch (error: any) {
       console.error('Error saving book:', error);
       if (error.message.includes('already saved')) {
-        setIsSaved(true); // Update state if it was already saved
+        // Note: UI state now managed by parent via props
       }
     } finally {
       setIsSaving(false);
@@ -434,7 +455,19 @@ export const BookCard = ({
 
     try {
       await SavedBooksService.unsaveBook(id);
-      setIsSaved(false);
+      // Note: UI state now managed by parent via props
+      
+      // 🎯 Record unsave action for reward tracking
+      await recordAction(
+        id,
+        'unsave',
+        undefined,
+        user?.id,
+        sessionId
+      );
+      
+      // 🤖 Record bandit learning for unsave action
+      onInteraction?.('unsave');
       
       // Show success toast
       setToastMessage(`"${title}" removed from library`);
@@ -447,8 +480,21 @@ export const BookCard = ({
   };
 
   // Handle card click navigation to book detail page
-  const handleCardClick = () => {
+  const handleCardClick = async () => {
     onBookClick(); // Track click for analytics
+    
+    // 🎯 Record click action for reward tracking
+    const bookId = id || `${title}-${author}`.replace(/\s+/g, '-').toLowerCase();
+    await recordAction(
+      bookId,
+      'click',
+      undefined,
+      user?.id,
+      sessionId
+    );
+    
+    // 🤖 Record bandit learning for click action
+    onInteraction?.('click');
     
     // Navigate to book detail page if we have an ID
     if (id) {
@@ -540,6 +586,79 @@ export const BookCard = ({
     );
   };
 
+  // Content Source Badge for Admin Users
+  const ContentSourceBadge = () => {
+    // Only show for admin users
+    const isAdmin = user?.email === 'abdullahsaghirahmad@gmail.com';
+    if (!isAdmin || (!description_source && !quote_source)) return null;
+    
+    const getSourceIcon = (source?: string) => {
+      if (!source) return null;
+      if (source.includes('ai_')) return '🤖';
+      if (source === 'google_books') return '📚';
+      if (source === 'open_library') return '📖';
+      if (source === 'manual') return '✍️';
+      return '❓';
+    };
+
+    const getSourceLabel = (source?: string) => {
+      if (!source) return '';
+      return source.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+    };
+
+    const getQualityColor = (score?: number) => {
+      if (!score) return 'text-gray-500';
+      if (score >= 4) return 'text-green-600';
+      if (score >= 3) return 'text-yellow-600';
+      return 'text-red-600';
+    };
+
+    return (
+      <div className={`absolute top-2 left-2 z-10 flex flex-col space-y-1 max-w-[120px] ${
+        theme === 'dark' ? 'text-white' : 'text-gray-900'
+      }`}>
+        {description_source && (
+          <div className={`flex items-center px-2 py-1 rounded-full text-xs font-medium shadow-sm transition-all duration-200 ${
+            theme === 'light'
+              ? 'bg-white/90 border border-gray-200 backdrop-blur-sm'
+              : 'bg-gray-900/90 border border-gray-600 backdrop-blur-sm'
+          }`}>
+            <span className="mr-1">{getSourceIcon(description_source)}</span>
+            <span className="truncate">{getSourceLabel(description_source)}</span>
+            {description_quality_score && (
+              <span className={`ml-1 font-bold ${getQualityColor(description_quality_score)}`}>
+                {description_quality_score}
+              </span>
+            )}
+          </div>
+        )}
+        {quote_source && quote_source !== description_source && (
+          <div className={`flex items-center px-2 py-1 rounded-full text-xs font-medium shadow-sm transition-all duration-200 ${
+            theme === 'light'
+              ? 'bg-white/90 border border-gray-200 backdrop-blur-sm'
+              : 'bg-gray-900/90 border border-gray-600 backdrop-blur-sm'
+          }`}>
+            <span className="mr-1">💬</span>
+            <span className="truncate">{getSourceLabel(quote_source)}</span>
+            {quote_quality_score && (
+              <span className={`ml-1 font-bold ${getQualityColor(quote_quality_score)}`}>
+                {quote_quality_score}
+              </span>
+            )}
+          </div>
+        )}
+        {ai_enhancement_needed && (
+          <div className={`flex items-center px-2 py-1 rounded-full text-xs font-medium shadow-sm transition-all duration-200 bg-orange-100 border border-orange-300 text-orange-800 ${
+            theme === 'dark' ? 'bg-orange-900/90 border-orange-600 text-orange-200' : ''
+          }`}>
+            <span className="mr-1">⚠️</span>
+            <span className="truncate">Needs AI</span>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // Get card styling with subtle external book distinction
   const getCardStyling = () => {
     const baseClasses = `transition-all duration-300 hover:shadow-lg flex overflow-hidden rounded-lg`;
@@ -581,6 +700,9 @@ export const BookCard = ({
       }`}>
         {/* External Book Badge - positioned on cover */}
         <ExternalBookBadge />
+        
+        {/* Content Source Badge - positioned on cover (admin only) */}
+        <ContentSourceBadge />
         
         <img 
           src={getImageUrl()} 

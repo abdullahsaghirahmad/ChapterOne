@@ -7,14 +7,13 @@ import {
   EyeIcon,
   BookOpenIcon,
   HeartIcon,
-  ArrowTrendingUpIcon,
-  BoltIcon
+  ArrowTrendingUpIcon
 } from '@heroicons/react/24/outline';
 import { usePersonalization } from '../../hooks/usePersonalization';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Book } from '../../types';
 import { BookCard } from './BookCard';
-import api from '../../services/api.supabase';
+import { booksCacheService } from '../../services/booksCache.service';
 
 interface PersonalizedRecommendationsProps {
   availableBooks?: Book[];
@@ -44,13 +43,13 @@ const PersonalizedRecommendations: React.FC<PersonalizedRecommendationsProps> = 
   const [showAllRecommendations, setShowAllRecommendations] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
-  // Load books if not provided
+  // Load books if not provided - using cache for performance
   useEffect(() => {
     const loadBooks = async () => {
       if (availableBooks.length === 0) {
         try {
-          const allBooks = await api.books.getAll();
-          setBooks(allBooks.slice(0, 100)); // Limit for performance
+          const allBooks = await booksCacheService.getHomepageBooks(); // Use optimized query
+          setBooks(allBooks); // Optimized: 15 high-quality candidates for ML processing
         } catch (error) {
           console.error('Error loading books for recommendations:', error);
         }
@@ -65,12 +64,13 @@ const PersonalizedRecommendations: React.FC<PersonalizedRecommendationsProps> = 
   // Generate recommendations when books are available
   useEffect(() => {
     if (isPersonalizationEnabled && books.length > 0) {
-      getRecommendations(books, maxRecommendations * 2); // Get more than needed for filtering
+      getRecommendations(books, Math.min(maxRecommendations * 2, 12)); // Process smaller optimized candidate set
       if (showInsights) {
         getInsights();
       }
     }
-  }, [books, isPersonalizationEnabled, maxRecommendations, showInsights, getRecommendations, getInsights]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [books, isPersonalizationEnabled, maxRecommendations, showInsights]);
 
   // Filter recommendations by category
   const filteredRecommendations = selectedCategory === 'all' 

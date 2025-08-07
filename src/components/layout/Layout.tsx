@@ -10,6 +10,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAuthModal } from '../../contexts/AuthModalContext';
 import { UserPreferencesService } from '../../services/userPreferences.service';
+import { useFeatureFlags } from '../../services/featureFlag.service';
 import { Notification, User, ReadingPreferences } from '../../types';
 import AuthModal from '../auth/AuthModal';
 
@@ -23,6 +24,7 @@ export const Layout = ({ children }: LayoutProps) => {
   const { theme } = useTheme();
   const { user, signOut, loading } = useAuth();
   const { isOpen: showAuthModal, mode: authMode, showAuthModal: openAuthModal, hideAuthModal } = useAuthModal();
+  const { isEnabled, loading: flagsLoading } = useFeatureFlags();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -118,27 +120,45 @@ export const Layout = ({ children }: LayoutProps) => {
   };
 
   // Check if user needs onboarding when they log in
+  // Skip this if new contextual recommendations are enabled (unified experience)
   useEffect(() => {
     const checkOnboardingStatus = async () => {
-      if (!user || loading || hasCheckedOnboarding) return;
+      // Wait for both auth and feature flags to finish loading
+      if (loading || flagsLoading || hasCheckedOnboarding) return;
+      
+      // If no user, no need to check onboarding
+      if (!user) {
+        setHasCheckedOnboarding(true);
+        return;
+      }
+      
+      // Skip old onboarding modal if new contextual recommendations are enabled
+      if (isEnabled('contextual_recommendations_v1')) {
+        console.log('[LAYOUT] Skipping old onboarding - new contextual system enabled');
+        setHasCheckedOnboarding(true);
+        return;
+      }
       
       try {
         const hasCompleted = await UserPreferencesService.hasCompletedOnboarding();
         if (!hasCompleted) {
+          console.log('[LAYOUT] User needs onboarding - showing old modal');
           // Show onboarding with a slight delay for better UX
           setTimeout(() => {
             setShowOnboarding(true);
           }, 1500);
+        } else {
+          console.log('[LAYOUT] User has completed onboarding');
         }
         setHasCheckedOnboarding(true);
       } catch (error) {
-        console.error('Error checking onboarding status:', error);
+        console.error('[LAYOUT] Error checking onboarding status:', error);
         setHasCheckedOnboarding(true);
       }
     };
 
     checkOnboardingStatus();
-  }, [user, loading, hasCheckedOnboarding]);
+  }, [user, loading, flagsLoading, hasCheckedOnboarding, isEnabled]);
 
   // Reset onboarding check when user changes
   useEffect(() => {
@@ -698,12 +718,14 @@ export const Layout = ({ children }: LayoutProps) => {
         />
       )}
 
-      {/* Onboarding Modal */}
-      <OnboardingModal
-        isOpen={showOnboarding}
-        onClose={() => setShowOnboarding(false)}
-        onComplete={handleOnboardingComplete}
-      />
+      {/* Onboarding Modal - Only show if new contextual system is disabled */}
+      {!flagsLoading && !isEnabled('contextual_recommendations_v1') && (
+        <OnboardingModal
+          isOpen={showOnboarding}
+          onClose={() => setShowOnboarding(false)}
+          onComplete={handleOnboardingComplete}
+        />
+      )}
 
       {/* Click outside to close user menu */}
       {showUserMenu && (

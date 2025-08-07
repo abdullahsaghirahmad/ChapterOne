@@ -14,6 +14,7 @@ import { ThreadDetailPage } from './components/features/ThreadDetailPage';
 import { ColorSearchPage } from './components/features/ColorSearchPage';
 import { ProfilePage } from './components/features/ProfilePage';
 import AuthCallback from './components/auth/AuthCallback';
+import { AdminPanel } from './components/admin/AdminPanel';
 import './styles/themes.css';
 
 // Animated Routes wrapper component
@@ -139,6 +140,32 @@ const AnimatedRoutes = () => {
             }}
           >
             <AuthCallback />
+          </motion.div>
+        } />
+        <Route path="/admin" element={
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{
+              duration: 0.3,
+              ease: [0.4, 0.0, 0.2, 1]
+            }}
+          >
+            <AdminPanel />
+          </motion.div>
+        } />
+        <Route path="/ml-admin" element={
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{
+              duration: 0.3,
+              ease: [0.4, 0.0, 0.2, 1]
+            }}
+          >
+            <AdminPanel />
           </motion.div>
         } />
         <Route path="*" element={

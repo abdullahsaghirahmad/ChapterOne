@@ -1,5 +1,3 @@
-import axios from 'axios';
-
 export interface QueryAnalysis {
   originalQuery: string;
   themes?: string[];
@@ -447,15 +445,28 @@ Return only the JSON object, no additional text.`;
     }
 
     try {
-      const prompt = this.buildDescriptionPrompt(title, author, existingDescription);
-      const response = await this.callDevsAI(prompt);
+      // Call backend API to generate description
+      const response = await fetch('/api/llm/generate-description', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title,
+          author,
+          existingDescription
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Backend API error: ${response.status}`);
+      }
+
+      const data = await response.json();
       
-      // Parse the response to extract the description
-      const description = this.parseDescriptionResponse(response);
-      
-      if (description && description.length > 10) {
-        console.log(`${this.LOG_PREFIX} Generated description: ${description.substring(0, 50)}...`);
-        return description;
+      if (data.description && data.description.length > 10) {
+        console.log(`${this.LOG_PREFIX} Generated description: ${data.description.substring(0, 50)}...`);
+        return data.description;
       } else {
         return this.generateFallbackDescription(title, author, existingDescription);
       }
@@ -477,15 +488,28 @@ Return only the JSON object, no additional text.`;
     }
 
     try {
-      const prompt = this.buildQuotePrompt(title, author, description);
-      const response = await this.callDevsAI(prompt);
+      // Call backend API to generate quote
+      const response = await fetch('/api/llm/generate-quote', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title,
+          author,
+          description
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Backend API error: ${response.status}`);
+      }
+
+      const data = await response.json();
       
-      // Parse the response to extract the quote
-      const quote = this.parseQuoteResponse(response);
-      
-      if (quote && quote.length > 10) {
-        console.log(`${this.LOG_PREFIX} Generated quote: ${quote.substring(0, 30)}...`);
-        return quote;
+      if (data.quote && data.quote.length > 5) {
+        console.log(`${this.LOG_PREFIX} Generated quote: ${data.quote.substring(0, 30)}...`);
+        return data.quote;
       } else {
         return this.generateFallbackQuote(title, author);
       }
@@ -578,8 +602,8 @@ Return only the quote, no quotation marks or additional text.`;
    * Generate fallback description when LLM is unavailable
    */
   private generateFallbackDescription(title: string, author: string, existingDescription?: string): string {
-    if (existingDescription && existingDescription !== 'No description available') {
-      // Truncate existing description to 2 lines
+    if (existingDescription && existingDescription !== 'No description available' && existingDescription.length > 20) {
+      // Use existing description but truncate it nicely
       const sentences = existingDescription.split('. ');
       if (sentences.length >= 2) {
         let result = sentences[0] + '. ' + sentences[1];
@@ -593,36 +617,15 @@ Return only the quote, no quotation marks or additional text.`;
       return existingDescription;
     }
     
-    // Generate basic description
-    const templates = [
-      `A compelling story by ${author} that explores profound themes. Discover what makes "${title}" a remarkable read.`,
-      `${author} crafts an engaging narrative in "${title}". A book that promises to captivate and inspire readers.`,
-      `"${title}" by ${author} offers readers an unforgettable journey. A thoughtfully written work worth exploring.`,
-      `An insightful work by ${author} that delves into meaningful themes. "${title}" provides a rich reading experience.`
-    ];
-    
-    const hash = (title.length + author.length) % templates.length;
-    return templates[hash];
+    // Graceful fallback message instead of generic templates
+    return `"${title}" by ${author} - AI-generated description coming soon. Click to explore this book.`;
   }
 
   /**
-   * Generate fallback quote when LLM is unavailable
+   * Generate improved fallback quote
    */
   private generateFallbackQuote(title: string, author: string): string {
-    const quotes = [
-      "The journey of a thousand miles begins with one step.",
-      "Sometimes the heart sees what is invisible to the eye.",
-      "Tell me and I forget, teach me and I may remember, involve me and I learn.",
-      "The future belongs to those who believe in the beauty of their dreams.",
-      "In the end, we will remember not the words of our enemies, but the silence of our friends.",
-      "The greatest glory in living lies not in never falling, but in rising every time we fall.",
-      "It is during our darkest moments that we must focus to see the light.",
-      "Life is what happens to you while you're busy making other plans.",
-      "The way to get started is to quit talking and begin doing.",
-      "Innovation distinguishes between a leader and a follower."
-    ];
-    
-    const hash = (title.length + author.length) % quotes.length;
-    return quotes[hash];
+    // Instead of cycling through generic quotes, show a loading state
+    return `"Discovering the perfect quote from ${title}..." - AI content loading`;
   }
 } 

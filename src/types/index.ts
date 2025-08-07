@@ -238,4 +238,14 @@ export interface ReadingPreferences {
 export interface UserWithPreferences extends Omit<User, 'readingPreferences'> {
   readingPreferences?: ReadingPreferences;
   onboardingCompleted?: boolean;
+}
+
+// User context for personalized recommendations
+export interface UserContext {
+  mood?: string;
+  situation?: string;
+  goal?: string;
+  timeOfDay?: string;
+  dayOfWeek?: string;
+  customText?: string;
 } 

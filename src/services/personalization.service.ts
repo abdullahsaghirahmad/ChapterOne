@@ -317,8 +317,6 @@ export class PersonalizationService {
       
       // Analyze search patterns
       const recentSearches = searches.slice(0, 10);
-      const timeOfDay = new Date().getHours();
-      const dayOfWeek = new Date().getDay();
 
       // Simple prediction based on recent patterns
       const suggestions: string[] = [];

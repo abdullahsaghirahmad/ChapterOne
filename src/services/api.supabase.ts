@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { Book, Thread } from '../types';
 import { cacheManager, SearchCacheKey } from './cacheManager.service';
+import { requestDeduplicationService } from './requestDeduplication.service';
 
 // Authentication functions
 export const auth = {
@@ -83,26 +84,30 @@ export const books = {
     professions?: string[];
     includeExternal?: boolean;
   }): Promise<Book[]> {
-    let query = supabase.from('book').select('*');
+    const key = requestDeduplicationService.createKey('books:getAll', filters);
+    
+    return requestDeduplicationService.dedupe(key, async () => {
+      let query = supabase.from('book').select('*');
 
-    if (filters) {
-      if (filters.categories && filters.categories.length > 0) {
-        query = query.overlaps('categories', filters.categories);
+      if (filters) {
+        if (filters.categories && filters.categories.length > 0) {
+          query = query.overlaps('categories', filters.categories);
+        }
+        if (filters.themes && filters.themes.length > 0) {
+          query = query.overlaps('themes', filters.themes);
+        }
+        if (filters.pace) {
+          query = query.eq('pace', filters.pace);
+        }
+        if (filters.professions && filters.professions.length > 0) {
+          query = query.overlaps('professions', filters.professions);
+        }
       }
-      if (filters.themes && filters.themes.length > 0) {
-        query = query.overlaps('themes', filters.themes);
-      }
-      if (filters.pace) {
-        query = query.eq('pace', filters.pace);
-      }
-      if (filters.professions && filters.professions.length > 0) {
-        query = query.overlaps('professions', filters.professions);
-      }
-    }
 
-    const { data, error } = await query.order('createdAt', { ascending: false });
-    if (error) throw error;
-    return data || [];
+      const { data, error } = await query.order('createdAt', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    });
   },
 
   async getById(id: string): Promise<Book | null> {

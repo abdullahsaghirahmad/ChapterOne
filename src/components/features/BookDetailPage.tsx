@@ -4,7 +4,6 @@ import {
   ArrowLeftIcon, 
   ChatBubbleLeftIcon, 
   BookmarkIcon,
-  HeartIcon,
   ShareIcon,
   StarIcon,
   ClockIcon,

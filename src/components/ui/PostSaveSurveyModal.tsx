@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { XMarkIcon, HeartIcon, BookOpenIcon, AcademicCapIcon, BriefcaseIcon } from '@heroicons/react/24/outline';
 import { useTheme } from '../../contexts/ThemeContext';
-import { SavedBooksService } from '../../services/savedBooks.service';
 
 interface PostSaveSurveyModalProps {
   isOpen: boolean;

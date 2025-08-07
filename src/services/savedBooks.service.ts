@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
-import { SavedBook, SaveBookRequest, LibraryStats, ReadingStatus, Book } from '../types';
+import { SavedBook, SaveBookRequest, LibraryStats, ReadingStatus } from '../types';
+import { requestDeduplicationService } from './requestDeduplication.service';
 
 export class SavedBooksService {
   // Save a book to user's library
@@ -63,19 +64,56 @@ export class SavedBooksService {
       return false;
     }
 
-    const { data, error } = await supabase
-      .from('saved_books')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('book_id', bookId)
-      .maybeSingle();
+    const key = requestDeduplicationService.createKey('saved_books:check', { userId: user.id, bookId });
+    
+    return requestDeduplicationService.dedupe(key, async () => {
+      const { data, error } = await supabase
+        .from('saved_books')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('book_id', bookId)
+        .maybeSingle();
 
-    if (error) {
-      console.error('Error checking if book is saved:', error);
-      return false;
+      if (error) {
+        console.error('Error checking if book is saved:', error);
+        return false;
+      }
+
+      return !!data;
+    });
+  }
+
+  // Batch check if multiple books are saved by the current user
+  static async areBooksSaved(bookIds: string[]): Promise<Record<string, boolean>> {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      return bookIds.reduce((acc, id) => ({ ...acc, [id]: false }), {});
     }
 
-    return !!data;
+    const key = requestDeduplicationService.createKey('saved_books:batch_check', { 
+      userId: user.id, 
+      bookIds: bookIds.sort() 
+    });
+    
+    return requestDeduplicationService.dedupe(key, async () => {
+      const { data, error } = await supabase
+        .from('saved_books')
+        .select('book_id')
+        .eq('user_id', user.id)
+        .in('book_id', bookIds);
+
+      if (error) {
+        console.error('Error batch checking saved books:', error);
+        return bookIds.reduce((acc, id) => ({ ...acc, [id]: false }), {});
+      }
+
+      const savedBookIds = new Set((data || []).map(item => item.book_id));
+      return bookIds.reduce((acc, id) => ({ 
+        ...acc, 
+        [id]: savedBookIds.has(id) 
+      }), {});
+    });
   }
 
   // Get user's saved books by status

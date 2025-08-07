@@ -6,6 +6,7 @@ import { AppDataSource } from './config/database';
 import { bookRouter } from './routes/book.routes';
 import { threadRouter } from './routes/thread.routes';
 import { userRouter } from './routes/user.routes';
+import llmRouter from './routes/llm.routes';
 
 dotenv.config();
 
@@ -24,6 +25,7 @@ app.use(express.json());
 app.use('/api/books', bookRouter);
 app.use('/api/threads', threadRouter);
 app.use('/api/users', userRouter);
+app.use('/api/llm', llmRouter);
 
 // Initialize database connection
 AppDataSource.initialize()

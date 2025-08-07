@@ -7,7 +7,10 @@ import {
   ChartBarIcon,
   ClockIcon,
   HeartIcon,
-  ArrowUpIcon
+  ArrowUpIcon,
+  PencilIcon,
+  XMarkIcon,
+  CheckIcon
 } from '@heroicons/react/24/outline';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -17,7 +20,8 @@ import { UserProfileModal } from '../ui/UserProfileModal';
 import { ThreadFollowButton } from '../ui/ThreadFollowButton';
 import { BookCard } from './BookCard';
 import { ThreadFollowService } from '../../services/threadFollow.service';
-import { User, Book, FollowedThread } from '../../types';
+import { User, Book, FollowedThread, ReadingPreferences } from '../../types';
+import { UserPreferencesService } from '../../services/userPreferences.service';
 
 interface ProfilePageProps {}
 
@@ -29,7 +33,7 @@ interface ReadingStats {
   readingStreak: number;
 }
 
-type TabType = 'books' | 'threads' | 'following' | 'activity' | 'insights';
+type TabType = 'books' | 'threads' | 'following' | 'activity' | 'insights' | 'preferences';
 
 const mockBooks: Book[] = [
   {
@@ -76,17 +80,96 @@ export const ProfilePage: React.FC<ProfilePageProps> = () => {
   const [followingLoading, setFollowingLoading] = useState(false);
   const [followingError, setFollowingError] = useState<string | null>(null);
   
+  // User preferences state
+  const [userPreferences, setUserPreferences] = useState<ReadingPreferences | null>(null);
+  const [preferencesLoading, setPreferencesLoading] = useState(false);
+  
+  // Genre editing state
+  const [isEditingGenres, setIsEditingGenres] = useState(false);
+  const [editableGenres, setEditableGenres] = useState<string[]>([]);
+  
   // Check if viewing own profile
   const isOwnProfile = !username || (user && username === `@${user.user_metadata?.username}`);
 
-  // Mock reading stats
-  const [readingStats] = useState<ReadingStats>({
+  // Reading stats - enhanced with real preferences
+  const [readingStats, setReadingStats] = useState<ReadingStats>({
     totalBooks: 47,
     currentlyReading: 3,
     booksThisYear: 12,
-    favoriteGenres: ['Psychology', 'Business', 'Self-Help'],
+    favoriteGenres: ['Psychology', 'Business', 'Self-Help'], // Fallback until real data loads
     readingStreak: 15
   });
+
+  // Fetch user preferences
+  const fetchUserPreferences = async () => {
+    if (!user || !isOwnProfile) return;
+    
+    try {
+      setPreferencesLoading(true);
+      const preferences = await UserPreferencesService.getPreferences();
+      setUserPreferences(preferences);
+      
+      // Update reading stats with real genre data
+      if (preferences?.favoriteGenres && preferences.favoriteGenres.length > 0) {
+        setReadingStats(prev => ({
+          ...prev,
+          favoriteGenres: preferences.favoriteGenres || []
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching user preferences:', error);
+    } finally {
+      setPreferencesLoading(false);
+    }
+  };
+
+  // Genre editing functions
+  const handleEditGenres = () => {
+    setEditableGenres([...(userPreferences?.favoriteGenres || readingStats.favoriteGenres)]);
+    setIsEditingGenres(true);
+  };
+
+  const handleSaveGenres = async () => {
+    try {
+      if (!user) return;
+      
+      const updatedPreferences: ReadingPreferences = {
+        ...userPreferences,
+        favoriteGenres: editableGenres
+      };
+      
+      await UserPreferencesService.savePreferences(updatedPreferences);
+      setUserPreferences(updatedPreferences);
+      setReadingStats(prev => ({
+        ...prev,
+        favoriteGenres: editableGenres
+      }));
+      setIsEditingGenres(false);
+    } catch (error) {
+      console.error('Error saving genres:', error);
+    }
+  };
+
+  const handleCancelEditGenres = () => {
+    setEditableGenres([]);
+    setIsEditingGenres(false);
+  };
+
+  const handleGenreToggle = (genre: string) => {
+    setEditableGenres(prev => 
+      prev.includes(genre) 
+        ? prev.filter(g => g !== genre)
+        : [...prev, genre]
+    );
+  };
+
+  // Available genres for selection
+  const availableGenres = [
+    'Fiction', 'Non-Fiction', 'Mystery', 'Romance', 'Science Fiction', 'Fantasy',
+    'Biography', 'History', 'Science', 'Business', 'Self-Help', 'Psychology',
+    'Philosophy', 'Health', 'Travel', 'Cooking', 'Art', 'Religion', 'Politics',
+    'Technology', 'Education', 'Sports', 'Humor', 'Poetry', 'Drama'
+  ];
 
   // Mock user profile data
   useEffect(() => {
@@ -143,6 +226,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = () => {
     };
 
     fetchProfile();
+    fetchUserPreferences(); // Load user preferences for own profile
   }, [username, isOwnProfile, user]);
 
   // Load followed threads for own profile
@@ -209,7 +293,8 @@ export const ProfilePage: React.FC<ProfilePageProps> = () => {
     { id: 'threads' as TabType, label: 'Threads', icon: ChatBubbleLeftIcon, count: profileUser?.threadCount || 0 },
     ...(isOwnProfile ? [{ id: 'following' as TabType, label: 'Following', icon: HeartIcon, count: followedThreads.length }] : []),
     { id: 'activity' as TabType, label: 'Activity', icon: ClockIcon },
-    { id: 'insights' as TabType, label: 'Insights', icon: ChartBarIcon }
+    { id: 'insights' as TabType, label: 'Insights', icon: ChartBarIcon },
+    ...(isOwnProfile ? [{ id: 'preferences' as TabType, label: 'Preferences', icon: Cog6ToothIcon }] : [])
   ];
 
   if (loading) {
@@ -867,8 +952,349 @@ export const ProfilePage: React.FC<ProfilePageProps> = () => {
           </div>
         )}
 
+        {/* Preferences Tab */}
+        {activeTab === 'preferences' && (
+          <div className="space-y-8">
+            {/* Reading Preferences */}
+            <div>
+              <h2 className={`text-xl font-semibold mb-6 transition-colors duration-300 ${
+                theme === 'light'
+                  ? 'text-gray-900'
+                  : theme === 'dark'
+                  ? 'text-white'
+                  : 'text-purple-900'
+              }`}>
+                Reading Preferences
+              </h2>
+              
+              <div className="space-y-6">
+                {/* Favorite Genres */}
+                <div className={`p-6 rounded-lg border ${
+                  theme === 'light'
+                    ? 'bg-white border-gray-200'
+                    : theme === 'dark'
+                    ? 'bg-gray-800 border-gray-700'
+                    : 'bg-white border-purple-200'
+                }`}>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className={`text-lg font-medium ${
+                      theme === 'light'
+                        ? 'text-gray-900'
+                        : theme === 'dark'
+                        ? 'text-white'
+                        : 'text-purple-900'
+                    }`}>
+                      Favorite Genres
+                    </h3>
+                    
+                    {!isEditingGenres ? (
+                      <button 
+                        onClick={handleEditGenres}
+                        className={`flex items-center space-x-1 text-sm px-3 py-1.5 rounded-lg transition-colors ${
+                          theme === 'light'
+                            ? 'text-primary-600 hover:bg-primary-50'
+                            : theme === 'dark'
+                            ? 'text-blue-400 hover:bg-blue-900/20'
+                            : 'text-purple-600 hover:bg-purple-50'
+                        }`}
+                      >
+                        <PencilIcon className="h-4 w-4" />
+                        <span>Edit</span>
+                      </button>
+                    ) : (
+                      <div className="flex items-center space-x-2">
+                        <button 
+                          onClick={handleSaveGenres}
+                          className={`flex items-center space-x-1 text-sm px-3 py-1.5 rounded-lg transition-colors ${
+                            theme === 'light'
+                              ? 'text-green-600 hover:bg-green-50'
+                              : theme === 'dark'
+                              ? 'text-green-400 hover:bg-green-900/20'
+                              : 'text-green-600 hover:bg-green-50'
+                          }`}
+                        >
+                          <CheckIcon className="h-4 w-4" />
+                          <span>Save</span>
+                        </button>
+                        <button 
+                          onClick={handleCancelEditGenres}
+                          className={`flex items-center space-x-1 text-sm px-3 py-1.5 rounded-lg transition-colors ${
+                            theme === 'light'
+                              ? 'text-gray-600 hover:bg-gray-50'
+                              : theme === 'dark'
+                              ? 'text-gray-400 hover:bg-gray-800'
+                              : 'text-gray-600 hover:bg-gray-50'
+                          }`}
+                        >
+                          <XMarkIcon className="h-4 w-4" />
+                          <span>Cancel</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {!isEditingGenres ? (
+                    // Display mode
+                    <div className="flex flex-wrap gap-2">
+                      {readingStats.favoriteGenres.length > 0 ? (
+                        readingStats.favoriteGenres.map((genre, index) => (
+                          <span
+                            key={index}
+                            className={`px-3 py-1.5 rounded-full text-sm font-medium ${
+                              theme === 'light'
+                                ? 'bg-primary-100 text-primary-700'
+                                : theme === 'dark'
+                                ? 'bg-blue-900/20 text-blue-400'
+                                : 'bg-purple-100 text-purple-700'
+                            }`}
+                          >
+                            {genre}
+                          </span>
+                        ))
+                      ) : (
+                        <p className={`text-sm ${
+                          theme === 'light'
+                            ? 'text-gray-500'
+                            : theme === 'dark'
+                            ? 'text-gray-400'
+                            : 'text-purple-500'
+                        }`}>
+                          No favorite genres selected. Click Edit to add some!
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    // Edit mode
+                    <div className="space-y-4">
+                      <p className={`text-sm ${
+                        theme === 'light'
+                          ? 'text-gray-600'
+                          : theme === 'dark'
+                          ? 'text-gray-300'
+                          : 'text-purple-600'
+                      }`}>
+                        Select your favorite genres (click to toggle):
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {availableGenres.map((genre) => (
+                          <button
+                            key={genre}
+                            onClick={() => handleGenreToggle(genre)}
+                            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 border-2 ${
+                              editableGenres.includes(genre)
+                                ? theme === 'light'
+                                  ? 'bg-blue-500 text-white border-blue-500 shadow-md hover:bg-blue-600 hover:border-blue-600'
+                                  : theme === 'dark'
+                                  ? 'bg-blue-600 text-white border-blue-600 shadow-md hover:bg-blue-700 hover:border-blue-700'
+                                  : 'bg-purple-500 text-white border-purple-500 shadow-md hover:bg-purple-600 hover:border-purple-600'
+                                : theme === 'light'
+                                ? 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                                : theme === 'dark'
+                                ? 'bg-gray-800 text-gray-300 border-gray-600 hover:bg-gray-700 hover:border-gray-500'
+                                : 'bg-white text-gray-700 border-gray-300 hover:bg-purple-50 hover:border-purple-300'
+                            }`}
+                          >
+                            {genre}
+                          </button>
+                        ))}
+                      </div>
+                      <div className={`flex items-center justify-between pt-3 border-t ${
+                        theme === 'light'
+                          ? 'border-gray-200'
+                          : theme === 'dark'
+                          ? 'border-gray-700'
+                          : 'border-purple-200'
+                      }`}>
+                        <p className={`text-sm font-medium ${
+                          editableGenres.length > 0
+                            ? theme === 'light'
+                              ? 'text-blue-600'
+                              : theme === 'dark'
+                              ? 'text-blue-400'
+                              : 'text-purple-600'
+                            : theme === 'light'
+                            ? 'text-gray-500'
+                            : theme === 'dark'
+                            ? 'text-gray-400'
+                            : 'text-purple-500'
+                        }`}>
+                          Selected: {editableGenres.length} genre{editableGenres.length !== 1 ? 's' : ''}
+                        </p>
+                        {editableGenres.length > 0 && (
+                          <button
+                            onClick={() => setEditableGenres([])}
+                            className={`text-xs px-2 py-1 rounded transition-colors ${
+                              theme === 'light'
+                                ? 'text-gray-500 hover:text-red-600 hover:bg-red-50'
+                                : theme === 'dark'
+                                ? 'text-gray-400 hover:text-red-400 hover:bg-red-900/20'
+                                : 'text-purple-500 hover:text-red-600 hover:bg-red-50'
+                            }`}
+                          >
+                            Clear all
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Reading Pace */}
+                <div className={`p-6 rounded-lg border ${
+                  theme === 'light'
+                    ? 'bg-white border-gray-200'
+                    : theme === 'dark'
+                    ? 'bg-gray-800 border-gray-700'
+                    : 'bg-white border-purple-200'
+                }`}>
+                  <h3 className={`text-lg font-medium mb-3 ${
+                    theme === 'light'
+                      ? 'text-gray-900'
+                      : theme === 'dark'
+                      ? 'text-white'
+                      : 'text-purple-900'
+                  }`}>
+                    Reading Pace
+                  </h3>
+                  <p className={`${
+                    theme === 'light'
+                      ? 'text-gray-600'
+                      : theme === 'dark'
+                      ? 'text-gray-300'
+                      : 'text-purple-600'
+                  }`}>
+                    {userPreferences?.preferredPace || 'Not specified'}
+                  </p>
+                </div>
+
+                {/* Current Mood */}
+                <div className={`p-6 rounded-lg border ${
+                  theme === 'light'
+                    ? 'bg-white border-gray-200'
+                    : theme === 'dark'
+                    ? 'bg-gray-800 border-gray-700'
+                    : 'bg-white border-purple-200'
+                }`}>
+                  <h3 className={`text-lg font-medium mb-3 ${
+                    theme === 'light'
+                      ? 'text-gray-900'
+                      : theme === 'dark'
+                      ? 'text-white'
+                      : 'text-purple-900'
+                  }`}>
+                    Current Mood
+                  </h3>
+                  <p className={`${
+                    theme === 'light'
+                      ? 'text-gray-600'
+                      : theme === 'dark'
+                      ? 'text-gray-300'
+                      : 'text-purple-600'
+                  }`}>
+                    {userPreferences?.currentMood || 'Not specified'}
+                  </p>
+                </div>
+
+                {/* Reading Goals */}
+                <div className={`p-6 rounded-lg border ${
+                  theme === 'light'
+                    ? 'bg-white border-gray-200'
+                    : theme === 'dark'
+                    ? 'bg-gray-800 border-gray-700'
+                    : 'bg-white border-purple-200'
+                }`}>
+                  <h3 className={`text-lg font-medium mb-3 ${
+                    theme === 'light'
+                      ? 'text-gray-900'
+                      : theme === 'dark'
+                      ? 'text-white'
+                      : 'text-purple-900'
+                  }`}>
+                    Reading Goals
+                  </h3>
+                  <div className="space-y-2">
+                    {userPreferences?.readingGoals?.primaryReasons && userPreferences.readingGoals.primaryReasons.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {userPreferences.readingGoals.primaryReasons.map((reason, index) => (
+                          <span
+                            key={index}
+                            className={`px-2 py-1 rounded text-xs font-medium ${
+                              theme === 'light'
+                                ? 'bg-green-100 text-green-700'
+                                : theme === 'dark'
+                                ? 'bg-green-900/20 text-green-400'
+                                : 'bg-green-100 text-green-700'
+                            }`}
+                          >
+                            {reason}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className={`${
+                        theme === 'light'
+                          ? 'text-gray-600'
+                          : theme === 'dark'
+                          ? 'text-gray-300'
+                          : 'text-purple-600'
+                      }`}>
+                        No specific goals set
+                      </p>
+                    )}
+                    
+                    {userPreferences?.readingGoals?.booksPerMonth && (
+                      <p className={`text-sm ${
+                        theme === 'light'
+                          ? 'text-gray-500'
+                          : theme === 'dark'
+                          ? 'text-gray-400'
+                          : 'text-purple-500'
+                      }`}>
+                        Target: {userPreferences.readingGoals.booksPerMonth} books per month
+                      </p>
+                    )}
+                    
+                    {userPreferences?.readingGoals?.preferredLength && (
+                      <p className={`text-sm ${
+                        theme === 'light'
+                          ? 'text-gray-500'
+                          : theme === 'dark'
+                          ? 'text-gray-400'
+                          : 'text-purple-500'
+                      }`}>
+                        Preferred length: {userPreferences.readingGoals.preferredLength}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Status & Last Updated */}
+                <div className={`text-center py-4 border-t ${
+                  theme === 'light'
+                    ? 'text-gray-500 border-gray-200'
+                    : theme === 'dark'
+                    ? 'text-gray-400 border-gray-700'
+                    : 'text-purple-500 border-purple-200'
+                }`}>
+                  {preferencesLoading ? (
+                    <p className="text-sm">Loading preferences...</p>
+                  ) : userPreferences ? (
+                    <p className="text-sm">
+                      Preferences loaded from your profile
+                    </p>
+                  ) : (
+                    <p className="text-sm">
+                      Complete onboarding to see your preferences here
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Other tabs - placeholder content */}
-        {activeTab !== 'books' && activeTab !== 'following' && (
+        {activeTab !== 'books' && activeTab !== 'following' && activeTab !== 'preferences' && (
           <div className={`text-center py-12 ${
             theme === 'light'
               ? 'text-gray-500'
