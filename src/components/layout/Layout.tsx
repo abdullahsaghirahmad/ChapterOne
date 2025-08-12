@@ -316,8 +316,8 @@ export const Layout = ({ children }: LayoutProps) => {
                       user={currentUser}
                       size="sm"
                     />
-                    {/* Notification badge on avatar when present */}
-                    {notifications.filter(n => !n.isRead).length > 0 && (
+                    {/* Notification badge on avatar when present - hidden when threads feature is OFF */}
+                    {isEnabled('threads_feature_enabled') && notifications.filter(n => !n.isRead).length > 0 && (
                       <span className={`absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium ${
                         notifications.filter(n => !n.isRead).length > 9 ? 'text-[10px]' : ''
                       }`}>
@@ -391,8 +391,8 @@ export const Layout = ({ children }: LayoutProps) => {
                           </div>
                         </div>
 
-                        {/* Apple-Style Notifications Section */}
-                        {notifications.filter(n => !n.isRead).length > 0 && (
+                        {/* Apple-Style Notifications Section - hidden when threads feature is OFF */}
+                        {isEnabled('threads_feature_enabled') && notifications.filter(n => !n.isRead).length > 0 && (
                           <div className={`px-0 py-0 border-b ${
                             theme === 'light'
                               ? 'border-gray-100'
