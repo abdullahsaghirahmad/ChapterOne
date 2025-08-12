@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-route
 import { AnimatePresence, motion } from 'framer-motion';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider } from './contexts/AuthContext';
-import { AuthModalProvider } from './contexts/AuthModalProvider';
+import { AuthModalProvider } from './contexts/AuthModalContext';
 import { Layout } from './components/layout/Layout';
 import { HomePage } from './components/features/HomePage';
 import { BooksPage } from './components/features/BooksPage';
