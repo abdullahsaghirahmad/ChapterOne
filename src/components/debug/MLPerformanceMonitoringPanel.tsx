@@ -51,6 +51,39 @@ export const MLPerformanceMonitoringPanel: React.FC<MLPerformanceMonitoringPanel
       console.log('ML performance data loaded:', report);
     } catch (error) {
       console.error('Error fetching ML performance data:', error);
+      // Set mock data for development
+      setPerformanceReport({
+        recommendations: {
+          totalImpressions: 0,
+          totalActions: 0,
+          clickThroughRate: 0,
+          saveRate: 0,
+          averageRating: 0,
+          conversionRate: 0
+        },
+        bandits: [],
+        system: {
+          averageResponseTime: 0,
+          errorRate: 0,
+          activeUsers: 0,
+          totalSessions: 0,
+          recommendationCoverage: 0
+        },
+        engagement: {
+          dailyActiveUsers: 0,
+          averageSessionDuration: 0,
+          bounceRate: 0,
+          returningUserRate: 0,
+          booksDiscovered: 0
+        },
+        generatedAt: new Date().toISOString(),
+        timeRange: {
+          from: new Date(Date.now() - timeRange * 60 * 60 * 1000).toISOString(),
+          to: new Date().toISOString(),
+          hours: timeRange
+        }
+      });
+      setHistoricalData([]);
     } finally {
       setLoading(false);
     }
