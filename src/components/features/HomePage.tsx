@@ -51,10 +51,10 @@ export const HomePage = () => {
         setIsLoading(true);
         
         // Fetch data in parallel for better performance
-        // Skip featured books fetching for performance (redundant with "For You" section)
+        // Always get some books for recommendations, even if we don't show Featured Books section
         const [threadsData, featuredBooks] = await Promise.all([
           api.threads.getAll(),
-          SHOW_FEATURED_BOOKS ? booksCacheService.getFeatured() : Promise.resolve([])
+          SHOW_FEATURED_BOOKS ? booksCacheService.getFeatured() : booksCacheService.getHomepageBooks()
         ]);
         
         // Process threads to match ThreadCard component props
@@ -262,18 +262,17 @@ export const HomePage = () => {
         </section>
       ) : isEnabled('contextual_recommendations_v1') ? (
         <section>
-          <ContextualRecommendations 
-            availableBooks={trendingBooks}
-            maxRecommendations={6}
-            showContextPanel={true}
-            className="mx-auto max-w-7xl"
-          />
+                      <ContextualRecommendations
+              availableBooks={trendingBooks}
+              maxRecommendations={4}
+              className="mx-auto max-w-7xl"
+            />
         </section>
       ) : isPersonalizationEnabled ? (
         <section>
           <PersonalizedRecommendations 
             availableBooks={trendingBooks}
-            maxRecommendations={6}
+            maxRecommendations={4}
             showInsights={true}
             className="mx-auto max-w-7xl"
           />

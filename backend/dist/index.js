@@ -11,6 +11,7 @@ const database_1 = require("./config/database");
 const book_routes_1 = require("./routes/book.routes");
 const thread_routes_1 = require("./routes/thread.routes");
 const user_routes_1 = require("./routes/user.routes");
+const llm_routes_1 = __importDefault(require("./routes/llm.routes"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const port = process.env.PORT || 3001;
@@ -25,6 +26,7 @@ app.use(express_1.default.json());
 app.use('/api/books', book_routes_1.bookRouter);
 app.use('/api/threads', thread_routes_1.threadRouter);
 app.use('/api/users', user_routes_1.userRouter);
+app.use('/api/llm', llm_routes_1.default);
 // Initialize database connection
 database_1.AppDataSource.initialize()
     .then(() => {

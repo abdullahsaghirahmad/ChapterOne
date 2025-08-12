@@ -20,6 +20,7 @@ import { RewardSignalsTestPanel } from '../debug/RewardSignalsTestPanel';
 import { MLPerformanceMonitoringPanel } from '../debug/MLPerformanceMonitoringPanel';
 import { MLDataManagementPanel } from '../debug/MLDataManagementPanel';
 import { ContentManagementPanel } from './ContentManagementPanel';
+import { SearchAnalyticsPanel } from './SearchAnalyticsPanel';
 import { HybridContentTestPanel } from '../debug/HybridContentTestPanel';
 import { useNavigate } from 'react-router-dom';
 
@@ -241,6 +242,7 @@ export const AdminPanel: React.FC = () => {
       case 'analytics':
         return (
           <div className="space-y-6">
+            <SearchAnalyticsPanel />
             <MLPerformanceMonitoringPanel />
           </div>
         );

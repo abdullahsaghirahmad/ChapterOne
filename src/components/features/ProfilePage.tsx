@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   Cog6ToothIcon, 
@@ -13,15 +13,18 @@ import {
   CheckIcon
 } from '@heroicons/react/24/outline';
 import { useTheme } from '../../contexts/ThemeContext';
+import { auth } from '../../services/api.supabase';
+import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
-import { useAuthModal } from '../../contexts/AuthModalContext';
 import { UserAvatar } from '../ui/UserAvatar';
 import { UserProfileModal } from '../ui/UserProfileModal';
 import { ThreadFollowButton } from '../ui/ThreadFollowButton';
 import { BookCard } from './BookCard';
 import { ThreadFollowService } from '../../services/threadFollow.service';
-import { User, Book, FollowedThread, ReadingPreferences } from '../../types';
+import { User, FollowedThread, ReadingPreferences, SavedBook } from '../../types';
 import { UserPreferencesService } from '../../services/userPreferences.service';
+import { SavedBooksService } from '../../services/savedBooks.service';
+import { ReadingContextPreferences } from './ReadingContextPreferences';
 
 interface ProfilePageProps {}
 
@@ -30,59 +33,36 @@ interface ReadingStats {
   currentlyReading: number;
   booksThisYear: number;
   favoriteGenres: string[];
-  readingStreak: number;
+  booksCompleted: number;
 }
 
-type TabType = 'books' | 'threads' | 'following' | 'activity' | 'insights' | 'preferences';
+type TabType = 'books' | 'threads' | 'activity' | 'insights' | 'preferences';
 
-const mockBooks: Book[] = [
-  {
-    id: '1',
-    title: 'The Psychology of Money',
-    author: 'Morgan Housel',
-    coverImage: 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1581527774i/41881472.jpg',
-    pace: 'Moderate',
-    tone: ['Insightful', 'Practical'],
-    themes: ['Personal Finance', 'Behavioral Psychology'],
-    description: 'Timeless lessons about money and investing',
-    bestFor: ['Investors', 'Young Professionals'],
-    rating: 4.5,
-    isExternal: false
-  },
-  {
-    id: '2',
-    title: 'Atomic Habits',
-    author: 'James Clear',
-    coverImage: 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1535115320i/40121378.jpg',
-    pace: 'Fast',
-    tone: ['Motivational', 'Practical'],
-    themes: ['Self-Improvement', 'Productivity'],
-    description: 'An easy & proven way to build good habits & break bad ones',
-    bestFor: ['Anyone wanting to improve'],
-    rating: 4.8,
-    isExternal: false
-  }
-];
+
 
 export const ProfilePage: React.FC<ProfilePageProps> = () => {
   const { username } = useParams<{ username: string }>();
   const navigate = useNavigate();
   const { theme } = useTheme();
   const { user } = useAuth();
-  const { showAuthModal } = useAuthModal();
   const [activeTab, setActiveTab] = useState<TabType>('books');
   const [showEditModal, setShowEditModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [profileUser, setProfileUser] = useState<User | null>(null);
   
-  // Following threads state
-  const [followedThreads, setFollowedThreads] = useState<FollowedThread[]>([]);
-  const [followingLoading, setFollowingLoading] = useState(false);
-  const [followingError, setFollowingError] = useState<string | null>(null);
+  // Following threads state - COMMENTED OUT FOR UX IMPROVEMENT
+  // const [followedThreads, setFollowedThreads] = useState<FollowedThread[]>([]);
+  // const [followingLoading, setFollowingLoading] = useState(false);
+  // const [followingError, setFollowingError] = useState<string | null>(null);
   
   // User preferences state
   const [userPreferences, setUserPreferences] = useState<ReadingPreferences | null>(null);
   const [preferencesLoading, setPreferencesLoading] = useState(false);
+  
+  // Saved books state
+  const [savedBooks, setSavedBooks] = useState<SavedBook[]>([]);
+  const [savedBooksLoading, setSavedBooksLoading] = useState(false);
+  const [savedBooksError, setSavedBooksError] = useState<string | null>(null);
   
   // Genre editing state
   const [isEditingGenres, setIsEditingGenres] = useState(false);
@@ -91,17 +71,78 @@ export const ProfilePage: React.FC<ProfilePageProps> = () => {
   // Check if viewing own profile
   const isOwnProfile = !username || (user && username === `@${user.user_metadata?.username}`);
 
-  // Reading stats - enhanced with real preferences
+  // Helper functions to organize saved books
+  const wantToReadBooks = savedBooks
+    .filter(book => book.status === 'want_to_read')
+    .map(savedBook => savedBook.bookData);
+    
+  const currentlyReadingBooks = savedBooks
+    .filter(book => book.status === 'currently_reading')
+    .map(savedBook => savedBook.bookData);
+    
+  const favoriteBooks = savedBooks
+    .filter(book => book.status === 'finished' && (book.rating || 0) >= 4)
+    .map(savedBook => savedBook.bookData);
+
+  // Reading stats - calculated from real data
   const [readingStats, setReadingStats] = useState<ReadingStats>({
-    totalBooks: 47,
-    currentlyReading: 3,
-    booksThisYear: 12,
+    totalBooks: 0,
+    currentlyReading: 0,
+    booksThisYear: 0,
     favoriteGenres: ['Psychology', 'Business', 'Self-Help'], // Fallback until real data loads
-    readingStreak: 15
+    booksCompleted: 0
   });
 
+  // Calculate reading statistics from real data
+  const calculateReadingStats = useCallback(() => {
+    if (!savedBooks.length) return;
+
+    const currentYear = new Date().getFullYear();
+    const currentYearBooks = savedBooks.filter(book => {
+      const bookYear = new Date(book.createdAt).getFullYear();
+      return bookYear === currentYear;
+    });
+
+    const completedBooks = savedBooks.filter(book => book.status === 'finished');
+    const currentlyReadingBooks = savedBooks.filter(book => book.status === 'currently_reading');
+
+    // Extract genres from user preferences and saved books
+    const bookGenres = savedBooks
+      .map(book => {
+        const categories = book.bookData.categories || [];
+        const themes = (book.bookData.themes || []).map(theme => 
+          typeof theme === 'string' ? theme : theme.value || theme.type || ''
+        );
+        return [...categories, ...themes];
+      })
+      .flat()
+      .filter(genre => genre && typeof genre === 'string');
+    
+    const preferenceGenres = userPreferences?.favoriteGenres || [];
+    const allGenres = [...bookGenres, ...preferenceGenres];
+    
+    // Count genre frequency and get top 3
+    const genreCounts = allGenres.reduce((acc, genre) => {
+      acc[genre] = (acc[genre] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    const favoriteGenres = Object.entries(genreCounts)
+      .sort(([,a], [,b]) => (b as number) - (a as number))
+      .slice(0, 3)
+      .map(([genre]) => genre);
+
+    setReadingStats({
+      totalBooks: savedBooks.length,
+      currentlyReading: currentlyReadingBooks.length,
+      booksThisYear: currentYearBooks.length,
+      favoriteGenres: favoriteGenres.length > 0 ? favoriteGenres : ['Psychology', 'Business', 'Self-Help'],
+      booksCompleted: completedBooks.length
+    });
+  }, [savedBooks, userPreferences]);
+
   // Fetch user preferences
-  const fetchUserPreferences = async () => {
+  const fetchUserPreferences = useCallback(async () => {
     if (!user || !isOwnProfile) return;
     
     try {
@@ -121,7 +162,35 @@ export const ProfilePage: React.FC<ProfilePageProps> = () => {
     } finally {
       setPreferencesLoading(false);
     }
-  };
+  }, [user, isOwnProfile]);
+
+  // Fetch saved books
+  const fetchSavedBooks = useCallback(async () => {
+    if (!user || !isOwnProfile) return;
+    
+    try {
+      setSavedBooksLoading(true);
+      setSavedBooksError(null);
+      
+      const books = await SavedBooksService.getSavedBooks();
+      setSavedBooks(books);
+      
+      // Update reading stats with real data
+      const currentlyReading = books.filter(book => book.status === 'currently_reading').length;
+      const totalBooks = books.length;
+      
+      setReadingStats(prev => ({
+        ...prev,
+        totalBooks,
+        currentlyReading
+      }));
+    } catch (error) {
+      console.error('Error fetching saved books:', error);
+      setSavedBooksError('Failed to load your book library');
+    } finally {
+      setSavedBooksLoading(false);
+    }
+  }, [user, isOwnProfile]);
 
   // Genre editing functions
   const handleEditGenres = () => {
@@ -182,9 +251,9 @@ export const ProfilePage: React.FC<ProfilePageProps> = () => {
             id: user.id,
             username: user.user_metadata?.username || user.email?.split('@')[0] || '',
             email: user.email || '',
-            displayName: user.user_metadata?.full_name || user.user_metadata?.username || user.email?.split('@')[0] || '',
-            bio: 'Passionate reader exploring psychology, business, and personal development. Always looking for the next great book!',
-            avatarUrl: user.user_metadata?.avatar_url || '',
+            displayName: user.user_metadata?.full_name || user.user_metadata?.name || (user.user_metadata?.username || user.email?.split('@')[0] || ''),
+            bio: user.user_metadata?.bio || '', // Load actual bio from auth metadata
+            avatarUrl: user.user_metadata?.avatar_url || '', // Load actual avatar from auth metadata
             createdAt: new Date().toISOString(),
             threadCount: 8,
             followingCount: 12,
@@ -226,39 +295,128 @@ export const ProfilePage: React.FC<ProfilePageProps> = () => {
     };
 
     fetchProfile();
-    fetchUserPreferences(); // Load user preferences for own profile
-  }, [username, isOwnProfile, user]);
-
-  // Load followed threads for own profile
-  useEffect(() => {
-    if (!isOwnProfile || !user) {
-      return;
+    
+    // Only load preferences and books if we have a user and this is own profile
+    if (isOwnProfile && user) {
+      fetchUserPreferences();
+      fetchSavedBooks();
     }
+  }, [username, isOwnProfile, user?.id]); // Only depend on user.id to avoid unnecessary re-runs
 
-    const loadFollowedThreads = async () => {
-      try {
-        setFollowingLoading(true);
-        const threads = await ThreadFollowService.getFollowedThreads(user.id);
-        setFollowedThreads(threads);
-        setFollowingError(null);
-      } catch (err) {
-        console.error('Error loading followed threads:', err);
-        setFollowingError('Failed to load followed threads');
-      } finally {
-        setFollowingLoading(false);
-      }
-    };
+  // Load followed threads for own profile - COMMENTED OUT FOR UX IMPROVEMENT
+  // useEffect(() => {
+  //   if (!isOwnProfile || !user) {
+  //     return;
+  //   }
 
-    loadFollowedThreads();
-  }, [isOwnProfile, user]);
+  //   const loadFollowedThreads = async () => {
+  //     try {
+  //       setFollowingLoading(true);
+  //       const threads = await ThreadFollowService.getFollowedThreads(user.id);
+  //       setFollowedThreads(threads);
+  //       setFollowingError(null);
+  //     } catch (err) {
+  //       console.error('Error loading followed threads:', err);
+  //       setFollowingError('Failed to load followed threads');
+  //     } finally {
+  //       setFollowingLoading(false);
+  //     }
+  //   };
+
+  //   loadFollowedThreads();
+  // }, [isOwnProfile, user]);
+
+  // Calculate reading stats when data changes
+  useEffect(() => {
+    calculateReadingStats();
+  }, [calculateReadingStats]);
 
   const handleProfileSave = async (updates: Partial<User>) => {
-    console.log('Profile updates:', updates);
-    // TODO: Call API to update user profile
-    if (profileUser) {
-      setProfileUser({ ...profileUser, ...updates });
+    try {
+      console.log('Profile updates:', updates);
+      
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        throw new Error('Not authenticated');
+      }
+
+      // Update Supabase Auth metadata
+      const authUpdates = {
+        username: updates.username,
+        bio: updates.bio,
+        avatar_url: updates.avatarUrl, // Add avatar URL with underscore to match retrieval
+        full_name: updates.displayName,
+        name: updates.displayName,
+        favoriteGenres: updates.readingPreferences?.favoriteGenres,
+        preferredPace: updates.readingPreferences?.preferredPace,
+        favoriteThemes: updates.readingPreferences?.favoriteThemes
+      };
+
+      const { data: authData, error: authError } = await supabase.auth.updateUser({
+        data: authUpdates
+      });
+
+      if (authError) {
+        throw new Error(`Failed to update auth profile: ${authError.message}`);
+      }
+
+      // Try to update custom user table if it exists (graceful degradation)
+      try {
+        const { error: tableError } = await supabase
+          .from('user')
+          .update({
+            username: updates.username,
+            favoriteGenres: updates.readingPreferences?.favoriteGenres || [],
+            preferredPace: updates.readingPreferences?.preferredPace || 'Moderate',
+            favoriteThemes: updates.readingPreferences?.favoriteThemes || [],
+            updatedAt: new Date().toISOString()
+          })
+          .eq('id', user.id);
+
+        if (tableError) {
+          console.warn('User table update failed:', tableError.message);
+        } else {
+          console.log('User table updated successfully');
+        }
+      } catch (tableUpdateError) {
+        // Ignore table update errors - auth metadata is the primary source
+        console.warn('User table update failed (graceful degradation):', tableUpdateError);
+      }
+
+      // Get the current user data to refresh the local profile state
+      const { data: { user: refreshedUser } } = await supabase.auth.getUser();
+      
+      // Update local profile state with the refreshed data
+      if (refreshedUser && profileUser) {
+        setProfileUser({
+          ...profileUser,
+          username: refreshedUser.user_metadata?.username || profileUser.username,
+          displayName: refreshedUser.user_metadata?.full_name || refreshedUser.user_metadata?.name || profileUser.displayName,
+          bio: refreshedUser.user_metadata?.bio || '',
+          avatarUrl: refreshedUser.user_metadata?.avatar_url || '',
+          readingPreferences: {
+            favoriteGenres: refreshedUser.user_metadata?.favoriteGenres || [],
+            preferredPace: refreshedUser.user_metadata?.preferredPace || 'Moderate',
+            favoriteThemes: refreshedUser.user_metadata?.favoriteThemes || []
+          }
+        });
+      }
+
+      console.log('Profile updated successfully via direct Supabase');
+      
+      // Re-fetch saved books after profile update to ensure consistency
+      if (isOwnProfile && user) {
+        setTimeout(() => {
+          fetchSavedBooks(); // Fresh fetch
+        }, 1000); // Small delay to ensure auth session is settled
+      }
+      
+      // Don't return anything to match Promise<void> type
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      throw error;
     }
-    return Promise.resolve();
   };
 
   // Helper functions for followed threads
@@ -271,9 +429,9 @@ export const ProfilePage: React.FC<ProfilePageProps> = () => {
     navigate(`/books/${bookId}`);
   };
 
-  const handleUnfollow = (threadId: string) => {
-    setFollowedThreads(prev => prev.filter(ft => ft.thread.id !== threadId));
-  };
+  // const handleUnfollow = (threadId: string) => {
+  //   setFollowedThreads(prev => prev.filter(ft => ft.thread.id !== threadId));
+  // };
 
   const formatRelativeTime = (dateString: string) => {
     const date = new Date(dateString);
@@ -291,7 +449,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = () => {
   const tabs = [
     { id: 'books' as TabType, label: 'Books', icon: BookOpenIcon, count: readingStats.totalBooks },
     { id: 'threads' as TabType, label: 'Threads', icon: ChatBubbleLeftIcon, count: profileUser?.threadCount || 0 },
-    ...(isOwnProfile ? [{ id: 'following' as TabType, label: 'Following', icon: HeartIcon, count: followedThreads.length }] : []),
     { id: 'activity' as TabType, label: 'Activity', icon: ClockIcon },
     { id: 'insights' as TabType, label: 'Insights', icon: ChartBarIcon },
     ...(isOwnProfile ? [{ id: 'preferences' as TabType, label: 'Preferences', icon: Cog6ToothIcon }] : [])
@@ -411,7 +568,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = () => {
                 }`}>
                   @{profileUser.username}
                 </p>
-                {profileUser.bio && (
+                {profileUser.bio ? (
                   <p className={`mt-3 max-w-md transition-colors duration-300 ${
                     theme === 'light'
                       ? 'text-gray-700'
@@ -420,6 +577,16 @@ export const ProfilePage: React.FC<ProfilePageProps> = () => {
                       : 'text-purple-700'
                   }`}>
                     {profileUser.bio}
+                  </p>
+                ) : isOwnProfile && (
+                  <p className={`mt-3 max-w-md italic transition-colors duration-300 ${
+                    theme === 'light'
+                      ? 'text-gray-500'
+                      : theme === 'dark'
+                      ? 'text-gray-400'
+                      : 'text-purple-500'
+                  }`}>
+                    Add a bio to tell others about your reading journey...
                   </p>
                 )}
               </div>
@@ -540,7 +707,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = () => {
                   ? 'text-blue-400'
                   : 'text-purple-600'
               }`}>
-                {readingStats.readingStreak}
+                {readingStats.booksCompleted}
               </div>
               <div className={`text-sm transition-colors duration-300 ${
                 theme === 'light'
@@ -549,7 +716,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = () => {
                   ? 'text-gray-300'
                   : 'text-purple-600'
               }`}>
-                Day Streak
+                Books Completed
               </div>
             </div>
           </div>
@@ -617,6 +784,94 @@ export const ProfilePage: React.FC<ProfilePageProps> = () => {
       <div className="max-w-4xl mx-auto px-6 py-8">
         {activeTab === 'books' && (
           <div className="space-y-8">
+            {/* Want to Read */}
+            <div>
+              <h2 className={`text-xl font-semibold mb-4 transition-colors duration-300 ${
+                theme === 'light'
+                  ? 'text-gray-900'
+                  : theme === 'dark'
+                  ? 'text-white'
+                  : 'text-purple-900'
+              }`}>
+                Want to Read
+              </h2>
+              {savedBooksLoading ? (
+                <div className={`text-center py-8 ${
+                  theme === 'light'
+                    ? 'text-gray-600'
+                    : theme === 'dark'
+                    ? 'text-gray-300'
+                    : 'text-purple-600'
+                }`}>
+                  <div className="animate-spin w-6 h-6 mx-auto mb-3 border-2 border-current border-t-transparent rounded-full" />
+                  Loading your books...
+                </div>
+              ) : savedBooksError ? (
+                <div className={`text-center py-8 ${
+                  theme === 'light'
+                    ? 'text-red-500'
+                    : theme === 'dark'
+                    ? 'text-red-400'
+                    : 'text-pink-600'
+                }`}>
+                  <p className="mb-4">{savedBooksError}</p>
+                  <button
+                    onClick={() => fetchSavedBooks()}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      theme === 'light'
+                        ? 'bg-red-100 hover:bg-red-200 text-red-700'
+                        : theme === 'dark'
+                        ? 'bg-red-900/20 hover:bg-red-900/30 text-red-400'
+                        : 'bg-red-100 hover:bg-red-200 text-red-700'
+                    }`}
+                  >
+                    Retry Loading
+                  </button>
+                </div>
+              ) : wantToReadBooks.length === 0 ? (
+                <div className={`text-center py-8 rounded-lg border-2 border-dashed ${
+                  theme === 'light'
+                    ? 'text-gray-500 border-gray-300'
+                    : theme === 'dark'
+                    ? 'text-gray-400 border-gray-600'
+                    : 'text-purple-500 border-purple-300'
+                }`}>
+                  <BookOpenIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p className="text-lg font-medium mb-2">No books saved yet</p>
+                  <p className="text-sm opacity-75 mb-4">Save books from our recommendations to see them here!</p>
+                  <button
+                    onClick={() => navigate('/books')}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      theme === 'light'
+                        ? 'bg-purple-100 hover:bg-purple-200 text-purple-700'
+                        : theme === 'dark'
+                        ? 'bg-purple-900/20 hover:bg-purple-900/30 text-purple-400'
+                        : 'bg-purple-100 hover:bg-purple-200 text-purple-700'
+                    }`}
+                  >
+                    Browse Books
+                  </button>
+                </div>
+              ) : (
+                <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
+                  {wantToReadBooks.slice(0, 6).map((book) => (
+                    <div key={`want-${book.id}`} className="relative">
+                      <BookCard 
+                        {...book} 
+                        isSaved={true}
+                        onInteraction={async (type) => {
+                          // Refresh saved books list when user unsaves
+                          if (type === 'unsave') {
+                            await fetchSavedBooks();
+                          }
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Currently Reading */}
             <div>
               <h2 className={`text-xl font-semibold mb-4 transition-colors duration-300 ${
@@ -628,10 +883,53 @@ export const ProfilePage: React.FC<ProfilePageProps> = () => {
               }`}>
                 Currently Reading
               </h2>
-              <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                {mockBooks.slice(0, 2).map((book) => (
+              {savedBooksLoading ? (
+                <div className={`text-center py-8 ${
+                  theme === 'light'
+                    ? 'text-gray-600'
+                    : theme === 'dark'
+                    ? 'text-gray-300'
+                    : 'text-purple-600'
+                }`}>
+                  <div className="animate-spin w-6 h-6 mx-auto mb-3 border-2 border-current border-t-transparent rounded-full" />
+                  Loading your books...
+                </div>
+              ) : savedBooksError ? (
+                <div className={`text-center py-8 ${
+                  theme === 'light'
+                    ? 'text-red-500'
+                    : theme === 'dark'
+                    ? 'text-red-400'
+                    : 'text-pink-600'
+                }`}>
+                  <p>{savedBooksError}</p>
+                </div>
+              ) : currentlyReadingBooks.length === 0 ? (
+                <div className={`text-center py-8 rounded-lg border-2 border-dashed ${
+                  theme === 'light'
+                    ? 'text-gray-500 border-gray-300'
+                    : theme === 'dark'
+                    ? 'text-gray-400 border-gray-600'
+                    : 'text-purple-500 border-purple-300'
+                }`}>
+                  <BookOpenIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p className="text-lg font-medium mb-2">No books currently reading</p>
+                  <p className="text-sm opacity-75">Start reading a book to see it here!</p>
+                </div>
+              ) : (
+                <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
+                  {currentlyReadingBooks.slice(0, 6).map((book) => (
                   <div key={book.id} className="relative">
-                    <BookCard {...book} />
+                    <BookCard 
+                      {...book} 
+                      isSaved={true}
+                      onInteraction={async (type) => {
+                        // Refresh saved books list when user unsaves
+                        if (type === 'unsave') {
+                          await fetchSavedBooks();
+                        }
+                      }}
+                    />
                     {/* Reading Progress */}
                     <div className={`mt-3 p-3 rounded-lg ${
                       theme === 'light'
@@ -680,8 +978,9 @@ export const ProfilePage: React.FC<ProfilePageProps> = () => {
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Favorites */}
@@ -695,24 +994,58 @@ export const ProfilePage: React.FC<ProfilePageProps> = () => {
               }`}>
                 All-Time Favorites
               </h2>
-              <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                {mockBooks.map((book) => (
-                  <div key={`fav-${book.id}`} className="relative">
-                    <BookCard {...book} />
-                    <div className="absolute top-2 right-2">
-                      <HeartIcon className="w-6 h-6 text-red-500 fill-current" />
+              {savedBooksLoading ? (
+                <div className={`text-center py-8 ${
+                  theme === 'light'
+                    ? 'text-gray-600'
+                    : theme === 'dark'
+                    ? 'text-gray-300'
+                    : 'text-purple-600'
+                }`}>
+                  <div className="animate-spin w-6 h-6 mx-auto mb-3 border-2 border-current border-t-transparent rounded-full" />
+                  Loading your favorites...
+                </div>
+              ) : favoriteBooks.length === 0 ? (
+                <div className={`text-center py-8 rounded-lg border-2 border-dashed ${
+                  theme === 'light'
+                    ? 'text-gray-500 border-gray-300'
+                    : theme === 'dark'
+                    ? 'text-gray-400 border-gray-600'
+                    : 'text-purple-500 border-purple-300'
+                }`}>
+                  <HeartIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p className="text-lg font-medium mb-2">No favorites yet</p>
+                  <p className="text-sm opacity-75">Rate finished books 4+ stars to see them here!</p>
+                </div>
+              ) : (
+                <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
+                  {favoriteBooks.map((book) => (
+                    <div key={`fav-${book.id}`} className="relative">
+                      <BookCard 
+                        {...book} 
+                        isSaved={true}
+                        onInteraction={async (type) => {
+                          // Refresh saved books list when user unsaves
+                          if (type === 'unsave') {
+                            await fetchSavedBooks();
+                          }
+                        }}
+                      />
+                      <div className="absolute top-2 right-2">
+                        <HeartIcon className="w-6 h-6 text-red-500 fill-current" />
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
 
-        {/* Following Tab */}
-        {activeTab === 'following' && (
+        {/* Following Tab - REMOVED FOR UX IMPROVEMENT */}
+        {false && (
           <div className="space-y-6">
-            {followingLoading ? (
+            {false ? (
               <div className={`text-center py-12 ${
                 theme === 'light'
                   ? 'text-gray-600'
@@ -723,7 +1056,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = () => {
                 <div className="animate-spin w-8 h-8 mx-auto mb-4 border-2 border-current border-t-transparent rounded-full" />
                 Loading your followed threads...
               </div>
-            ) : followingError ? (
+            ) : false ? (
               <div className={`text-center py-12 ${
                 theme === 'light'
                   ? 'text-red-500'
@@ -732,7 +1065,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = () => {
                   : 'text-pink-600'
               }`}>
                 <p className="text-lg font-medium mb-2">Oops! Something went wrong</p>
-                <p className="text-sm opacity-75">{followingError}</p>
+                <p className="text-sm opacity-75">{"Error"}</p>
                 <button
                   onClick={() => window.location.reload()}
                   className={`mt-4 px-4 py-2 rounded-lg transition-colors ${
@@ -746,7 +1079,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = () => {
                   Try Again
                 </button>
               </div>
-            ) : followedThreads.length === 0 ? (
+            ) : false ? (
               <div className={`text-center py-16 rounded-lg border-2 border-dashed ${
                 theme === 'light'
                   ? 'border-gray-300 bg-gray-50'
@@ -794,7 +1127,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = () => {
               </div>
             ) : (
               <div className="space-y-4">
-                {followedThreads.map((followedThread) => {
+                {[].map((followedThread: any) => {
                   const thread = followedThread.thread;
                   const book = thread.threadBooks[0]?.book; // Primary book
                   
@@ -854,9 +1187,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = () => {
                               <ThreadFollowButton
                                 threadId={thread.id}
                                 onFollowChange={(isFollowing) => {
-                                  if (!isFollowing) {
-                                    handleUnfollow(thread.id);
-                                  }
+                                  // handleUnfollow removed with Following tab
                                 }}
                                 size="sm"
                                 variant="compact"
@@ -1139,134 +1470,8 @@ export const ProfilePage: React.FC<ProfilePageProps> = () => {
                   )}
                 </div>
 
-                {/* Reading Pace */}
-                <div className={`p-6 rounded-lg border ${
-                  theme === 'light'
-                    ? 'bg-white border-gray-200'
-                    : theme === 'dark'
-                    ? 'bg-gray-800 border-gray-700'
-                    : 'bg-white border-purple-200'
-                }`}>
-                  <h3 className={`text-lg font-medium mb-3 ${
-                    theme === 'light'
-                      ? 'text-gray-900'
-                      : theme === 'dark'
-                      ? 'text-white'
-                      : 'text-purple-900'
-                  }`}>
-                    Reading Pace
-                  </h3>
-                  <p className={`${
-                    theme === 'light'
-                      ? 'text-gray-600'
-                      : theme === 'dark'
-                      ? 'text-gray-300'
-                      : 'text-purple-600'
-                  }`}>
-                    {userPreferences?.preferredPace || 'Not specified'}
-                  </p>
-                </div>
-
-                {/* Current Mood */}
-                <div className={`p-6 rounded-lg border ${
-                  theme === 'light'
-                    ? 'bg-white border-gray-200'
-                    : theme === 'dark'
-                    ? 'bg-gray-800 border-gray-700'
-                    : 'bg-white border-purple-200'
-                }`}>
-                  <h3 className={`text-lg font-medium mb-3 ${
-                    theme === 'light'
-                      ? 'text-gray-900'
-                      : theme === 'dark'
-                      ? 'text-white'
-                      : 'text-purple-900'
-                  }`}>
-                    Current Mood
-                  </h3>
-                  <p className={`${
-                    theme === 'light'
-                      ? 'text-gray-600'
-                      : theme === 'dark'
-                      ? 'text-gray-300'
-                      : 'text-purple-600'
-                  }`}>
-                    {userPreferences?.currentMood || 'Not specified'}
-                  </p>
-                </div>
-
-                {/* Reading Goals */}
-                <div className={`p-6 rounded-lg border ${
-                  theme === 'light'
-                    ? 'bg-white border-gray-200'
-                    : theme === 'dark'
-                    ? 'bg-gray-800 border-gray-700'
-                    : 'bg-white border-purple-200'
-                }`}>
-                  <h3 className={`text-lg font-medium mb-3 ${
-                    theme === 'light'
-                      ? 'text-gray-900'
-                      : theme === 'dark'
-                      ? 'text-white'
-                      : 'text-purple-900'
-                  }`}>
-                    Reading Goals
-                  </h3>
-                  <div className="space-y-2">
-                    {userPreferences?.readingGoals?.primaryReasons && userPreferences.readingGoals.primaryReasons.length > 0 ? (
-                      <div className="flex flex-wrap gap-2">
-                        {userPreferences.readingGoals.primaryReasons.map((reason, index) => (
-                          <span
-                            key={index}
-                            className={`px-2 py-1 rounded text-xs font-medium ${
-                              theme === 'light'
-                                ? 'bg-green-100 text-green-700'
-                                : theme === 'dark'
-                                ? 'bg-green-900/20 text-green-400'
-                                : 'bg-green-100 text-green-700'
-                            }`}
-                          >
-                            {reason}
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className={`${
-                        theme === 'light'
-                          ? 'text-gray-600'
-                          : theme === 'dark'
-                          ? 'text-gray-300'
-                          : 'text-purple-600'
-                      }`}>
-                        No specific goals set
-                      </p>
-                    )}
-                    
-                    {userPreferences?.readingGoals?.booksPerMonth && (
-                      <p className={`text-sm ${
-                        theme === 'light'
-                          ? 'text-gray-500'
-                          : theme === 'dark'
-                          ? 'text-gray-400'
-                          : 'text-purple-500'
-                      }`}>
-                        Target: {userPreferences.readingGoals.booksPerMonth} books per month
-                      </p>
-                    )}
-                    
-                    {userPreferences?.readingGoals?.preferredLength && (
-                      <p className={`text-sm ${
-                        theme === 'light'
-                          ? 'text-gray-500'
-                          : theme === 'dark'
-                          ? 'text-gray-400'
-                          : 'text-purple-500'
-                      }`}>
-                        Preferred length: {userPreferences.readingGoals.preferredLength}
-                      </p>
-                    )}
-                  </div>
-                </div>
+                {/* Reading Context Preferences */}
+                <ReadingContextPreferences />
 
                 {/* Status & Last Updated */}
                 <div className={`text-center py-4 border-t ${
@@ -1294,7 +1499,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = () => {
         )}
 
         {/* Other tabs - placeholder content */}
-        {activeTab !== 'books' && activeTab !== 'following' && activeTab !== 'preferences' && (
+        {activeTab !== 'books' && activeTab !== 'preferences' && (
           <div className={`text-center py-12 ${
             theme === 'light'
               ? 'text-gray-500'

@@ -373,6 +373,142 @@ export class PersonalizationService {
     }
   }
 
+  /**
+   * Get aggregated search analytics across all users
+   */
+  async getSearchAnalytics(timeRangeHours: number = 168): Promise<{
+    totalSearches: number;
+    totalHelperUsage: number;
+    inspirationPanelOpens: number;
+    topHelpers: Array<{
+      type: string;
+      value: string;
+      count: number;
+      percentage: number;
+    }>;
+    searchPatterns: Array<{
+      searchType: string;
+      count: number;
+      averageResults: number;
+    }>;
+    userTypes: {
+      anonymous: number;
+      authenticated: number;
+    };
+  }> {
+    try {
+      const cutoffTime = Date.now() - (timeRangeHours * 60 * 60 * 1000);
+      const allSearches: Array<UserSearchPattern & { userId: string }> = [];
+      const helperUsage: Map<string, number> = new Map();
+      const searchTypeStats: Map<string, { count: number; totalResults: number }> = new Map();
+      let inspirationPanelOpens = 0;
+      let anonymousUsers = 0;
+      let authenticatedUsers = 0;
+
+      // Get all localStorage keys that match our pattern
+      const userKeys = Object.keys(localStorage).filter(key => 
+        key.startsWith(this.STORAGE_PREFIX) && key.endsWith('_searches')
+      );
+
+      // Process each user's search data
+      for (const key of userKeys) {
+        try {
+          const userId = key.replace(this.STORAGE_PREFIX, '').replace('_searches', '');
+          const isAnonymous = userId === 'anonymous';
+          
+          if (isAnonymous) {
+            anonymousUsers++;
+          } else {
+            authenticatedUsers++;
+          }
+
+          const userData = localStorage.getItem(key);
+          if (!userData) continue;
+
+          const searches: UserSearchPattern[] = JSON.parse(userData);
+          
+          // Filter by time range
+          const recentSearches = searches.filter(search => search.timestamp >= cutoffTime);
+          
+          // Add to overall collection
+          recentSearches.forEach(search => {
+            allSearches.push({ ...search, userId });
+
+            // Track search helper usage
+            if (search.searchType.startsWith('search_helper_')) {
+              const helperType = search.searchType.replace('search_helper_', '');
+              const helperKey = `${helperType}:${search.query}`;
+              helperUsage.set(helperKey, (helperUsage.get(helperKey) || 0) + 1);
+            }
+
+            // Track inspiration panel opens
+            if (search.query === 'open_inspiration_panel') {
+              inspirationPanelOpens = inspirationPanelOpens + 1;
+            }
+
+            // Track search type statistics
+            const stats = searchTypeStats.get(search.searchType) || { count: 0, totalResults: 0 };
+            stats.count++;
+            stats.totalResults += search.resultsCount || 0;
+            searchTypeStats.set(search.searchType, stats);
+          });
+        } catch (error) {
+          console.warn(`${this.LOG_PREFIX} Error processing user data for key ${key}:`, error);
+        }
+      }
+
+      // Calculate helper usage stats
+      const totalHelperSearches = Array.from(helperUsage.values()).reduce((sum, count) => sum + count, 0);
+      const topHelpers = Array.from(helperUsage.entries())
+        .map(([key, count]) => {
+          const [type, value] = key.split(':');
+          return {
+            type,
+            value,
+            count,
+            percentage: totalHelperSearches > 0 ? (count / totalHelperSearches) * 100 : 0
+          };
+        })
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10); // Top 10
+
+      // Calculate search pattern stats
+      const searchPatterns = Array.from(searchTypeStats.entries())
+        .map(([searchType, stats]) => ({
+          searchType,
+          count: stats.count,
+          averageResults: stats.count > 0 ? Math.round(stats.totalResults / stats.count) : 0
+        }))
+        .sort((a, b) => b.count - a.count);
+
+      const result = {
+        totalSearches: allSearches.length,
+        totalHelperUsage: totalHelperSearches,
+        inspirationPanelOpens,
+        topHelpers,
+        searchPatterns,
+        userTypes: {
+          anonymous: anonymousUsers,
+          authenticated: authenticatedUsers
+        }
+      };
+
+      console.log(`${this.LOG_PREFIX} Generated analytics for ${timeRangeHours}h:`, result);
+      return result;
+    } catch (error) {
+      console.error(`${this.LOG_PREFIX} Error generating search analytics:`, error);
+      // Return empty data structure
+      return {
+        totalSearches: 0,
+        totalHelperUsage: 0,
+        inspirationPanelOpens: 0,
+        topHelpers: [],
+        searchPatterns: [],
+        userTypes: { anonymous: 0, authenticated: 0 }
+      };
+    }
+  }
+
   // Private helper methods
 
   private async getUserSearchHistory(userId: string): Promise<UserSearchPattern[]> {

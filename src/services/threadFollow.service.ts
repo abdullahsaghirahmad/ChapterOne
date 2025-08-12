@@ -132,26 +132,42 @@ export class ThreadFollowService {
         }
       }
 
-      // Get thread books
+      // Get thread books relationships
       const { data: threadBooksData } = await supabase
-        .from('thread_book')
-        .select(`
-          threadId,
-          book:bookId (
-            id,
-            title,
-            author,
-            imageUrl,
-            isbn
-          )
-        `)
+        .from('thread_books_book')
+        .select('threadId, bookId')
         .in('threadId', threadIds);
+      
+      // Get book details if there are any relationships
+      let booksData: any[] = [];
+      if (threadBooksData && threadBooksData.length > 0) {
+        const bookIds = Array.from(new Set(threadBooksData.map(tb => tb.bookId)));
+        const { data: books } = await supabase
+          .from('book')
+          .select('id, title, author, imageUrl, isbn')
+          .in('id', bookIds);
+        booksData = books || [];
+      }
 
       // Combine all data
       const result = data.map(follow => {
         const thread = threadsData?.find(t => t.id === follow.threadId);
         const creator = usersData.find(u => u.id === thread?.createdById);
-        const threadBooks = threadBooksData?.filter(tb => tb.threadId === follow.threadId) || [];
+        const threadBookRelations = threadBooksData?.filter(tb => tb.threadId === follow.threadId) || [];
+        
+        // Map book relations to actual book data
+        const threadBooks = threadBookRelations.map(relation => {
+          const book = booksData.find(b => b.id === relation.bookId);
+          return {
+            book: {
+              id: book?.id || '',
+              title: book?.title || '',
+              author: book?.author || '',
+              imageUrl: book?.imageUrl,
+              isbn: book?.isbn
+            }
+          };
+        });
 
         return {
           id: follow.id,
@@ -170,19 +186,7 @@ export class ThreadFollowService {
               displayName: creator?.displayName,
               avatarUrl: creator?.avatarUrl
             },
-            threadBooks: threadBooks.map(tb => {
-              // Handle case where book might be an array or single object
-              const book = Array.isArray(tb.book) ? tb.book[0] : tb.book;
-              return {
-                book: {
-                  id: book?.id || '',
-                  title: book?.title || '',
-                  author: book?.author || '',
-                  imageUrl: book?.imageUrl,
-                  isbn: book?.isbn
-                }
-              };
-            })
+            threadBooks: threadBooks
           }
         };
       });

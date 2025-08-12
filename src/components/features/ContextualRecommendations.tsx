@@ -15,6 +15,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useFeatureFlags } from '../../services/featureFlag.service';
+import { useBatchSavedBooks } from '../../hooks/useBatchSavedBooks';
 import { MLService, ContextVector } from '../../services/ml.service';
 import { EnhancedMLService, EnhancedMLRecommendation } from '../../services/enhancedMLService.service';
 import { useRewardTracking } from '../../services/rewardSignal.service';
@@ -70,13 +71,14 @@ const GOAL_OPTIONS = [
 export const ContextualRecommendations: React.FC<ContextualRecommendationsProps> = ({
   availableBooks = [],
   maxRecommendations = 6,
-  showContextPanel = true,
+  showContextPanel = false, // Moved to Profile > Preferences
   className = ''
 }) => {
   const { theme } = useTheme();
   const { user } = useAuth();
   const { flags, isEnabled } = useFeatureFlags();
   const { recordImpression } = useRewardTracking();
+  const { checkBooks, isBookSaved, savedStatuses } = useBatchSavedBooks();
   
   // State management
   const [books, setBooks] = useState<Book[]>(availableBooks);
@@ -153,23 +155,33 @@ export const ContextualRecommendations: React.FC<ContextualRecommendationsProps>
     initializeSession();
   }, [user?.id]);
 
-  // Load books if not provided
+  // Load books if not provided and check their saved status
   useEffect(() => {
     const loadBooks = async () => {
       if (availableBooks.length === 0) {
         try {
           const allBooks = await api.books.getAll();
           setBooks(allBooks.slice(0, 100)); // Limit for performance
+          
+          // Pre-check saved status for loaded books
+          if (user?.id && allBooks.length > 0) {
+            const bookIds = allBooks.slice(0, 100).map(book => book.id).filter(Boolean);
+            await checkBooks(bookIds);
+          }
         } catch (error) {
           console.error('Error loading books for recommendations:', error);
         }
+      } else if (user?.id && availableBooks.length > 0) {
+        // Check saved status for provided books
+        const bookIds = availableBooks.map(book => book.id).filter(Boolean);
+        await checkBooks(bookIds);
       }
     };
 
     if (flags.contextual_recommendations_v1) {
       loadBooks();
     }
-  }, [availableBooks.length, flags.contextual_recommendations_v1]); // Use flag value, not function
+  }, [availableBooks.length, flags.contextual_recommendations_v1, user?.id, checkBooks]);
 
   // Generate recommendations when context or books change
   useEffect(() => {
@@ -389,13 +401,7 @@ export const ContextualRecommendations: React.FC<ContextualRecommendationsProps>
     }
   };
 
-  const getContextSummary = () => {
-    const parts = [];
-    if (userContext.mood) parts.push(MOOD_OPTIONS.find(m => m.id === userContext.mood)?.label);
-    if (userContext.situation) parts.push(SITUATION_OPTIONS.find(s => s.id === userContext.situation)?.label);
-    if (userContext.goal) parts.push(GOAL_OPTIONS.find(g => g.id === userContext.goal)?.label);
-    return parts.join(' • ') || 'General recommendations';
-  };
+  // Context summary removed for cleaner UX - users see results, not explanation
 
   return (
     <div className={`contextual-recommendations ${className}`}>
@@ -407,13 +413,8 @@ export const ContextualRecommendations: React.FC<ContextualRecommendationsProps>
             <h2 className={`text-xl font-semibold ${
               theme === 'dark' ? 'text-white' : 'text-gray-900'
             }`}>
-              For You Right Now
+              For You
             </h2>
-            <p className={`text-sm ${
-              theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-            }`}>
-              {getContextSummary()}
-            </p>
           </div>
         </div>
 
@@ -433,36 +434,12 @@ export const ContextualRecommendations: React.FC<ContextualRecommendationsProps>
             </button>
           )}
           
-          {/* Time indicator */}
-          <div className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs ${
-            theme === 'dark' ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-600'
-          }`}>
-            <ClockIcon className="h-3 w-3" />
-            <span>{userContext.timeOfDay}</span>
-          </div>
+          {/* Time indicator removed for cleaner UX */}
 
-          {/* Context panel toggle */}
-          {showContextAwarenessPanel && (
-            <button
-              onClick={() => setContextPanelOpen(!contextPanelOpen)}
-              className={`flex items-center space-x-1 px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                theme === 'dark'
-                  ? 'bg-gray-800 hover:bg-gray-700 text-gray-300'
-                  : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
-              }`}
-            >
-              <AdjustmentsHorizontalIcon className="h-4 w-4" />
-              <span>Context</span>
-              {contextPanelOpen ? (
-                <ChevronUpIcon className="h-3 w-3" />
-              ) : (
-                <ChevronDownIcon className="h-3 w-3" />
-              )}
-            </button>
-          )}
+          {/* Context management moved to Profile > Preferences */}
 
-          {/* Explanations toggle */}
-          {showRecommendationExplanations && recommendations.length > 0 && (
+          {/* Explanations toggle - Admin only */}
+          {showRecommendationExplanations && recommendations.length > 0 && user?.email === 'abdullahsaghirahmad@gmail.com' && (
             <button
               onClick={() => setShowExplanations(!showExplanations)}
               className={`flex items-center space-x-1 px-3 py-1.5 rounded-lg text-sm transition-colors ${
@@ -480,168 +457,12 @@ export const ContextualRecommendations: React.FC<ContextualRecommendationsProps>
         </div>
       </div>
 
-      {/* Context Awareness Panel */}
-      <AnimatePresence>
-        {contextPanelOpen && showContextAwarenessPanel && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className={`mb-6 p-4 rounded-xl border ${
-              theme === 'dark'
-                ? 'bg-gray-800 border-gray-700'
-                : 'bg-gray-50 border-gray-200'
-            }`}
-          >
-            {/* Panel Header with Smart Defaults */}
-            <div className="flex items-center justify-between mb-4">
-              <h3 className={`text-sm font-semibold ${
-                theme === 'dark' ? 'text-gray-200' : 'text-gray-700'
-              }`}>
-                Set Your Reading Context
-              </h3>
-              
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => {
-                    const newContext = {
-                      mood: '',
-                      situation: '',
-                      goal: '',
-                      timeOfDay: ContextEncoderService.getCurrentTimeOfDay() as 'morning' | 'afternoon' | 'evening' | 'night'
-                    };
-                    setUserContext(newContext);
-                    ContextEncoderService.saveContext(newContext, user?.id);
-                  }}
-                  className={`px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${
-                    theme === 'dark'
-                      ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-                      : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
-                  }`}
-                >
-                  Clear All
-                </button>
-                
-                <button
-                  onClick={() => {
-                    const smartDefaults = ContextEncoderService.getSmartTimeDefaults();
-                    const newContext = {
-                      mood: smartDefaults.mood,
-                      situation: smartDefaults.situation,
-                      goal: smartDefaults.goal,
-                      timeOfDay: ContextEncoderService.getCurrentTimeOfDay() as 'morning' | 'afternoon' | 'evening' | 'night'
-                    };
-                    setUserContext(newContext);
-                    ContextEncoderService.saveContext(newContext, user?.id);
-                  }}
-                  className={`px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${
-                    theme === 'dark'
-                      ? 'bg-purple-900 hover:bg-purple-800 text-purple-300'
-                      : 'bg-purple-100 hover:bg-purple-200 text-purple-700'
-                  }`}
-                >
-                  ⚡ Smart Defaults
-                </button>
-              </div>
-            </div>
+      {/* Context panel moved to Profile > Reading Preferences */}
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Mood Selection */}
-              <div>
-                <h4 className={`text-sm font-medium mb-2 ${
-                  theme === 'dark' ? 'text-gray-200' : 'text-gray-700'
-                }`}>
-                  How are you feeling?
-                </h4>
-                <div className="grid grid-cols-2 gap-2">
-                  {MOOD_OPTIONS.map((mood) => (
-                    <button
-                      key={mood.id}
-                      onClick={() => handleContextChange('mood', mood.id)}
-                      className={`p-2 rounded-lg text-xs transition-all ${
-                        userContext.mood === mood.id
-                          ? 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 ring-2 ring-purple-500'
-                          : theme === 'dark'
-                          ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-                          : 'bg-white hover:bg-gray-100 text-gray-600 border border-gray-200'
-                      }`}
-                      title={mood.description}
-                    >
-                      <div className="flex items-center space-x-1">
-                        <span>{mood.icon}</span>
-                        <span>{mood.label}</span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Situation Selection */}
-              <div>
-                <h4 className={`text-sm font-medium mb-2 ${
-                  theme === 'dark' ? 'text-gray-200' : 'text-gray-700'
-                }`}>
-                  What's your situation?
-                </h4>
-                <div className="grid grid-cols-2 gap-2">
-                  {SITUATION_OPTIONS.map((situation) => (
-                    <button
-                      key={situation.id}
-                      onClick={() => handleContextChange('situation', situation.id)}
-                      className={`p-2 rounded-lg text-xs transition-all ${
-                        userContext.situation === situation.id
-                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 ring-2 ring-blue-500'
-                          : theme === 'dark'
-                          ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-                          : 'bg-white hover:bg-gray-100 text-gray-600 border border-gray-200'
-                      }`}
-                    >
-                      <div className="flex items-center space-x-1">
-                        <span>{situation.icon}</span>
-                        <span>{situation.label}</span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Goal Selection */}
-              <div>
-                <h4 className={`text-sm font-medium mb-2 ${
-                  theme === 'dark' ? 'text-gray-200' : 'text-gray-700'
-                }`}>
-                  What's your goal?
-                </h4>
-                <div className="grid grid-cols-2 gap-2">
-                  {GOAL_OPTIONS.map((goal) => (
-                    <button
-                      key={goal.id}
-                      onClick={() => handleContextChange('goal', goal.id)}
-                      className={`p-2 rounded-lg text-xs transition-all ${
-                        userContext.goal === goal.id
-                          ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 ring-2 ring-green-500'
-                          : theme === 'dark'
-                          ? 'bg-gray-700 hover:bg-gray-600 text-gray-300'
-                          : 'bg-white hover:bg-gray-100 text-gray-600 border border-gray-200'
-                      }`}
-                    >
-                      <div className="flex items-center space-x-1">
-                        <span>{goal.icon}</span>
-                        <span>{goal.label}</span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Recommendations Grid */}
+      {/* Recommendations Grid - Responsive: Mobile (1 col) → Tablet+ (2x2 grid) */}
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {[...Array(6)].map((_, index) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          {[...Array(4)].map((_, index) => (
             <div
               key={index}
               className={`animate-pulse rounded-xl h-96 ${
@@ -651,16 +472,23 @@ export const ContextualRecommendations: React.FC<ContextualRecommendationsProps>
           ))}
         </div>
       ) : recommendations.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {recommendations.map((rec, index) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          {recommendations.slice(0, 4).map((rec, index) => (
             <div key={rec.book.id} className="relative">
               <BookCard
                 {...rec.book}
-                onInteraction={(type) => {
+                isSaved={isBookSaved(rec.book.id)}
+                onInteraction={async (type) => {
                   // Track interaction for contextual prompts
                   trackBookInteraction(type, rec.book.id);
                   // Record bandit learning
                   recordBanditLearning(type, rec.book.id);
+                  
+                  // Update save state immediately after save/unsave actions
+                  if (type === 'save' || type === 'unsave') {
+                    // Force refresh saved status for this book to bypass cache
+                    await checkBooks([rec.book.id], true);
+                  }
                 }}
               />
               
@@ -697,25 +525,34 @@ export const ContextualRecommendations: React.FC<ContextualRecommendationsProps>
           ))}
         </div>
       ) : (
-        // Fallback: Show basic books when no recommendations available (preserves interaction tracking)
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {books.slice(0, 6).map((book) => (
+        // Fallback: Show random books when no recommendations available (preserves interaction tracking)
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          {books
+            .sort(() => Math.random() - 0.5) // Randomize the order
+            .slice(0, 4).map((book) => (
             <BookCard
               key={book.id}
               {...book}
-              onInteraction={(type) => {
+              isSaved={isBookSaved(book.id)}
+              onInteraction={async (type) => {
                 // Track interaction for contextual prompts
                 trackBookInteraction(type, book.id);
                 // Record bandit learning
                 recordBanditLearning(type, book.id);
+                
+                // Update save state immediately after save/unsave actions
+                if (type === 'save' || type === 'unsave') {
+                  // Force refresh saved status for this book to bypass cache
+                  await checkBooks([book.id], true);
+                }
               }}
             />
           ))}
         </div>
       )}
 
-      {/* Debug Info (development only) */}
-      {process.env.NODE_ENV === 'development' && (
+      {/* Debug Info (development only) - Hidden in production */}
+      {(process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost') && false && (
         <div className="mt-8 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
           <h4 className="text-sm font-medium mb-2">Debug Info (Dev Only)</h4>
           <div className="text-xs space-y-1">

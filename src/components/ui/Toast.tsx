@@ -5,12 +5,19 @@ import { useTheme } from '../../contexts/ThemeContext';
 
 export type ToastType = 'success' | 'error' | 'info';
 
+interface ToastAction {
+  label: string;
+  onClick: () => void;
+  variant?: 'primary' | 'secondary';
+}
+
 interface ToastProps {
   isOpen: boolean;
   onClose: () => void;
   message: string;
   type?: ToastType;
   duration?: number;
+  actions?: ToastAction[];
 }
 
 export const Toast: React.FC<ToastProps> = ({
@@ -19,6 +26,7 @@ export const Toast: React.FC<ToastProps> = ({
   message,
   type = 'success',
   duration = 3000,
+  actions = [],
 }) => {
   const { theme } = useTheme();
 
@@ -65,7 +73,7 @@ export const Toast: React.FC<ToastProps> = ({
           )}
         </div>
 
-        {/* Message */}
+        {/* Message and Actions */}
         <div className="flex-1">
           <p className={`text-sm font-medium ${
             theme === 'light'
@@ -76,6 +84,36 @@ export const Toast: React.FC<ToastProps> = ({
           }`}>
             {message}
           </p>
+          
+          {/* Action Buttons */}
+          {actions.length > 0 && (
+            <div className="flex gap-2 mt-2">
+              {actions.map((action, index) => (
+                <button
+                  key={index}
+                  onClick={() => {
+                    action.onClick();
+                    onClose();
+                  }}
+                  className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                    action.variant === 'primary'
+                      ? theme === 'light'
+                        ? 'bg-blue-500 text-white hover:bg-blue-600'
+                        : theme === 'dark'
+                        ? 'bg-blue-600 text-white hover:bg-blue-700'
+                        : 'bg-purple-500 text-white hover:bg-purple-600'
+                      : theme === 'light'
+                      ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      : theme === 'dark'
+                      ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                      : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+                  }`}
+                >
+                  {action.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Close Button */}

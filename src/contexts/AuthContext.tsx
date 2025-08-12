@@ -9,6 +9,7 @@ interface User {
     full_name?: string;
     name?: string;
     avatar_url?: string;
+    bio?: string;
     favoriteGenres?: string[];
     preferredPace?: string;
     favoriteThemes?: string[];

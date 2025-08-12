@@ -1,6 +1,6 @@
 import { Book, Thread, User } from '../types';
 
-const API_BASE_URL = 'http://localhost:3001/api';
+const API_BASE_URL = '/api';
 
 // API functions
 export const api = {
@@ -60,7 +60,7 @@ export const api = {
           limit: limit.toString()
         });
         
-        const response = await fetch(`http://localhost:3001/api/books/search?${searchParams}`);
+        const response = await fetch(`/api/books/search?${searchParams}`);
         if (!response.ok) {
           throw new Error(`Backend search failed: ${response.statusText}`);
         }

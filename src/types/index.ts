@@ -19,6 +19,7 @@ export interface Book {
   pageCount?: number;
   categories?: string[];
   quote?: string;
+  mostQuoted?: string;
 }
 
 export interface Thread {

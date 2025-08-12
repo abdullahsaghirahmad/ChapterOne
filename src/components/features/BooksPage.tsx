@@ -8,6 +8,8 @@ import api from '../../services/api.supabase';
 import { useTheme } from '../../contexts/ThemeContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePersonalization, useSearchTracking } from '../../hooks/usePersonalization';
+import { useBatchSavedBooks } from '../../hooks/useBatchSavedBooks';
+import { useAuth } from '../../contexts/AuthContext';
 
 // Interface for Pace objects that might be returned from API
 interface PaceObject {
@@ -376,6 +378,7 @@ const featuredBooks: Book[] = [
 
 export const BooksPage = () => {
   const { theme } = useTheme();
+  const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [books, setBooks] = useState<Book[]>([]);
@@ -397,6 +400,9 @@ export const BooksPage = () => {
   // Personalization hooks
   const { trackSearch, getRecommendations, isPersonalizationEnabled } = usePersonalization();
   const { startSearchTracking, endSearchTracking } = useSearchTracking();
+  
+  // Saved books tracking
+  const { checkBooks, isBookSaved } = useBatchSavedBooks();
 
   // Color definitions (from SearchBar)
   const colors = [
@@ -413,6 +419,16 @@ export const BooksPage = () => {
     { name: 'Passionate', value: '#ea580c', emotion: 'passionate' },
     { name: 'Sophisticated', value: '#4338ca', emotion: 'sophisticated' }
   ];
+  
+  // Check saved books whenever books change or user changes
+  useEffect(() => {
+    if (books.length > 0 && user) {
+      const bookIds = books.map(book => book.id).filter(id => id);
+      if (bookIds.length > 0) {
+        checkBooks(bookIds);
+      }
+    }
+  }, [books, user, checkBooks]);
 
   // Handle initial page load and external toggle
   useEffect(() => {
@@ -1101,6 +1117,14 @@ export const BooksPage = () => {
                     colorMatchPercentage={isColorSearchMode ? (book as any).colorMatchPercentage : undefined}
                     selectedColor={selectedColor}
                     selectedColors={selectedColors}
+                    isSaved={isBookSaved(book.id)}
+                    onInteraction={async (type) => {
+                      // Update save state immediately after save/unsave actions
+                      if (type === 'save' || type === 'unsave') {
+                        // Force refresh saved status for this book to bypass cache
+                        await checkBooks([book.id], true);
+                      }
+                    }}
                   />
                 ))}
               </motion.div>

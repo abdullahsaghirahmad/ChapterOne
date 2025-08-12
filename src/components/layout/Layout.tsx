@@ -8,6 +8,8 @@ import { UserProfileModal } from '../ui/UserProfileModal';
 import { OnboardingModal } from '../ui/OnboardingModal';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { auth } from '../../services/api.supabase';
+import { supabase } from '../../lib/supabase';
 import { useAuthModal } from '../../contexts/AuthModalContext';
 import { UserPreferencesService } from '../../services/userPreferences.service';
 import { useFeatureFlags } from '../../services/featureFlag.service';
@@ -113,10 +115,65 @@ export const Layout = ({ children }: LayoutProps) => {
   };
 
   const handleProfileSave = async (updates: Partial<User>) => {
-    console.log('Profile updates:', updates);
-    // TODO: Call API to update user profile
-    // For now, just close the modal
-    return Promise.resolve();
+    try {
+      console.log('Profile updates:', updates);
+      
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        throw new Error('Not authenticated');
+      }
+
+      // Update Supabase Auth metadata
+      const authUpdates = {
+        username: updates.username,
+        bio: updates.bio,
+        avatar_url: updates.avatarUrl, // Add avatar URL with underscore to match retrieval
+        full_name: updates.displayName,
+        name: updates.displayName,
+        favoriteGenres: updates.readingPreferences?.favoriteGenres,
+        preferredPace: updates.readingPreferences?.preferredPace,
+        favoriteThemes: updates.readingPreferences?.favoriteThemes
+      };
+
+      const { data: authData, error: authError } = await supabase.auth.updateUser({
+        data: authUpdates
+      });
+
+      if (authError) {
+        throw new Error(`Failed to update auth profile: ${authError.message}`);
+      }
+
+      // Try to update custom user table if it exists (graceful degradation)
+      try {
+        const { error: tableError } = await supabase
+          .from('user')
+          .update({
+            username: updates.username,
+            favoriteGenres: updates.readingPreferences?.favoriteGenres || [],
+            preferredPace: updates.readingPreferences?.preferredPace || 'Moderate',
+            favoriteThemes: updates.readingPreferences?.favoriteThemes || [],
+            updatedAt: new Date().toISOString()
+          })
+          .eq('id', user.id);
+
+        if (tableError) {
+          console.warn('User table update failed:', tableError.message);
+        } else {
+          console.log('User table updated successfully');
+        }
+      } catch (tableUpdateError) {
+        // Ignore table update errors - auth metadata is the primary source
+        console.warn('User table update failed (graceful degradation):', tableUpdateError);
+      }
+
+      console.log('Profile updated successfully via direct Supabase');
+      
+      // Don't return anything to match Promise<void> type
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      throw error;
+    }
   };
 
   // Check if user needs onboarding when they log in
@@ -242,7 +299,7 @@ export const Layout = ({ children }: LayoutProps) => {
                 <div className="flex items-center space-x-1">
                   {/* Direct Profile Avatar */}
                   <button
-                    onClick={() => navigate(`/profile/${currentUser.username || currentUser.displayName}`)}
+                    onClick={() => navigate('/profile')}
                     className={`relative transition-all duration-200 hover:scale-105 rounded-full ${
                       theme === 'light'
                         ? 'hover:ring-2 hover:ring-primary-200'
@@ -511,7 +568,7 @@ export const Layout = ({ children }: LayoutProps) => {
                         <div className="py-2">
                           <button
                             onClick={() => {
-                              navigate(`/profile/${currentUser.username || currentUser.displayName}`);
+                              navigate('/profile');
                               setShowUserMenu(false);
                             }}
                             className={`w-full flex items-center px-4 py-3 text-sm font-medium transition-colors ${
@@ -524,40 +581,6 @@ export const Layout = ({ children }: LayoutProps) => {
                           >
                             <UserIcon className="w-5 h-5 mr-3" />
                             View Profile
-                          </button>
-                          
-                          <button
-                            onClick={() => {
-                              navigate('/profile');
-                              setShowUserMenu(false);
-                            }}
-                            className={`w-full flex items-center px-4 py-3 text-sm font-medium transition-colors ${
-                              theme === 'light'
-                                ? 'text-gray-900 hover:bg-gray-50'
-                                : theme === 'dark'
-                                ? 'text-white hover:bg-gray-700'
-                                : 'text-purple-900 hover:bg-purple-50'
-                            }`}
-                          >
-                            <BookOpenIcon className="w-5 h-5 mr-3" />
-                            Following
-                          </button>
-                          
-                          <button
-                            onClick={() => {
-                              setShowProfileModal(true);
-                              setShowUserMenu(false);
-                            }}
-                            className={`w-full flex items-center px-4 py-3 text-sm font-medium transition-colors ${
-                              theme === 'light'
-                                ? 'text-gray-900 hover:bg-gray-50'
-                                : theme === 'dark'
-                                ? 'text-white hover:bg-gray-700'
-                                : 'text-purple-900 hover:bg-purple-50'
-                            }`}
-                          >
-                            <Cog6ToothIcon className="w-5 h-5 mr-3" />
-                            Edit Profile
                           </button>
 
                           {/* Apple-Style Theme Switcher */}

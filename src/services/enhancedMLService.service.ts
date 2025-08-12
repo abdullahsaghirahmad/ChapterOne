@@ -97,8 +97,8 @@ export class EnhancedMLService {
         .filter(rec => candidateBookIds.has(rec.book.id))
         .slice(0, limit);
 
-      // Convert to enhanced ML recommendations
-      const enhancedRecommendations: EnhancedMLRecommendation[] = filteredRecommendations.map(rec => {
+      // Convert filtered JS recommendations to enhanced format first
+      const enhancedFiltered: EnhancedMLRecommendation[] = filteredRecommendations.map(rec => {
         const processingTime = Date.now() - startTime;
         const confidenceScore = this.mapConfidenceToScore(rec.confidence);
         
@@ -106,28 +106,41 @@ export class EnhancedMLService {
           book: rec.book,
           score: rec.contextMatch,
           sources: {
-            semantic: rec.contextMatch,
-            contextual: confidenceScore,
-            collaborative: 0.1 // Minimal collaborative weight for pure semantic
+            semantic: rec.contextMatch * 0.8,
+            contextual: rec.contextMatch * 0.15,
+            collaborative: rec.contextMatch * 0.05
           },
           explanation: [
-            `${Math.round(rec.contextMatch * 100)}% context match`,
-            rec.reason,
-            'Found using JavaScript semantic similarity'
+            `Matched your context with ${(rec.contextMatch * 100).toFixed(0)}% confidence`,
+            rec.reason || 'Semantic similarity match',
+            'Found using JavaScript semantic analysis'
           ],
           confidence: confidenceScore,
           semanticMatch: {
             similarity: rec.contextMatch,
-            contextFactors: [rec.reason],
+            contextFactors: (rec.book.themes?.slice(0, 3) || []).map(theme => 
+              typeof theme === 'string' ? theme : theme.value || 'Unknown'
+            ),
             confidence: confidenceScore
           },
-          recommendationSource: 'semantic_embeddings',
+          recommendationSource: 'semantic_embeddings' as const,
           processingTime
         };
       });
 
-      console.log(`${this.LOG_PREFIX} Generated ${enhancedRecommendations.length} semantic-based recommendations`);
-      return enhancedRecommendations;
+      // If we don't have enough filtered recommendations, supplement with traditional approach
+      if (enhancedFiltered.length < limit && candidateBooks.length > 0) {
+        console.log(`${this.LOG_PREFIX} Only ${enhancedFiltered.length} JS semantic matches found, supplementing with traditional ML`);
+        const traditionalRecs = await this.getTraditionalRecommendations(contextVector, candidateBooks, userId, limit - enhancedFiltered.length, startTime);
+        
+        // Filter out any duplicates and combine
+        const existingBookIds = new Set(enhancedFiltered.map(r => r.book.id));
+        const supplementalRecs = traditionalRecs.filter(r => !existingBookIds.has(r.book.id));
+        
+        return [...enhancedFiltered, ...supplementalRecs].slice(0, limit);
+      }
+
+      return enhancedFiltered;
 
     } catch (error) {
       console.error(`${this.LOG_PREFIX} Error in semantic recommendations:`, error);

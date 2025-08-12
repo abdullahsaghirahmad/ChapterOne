@@ -11,7 +11,7 @@ interface UseBatchSavedBooksReturn {
   savedStatuses: Record<string, boolean>;
   loading: boolean;
   error: string | null;
-  checkBooks: (bookIds: string[]) => Promise<void>;
+  checkBooks: (bookIds: string[], forceRefresh?: boolean) => Promise<void>;
   isBookSaved: (bookId: string) => boolean;
 }
 
@@ -24,15 +24,17 @@ export const useBatchSavedBooks = (): UseBatchSavedBooksReturn => {
   /**
    * Batch check saved status for multiple books
    */
-  const checkBooks = useCallback(async (bookIds: string[]): Promise<void> => {
+  const checkBooks = useCallback(async (bookIds: string[], forceRefresh: boolean = false): Promise<void> => {
     if (!user?.id || bookIds.length === 0) {
       return;
     }
 
-    // Filter out books we already know about
-    const unknownBookIds = bookIds.filter(id => !(id in savedStatuses));
+    // Filter out books we already know about (unless forcing refresh)
+    const booksToCheck = forceRefresh 
+      ? bookIds 
+      : bookIds.filter(id => !(id in savedStatuses));
     
-    if (unknownBookIds.length === 0) {
+    if (booksToCheck.length === 0) {
       return; // All books already checked
     }
 
@@ -40,14 +42,14 @@ export const useBatchSavedBooks = (): UseBatchSavedBooksReturn => {
       setLoading(true);
       setError(null);
       
-      const statuses = await SavedBooksService.areBooksSaved(unknownBookIds);
+      const statuses = await SavedBooksService.areBooksSaved(booksToCheck);
       
       setSavedStatuses(prev => ({
         ...prev,
         ...statuses
       }));
       
-      console.log('[BATCH_SAVED_BOOKS] Checked', unknownBookIds.length, 'books');
+      console.log('[BATCH_SAVED_BOOKS] Checked', booksToCheck.length, 'books', forceRefresh ? '(forced refresh)' : '');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to check saved books');
       console.error('[BATCH_SAVED_BOOKS] Error:', err);

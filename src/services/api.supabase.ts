@@ -75,7 +75,7 @@ export const auth = {
   }
 };
 
-// Book functions
+// Book functions  
 export const books = {
   async getAll(filters?: {
     categories?: string[];
@@ -161,7 +161,7 @@ export const books = {
           limit: '100'
         });
         
-        const response = await fetch(`http://localhost:3001/api/books/search?${searchParams}`);
+        const response = await fetch(`/api/books/search?${searchParams}`);
         if (!response.ok) {
           throw new Error(`Backend search failed: ${response.statusText}`);
         }
@@ -509,7 +509,7 @@ export const threads = {
   // Batch processor monitoring
   async getBatchStats() {
     try {
-      const response = await fetch('http://localhost:3001/api/books/batch-stats');
+      const response = await fetch('/api/books/batch-stats');
       if (!response.ok) {
         throw new Error(`Failed to get batch stats: ${response.statusText}`);
       }

@@ -11,7 +11,8 @@ import {
 } from '@heroicons/react/24/outline';
 import { usePersonalization } from '../../hooks/usePersonalization';
 import { useTheme } from '../../contexts/ThemeContext';
-import { Book } from '../../types';
+import { Book, Pace } from '../../types';
+import { useBatchSavedBooks } from '../../hooks/useBatchSavedBooks';
 import { BookCard } from './BookCard';
 import { booksCacheService } from '../../services/booksCache.service';
 
@@ -29,6 +30,7 @@ const PersonalizedRecommendations: React.FC<PersonalizedRecommendationsProps> = 
   className = ''
 }) => {
   const { theme } = useTheme();
+  const { checkBooks, isBookSaved } = useBatchSavedBooks();
   const {
     getRecommendations,
     recommendations,
@@ -43,23 +45,33 @@ const PersonalizedRecommendations: React.FC<PersonalizedRecommendationsProps> = 
   const [showAllRecommendations, setShowAllRecommendations] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
-  // Load books if not provided - using cache for performance
+  // Load books if not provided - using cache for performance and check saved status
   useEffect(() => {
     const loadBooks = async () => {
       if (availableBooks.length === 0) {
         try {
           const allBooks = await booksCacheService.getHomepageBooks(); // Use optimized query
           setBooks(allBooks); // Optimized: 15 high-quality candidates for ML processing
+          
+          // Pre-check saved status for loaded books
+          if (allBooks.length > 0) {
+            const bookIds = allBooks.map(book => book.id).filter(Boolean);
+            await checkBooks(bookIds);
+          }
         } catch (error) {
           console.error('Error loading books for recommendations:', error);
         }
+      } else if (availableBooks.length > 0) {
+        // Check saved status for provided books
+        const bookIds = availableBooks.map(book => book.id).filter(Boolean);
+        await checkBooks(bookIds);
       }
     };
 
     if (isPersonalizationEnabled) {
       loadBooks();
     }
-  }, [availableBooks, isPersonalizationEnabled]);
+  }, [availableBooks, isPersonalizationEnabled, checkBooks]);
 
   // Generate recommendations when books are available
   useEffect(() => {
@@ -269,13 +281,16 @@ const PersonalizedRecommendations: React.FC<PersonalizedRecommendationsProps> = 
               </div>
 
               <BookCard
-                title={recommendation.book.title}
-                author={recommendation.book.author}
-                coverImage={recommendation.book.coverImage}
-                description={recommendation.book.description}
-                pace={recommendation.book.pace}
-                themes={recommendation.book.themes}
-                isExternal={recommendation.book.isExternal}
+                {...recommendation.book}
+                pace={recommendation.book.pace as Pace}
+                isSaved={isBookSaved(recommendation.book.id)}
+                onInteraction={async (type) => {
+                  // Update save state immediately after save/unsave actions
+                  if (type === 'save' || type === 'unsave') {
+                    // Force refresh saved status for this book to bypass cache
+                    await checkBooks([recommendation.book.id], true);
+                  }
+                }}
               />
 
               {/* Recommendation Reasons */}

@@ -4,7 +4,9 @@ import { debounce } from 'lodash';
 import api from '../../services/api.supabase';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
+import { usePersonalization } from '../../hooks/usePersonalization';
 
 // Animated Beaker Component for Color Search
 const AnimatedBeaker = ({ className }: { className?: string }) => {
@@ -97,6 +99,8 @@ interface FilterCategory {
 
 export const SearchBar = ({ onSearch, onMoodSelect, onColorSearch }: SearchBarProps) => {
   const { theme } = useTheme();
+  const { user } = useAuth();
+  const { trackSearch } = usePersonalization();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -364,7 +368,22 @@ export const SearchBar = ({ onSearch, onMoodSelect, onColorSearch }: SearchBarPr
   };
 
   // Remove filter pill functionality - use instant search instead
-  const handleFilterClick = (filter: string, type: string = 'all') => {
+  const handleFilterClick = async (filter: string, type: string = 'all') => {
+    // Track search helper usage for analytics
+    try {
+      const startTime = Date.now();
+      await trackSearch(
+        filter,
+        `search_helper_${type}`, // e.g., "search_helper_mood", "search_helper_theme"
+        0, // Results count will be tracked by search results
+        Date.now() - startTime
+      );
+      
+      console.log(`[SEARCH_ANALYTICS] Helper used: ${type} -> "${filter}"`);
+    } catch (error) {
+      console.warn('[SEARCH_ANALYTICS] Failed to track helper usage:', error);
+    }
+    
     // Apple-style: Immediate search response
     onSearch(filter, type);
     setShowFiltersSidebar(false); // Close sidebar after selection
@@ -388,7 +407,21 @@ export const SearchBar = ({ onSearch, onMoodSelect, onColorSearch }: SearchBarPr
     );
   };
 
-  const toggleFiltersSidebar = () => {
+  const toggleFiltersSidebar = async () => {
+    // Track inspiration panel usage
+    try {
+      await trackSearch(
+        showFiltersSidebar ? 'close_inspiration_panel' : 'open_inspiration_panel',
+        'inspiration_panel_toggle',
+        0,
+        0
+      );
+      
+      console.log(`[SEARCH_ANALYTICS] Inspiration panel ${showFiltersSidebar ? 'closed' : 'opened'}`);
+    } catch (error) {
+      console.warn('[SEARCH_ANALYTICS] Failed to track panel toggle:', error);
+    }
+    
     // Apple-style button press feedback
     setButtonPressed(true);
     
@@ -500,7 +533,7 @@ export const SearchBar = ({ onSearch, onMoodSelect, onColorSearch }: SearchBarPr
                   ? 'text-gray-400 group-hover:text-gray-300'
                   : 'text-purple-500 group-hover:text-purple-700'
               }`}>
-                Advanced
+                Inspiration
               </span>
             </motion.button>
           </div>
@@ -604,7 +637,7 @@ export const SearchBar = ({ onSearch, onMoodSelect, onColorSearch }: SearchBarPr
                   ? 'text-white'
                   : 'text-purple-900'
               }`}>
-                Advanced Filters
+                Search Inspiration
               </h3>
               <button
                 onClick={toggleFiltersSidebar}
@@ -645,7 +678,7 @@ export const SearchBar = ({ onSearch, onMoodSelect, onColorSearch }: SearchBarPr
                   {moods.map((mood) => (
                                           <button
                         key={mood}
-                        onClick={() => handleFilterClick(mood)}
+                        onClick={() => handleFilterClick(mood, 'mood')}
                         className={`text-left text-sm py-2 pr-2 pl-0 rounded-lg transition-all duration-200 ${
                           theme === 'light'
                             ? 'text-primary-700 hover:bg-primary-50'
@@ -684,7 +717,7 @@ export const SearchBar = ({ onSearch, onMoodSelect, onColorSearch }: SearchBarPr
                   {themes.map((themeItem) => (
                     <button
                       key={themeItem}
-                      onClick={() => handleFilterClick(themeItem)}
+                      onClick={() => handleFilterClick(themeItem, 'theme')}
                       className={`text-left text-sm py-2 pr-2 pl-0 rounded-lg transition-all duration-200 ${
                         theme === 'light'
                           ? 'text-primary-700 hover:bg-primary-50'
@@ -723,7 +756,7 @@ export const SearchBar = ({ onSearch, onMoodSelect, onColorSearch }: SearchBarPr
                   {readingStyles.map((style) => (
                     <button
                       key={style}
-                      onClick={() => handleFilterClick(style)}
+                      onClick={() => handleFilterClick(style, 'reading_style')}
                       className={`text-left text-sm py-2 pr-2 pl-0 rounded-lg transition-all duration-200 ${
                         theme === 'light'
                           ? 'text-primary-700 hover:bg-primary-50'
@@ -762,7 +795,7 @@ export const SearchBar = ({ onSearch, onMoodSelect, onColorSearch }: SearchBarPr
                   {professions.map((profession) => (
                     <button
                       key={profession.id}
-                      onClick={() => handleFilterClick(profession.label)}
+                      onClick={() => handleFilterClick(profession.label, 'profession')}
                       className={`text-left text-sm py-2 pr-2 pl-0 rounded-lg transition-all duration-200 ${
                         theme === 'light'
                           ? 'text-primary-700 hover:bg-primary-50'

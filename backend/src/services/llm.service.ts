@@ -847,4 +847,62 @@ Return only the quote text, no additional formatting.`;
     // Instead of cycling through generic quotes, show a loading state
     return `"Discovering the perfect quote from ${title}..." - AI content loading`;
   }
+
+  /**
+   * Generate personalized bio based on user's reading profile
+   */
+  async generateBio(prompt: string): Promise<string> {
+    console.log(`${this.LOG_PREFIX} Generating personalized bio`);
+
+    if (!this.config.enabled || !this.config.apiKey) {
+      console.log(`${this.LOG_PREFIX} LLM disabled, using fallback bio generation`);
+      return this.generateFallbackBio();
+    }
+
+    try {
+      console.log(`${this.LOG_PREFIX} Bio prompt: ${prompt.substring(0, 200)}...`);
+      
+      const response = await this.callDevsAI(prompt);
+      console.log(`${this.LOG_PREFIX} Raw bio response: ${response.substring(0, 200)}...`);
+      
+      // Check if response looks like JSON (which means it's from query analysis fallback)
+      // This should never be a bio - bios don't start with { or [
+      if (response.trim().startsWith('{') || response.trim().startsWith('[')) {
+        console.warn(`${this.LOG_PREFIX} Received JSON instead of bio text, using fallback`);
+        return this.generateFallbackBio();
+      }
+      
+      // Clean and validate the bio
+      const cleanedBio = response
+        .replace(/^["']|["']$/g, '') // Remove surrounding quotes
+        .replace(/\n/g, ' ') // Replace newlines with spaces
+        .trim()
+        .slice(0, 160); // Enforce character limit
+      
+      if (cleanedBio.length > 10) { // Minimum viable bio length
+        console.log(`${this.LOG_PREFIX} Generated bio: "${cleanedBio}"`);
+        return cleanedBio;
+      } else {
+        console.warn(`${this.LOG_PREFIX} Bio too short, using fallback`);
+        return this.generateFallbackBio();
+      }
+    } catch (error) {
+      console.error(`${this.LOG_PREFIX} Error generating bio:`, error);
+      return this.generateFallbackBio();
+    }
+  }
+
+  /**
+   * Generate fallback bio when AI generation fails
+   */
+  private generateFallbackBio(): string {
+    const fallbacks = [
+      "Book enthusiast exploring great stories and life-changing reads! 📚",
+      "Passionate reader always discovering new worlds through books ✨",
+      "Bookworm with an insatiable appetite for compelling stories 📖",
+      "Reader, thinker, and seeker of wisdom through the written word 🌟"
+    ];
+    
+    return fallbacks[Math.floor(Math.random() * fallbacks.length)];
+  }
 } 

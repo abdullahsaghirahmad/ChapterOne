@@ -1,11 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.REACT_APP_SUPABASE_URL || 'https://your-project-id.supabase.co'
-const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY || 'your-anon-key-here'
-
-// Debug: Log the values being used
-console.log('Supabase URL:', supabaseUrl)
-console.log('Supabase Anon Key:', supabaseAnonKey ? supabaseAnonKey.substring(0, 20) + '...' : 'NOT SET')
+const supabaseUrl = 'https://lrnxluoicdtonxrbteit.supabase.co'
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxybnhsdW9pY2R0b254cmJ0ZWl0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE0Nzc1MTIsImV4cCI6MjA2NzA1MzUxMn0.yWiRPG5ABO2mXBtwgkZquLG0EnKmPDkj2UIVfRj8Yyk'
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 

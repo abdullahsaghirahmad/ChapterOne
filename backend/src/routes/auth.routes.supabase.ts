@@ -46,6 +46,51 @@ router.post('/signup', async (req, res) => {
 });
 
 /**
+ * POST /api/auth/check-username
+ * Check if username is available
+ */
+router.post('/check-username', async (req, res) => {
+  try {
+    const { username } = req.body;
+
+    if (!username) {
+      return res.status(400).json({ 
+        message: 'Username is required',
+        available: false
+      });
+    }
+
+    // Validate username format
+    if (!/^[a-zA-Z0-9_]+$/.test(username) || username.length < 3) {
+      return res.status(400).json({ 
+        message: 'Invalid username format',
+        available: false
+      });
+    }
+
+    const { user, error } = await authService.checkUsernameAvailability(username);
+
+    if (error) {
+      return res.status(500).json({ 
+        message: error,
+        available: false
+      });
+    }
+
+    res.json({ 
+      available: !user, // Available if no user found
+      message: user ? 'Username is already taken' : 'Username is available'
+    });
+  } catch (error) {
+    console.error('Error checking username:', error);
+    res.status(500).json({ 
+      message: 'Failed to check username availability',
+      available: false
+    });
+  }
+});
+
+/**
  * POST /api/auth/signin
  * Sign in an existing user
  */
@@ -151,13 +196,15 @@ router.put('/user', async (req, res) => {
       return res.status(401).json({ message: 'Invalid token' });
     }
 
-    const { username, favoriteGenres, preferredPace, favoriteThemes } = req.body;
+    const { username, favoriteGenres, preferredPace, favoriteThemes, bio, displayName } = req.body;
 
     const { user, error } = await authService.updateUserProfile(currentUser.id, {
       username,
       favoriteGenres,
       preferredPace,
-      favoriteThemes
+      favoriteThemes,
+      bio,
+      displayName
     });
 
     if (error) {

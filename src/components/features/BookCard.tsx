@@ -5,10 +5,10 @@ import {
   CloudIcon, 
   BoltIcon,
   FireIcon,
-  BookOpenIcon
+  RectangleStackIcon
 } from '@heroicons/react/24/outline';
 import { BookmarkIcon as BookmarkIconSolid } from '@heroicons/react/24/solid';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Pace, Book } from '../../types';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -92,7 +92,7 @@ const THEME_MAPPING: Record<string, string> = {
 };
 
 interface BookCardProps {
-  id?: string;
+  id: string; // REQUIRED - no more optional IDs!
   title: string;
   author: string;
   coverImage?: string;
@@ -120,7 +120,7 @@ interface BookCardProps {
   
   // Save state and interaction props
   isSaved?: boolean;
-  onInteraction?: (type: 'click' | 'save' | 'unsave' | 'dismiss') => void;
+  onInteraction?: (type: 'click' | 'save' | 'unsave' | 'dismiss') => void | Promise<void>;
 }
 
 // Helper function to safely get a value from an object or return the value itself
@@ -143,17 +143,13 @@ export const BookCard = ({
   isSaved = false,
   themes = [],
   description = 'No description available',
-  quote,
-  mostQuoted,
   tone = [],
   bestFor = [],
   isExternal = false,
   
   // Content source tracking
   description_source,
-  quote_source,
   description_quality_score,
-  quote_quality_score,
   ai_enhancement_needed,
   
   // Color search props
@@ -168,15 +164,23 @@ export const BookCard = ({
   const { user } = useAuth();
   const { showAuthModal } = useAuthModal();
   const { recordAction } = useRewardTracking();
-  const [isExpanded, setIsExpanded] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [showSaveSurvey, setShowSaveSurvey] = useState(false);
+  // Optimistic state for instant UI updates
+  const [optimisticSaved, setOptimisticSaved] = useState<boolean | null>(null);
+  // Computed save state: use optimistic state when available, fallback to prop
+  const currentSavedState = optimisticSaved !== null ? optimisticSaved : isSaved;
+  // const [showSaveSurvey, setShowSaveSurvey] = useState(false); // DISABLED for better UX
+
+  // Reset optimistic state when parent prop changes (important for state consistency)
+  useEffect(() => {
+    if (optimisticSaved !== null && optimisticSaved === isSaved) {
+      setOptimisticSaved(null); // Parent state caught up, clear optimistic override
+    }
+  }, [isSaved, optimisticSaved]);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const [toastActions, setToastActions] = useState<Array<{label: string, onClick: () => void, variant?: 'primary' | 'secondary'}>>([]);
   const [imgError, setImgError] = useState(false);
-  const [bookDescription, setBookDescription] = useState(description);
-  const [truncatedDescription, setTruncatedDescription] = useState('');
-  const [bookQuote, setBookQuote] = useState(quote || mostQuoted || '');
   const [sessionId] = useState(() => 
     user?.id ? undefined : `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
   );
@@ -185,7 +189,7 @@ export const BookCard = ({
 
   // Create a minimal book object for tracking
   const bookForTracking = {
-    id: `${title}-${author}`.replace(/\s+/g, '-').toLowerCase(),
+    id,
     title,
     author
   };
@@ -256,64 +260,9 @@ export const BookCard = ({
     setImgError(false);
   }, [coverImage]);
 
-  // Process stored content (no more AI generation on display)
-  useEffect(() => {
-    const initializeStoredContent = () => {
-      // Use stored description or show graceful fallback
-      let displayDescription = description;
-      
-      if (!description || description === 'No description available') {
-        // Show graceful fallback based on content source
-        if (ai_enhancement_needed) {
-          displayDescription = `"${title}" by ${author} - AI-enhanced description coming soon. Click to explore this book.`;
-        } else {
-          displayDescription = `"${title}" by ${author} - Click to discover more about this book.`;
-        }
-      }
-      
-      setBookDescription(displayDescription);
-      setTruncatedDescription(processDescription(displayDescription));
+  // Since description is now AI-trimmed to perfect length, no processing needed
 
-      // Use stored quote or show graceful fallback
-      let displayQuote = quote || mostQuoted;
-      
-      if (!displayQuote) {
-        if (ai_enhancement_needed) {
-          displayQuote = `"Discovering the perfect quote from ${title}..." - AI content loading`;
-        } else {
-          displayQuote = `"A journey awaits within ${title}..." - Explore to discover more`;
-        }
-      }
-      
-      setBookQuote(displayQuote);
-    };
 
-    initializeStoredContent();
-  }, [title, author, description, quote, mostQuoted, ai_enhancement_needed]);
-
-  // Process description to ensure it's max 2 lines
-  const processDescription = (desc: string): string => {
-    if (!desc || desc === 'No description available' || typeof desc !== 'string') {
-      return `A compelling story by ${author} exploring meaningful themes.`;
-    }
-
-    // Split into sentences and take first 2
-    const sentences = desc.split('. ');
-    if (sentences.length >= 2) {
-      let result = sentences[0] + '. ' + sentences[1];
-      if (!result.endsWith('.')) result += '.';
-      
-      // Ensure it's not too long (max 140 chars for 2 lines)
-      if (result.length > 140) {
-        result = result.substring(0, 137) + '...';
-      }
-      return result;
-    } else if (desc.length > 140) {
-      return desc.substring(0, 137) + '...';
-    }
-    
-    return desc;
-  };
 
   const getPaceIcon = () => {
     const paceValue = typeof pace === 'string' ? pace : pace.value;
@@ -374,24 +323,48 @@ export const BookCard = ({
   const handleSave = async (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent card navigation
     
+    // Prevent rapid clicks - exit early if already saving
+    if (isSaving) {
+      console.log('Save already in progress, ignoring click');
+      return;
+    }
+    
     if (!user) {
       // Trigger signup for anonymous users
       showAuthModal('signup');
       return;
     }
 
-    if (isSaved) {
+    if (currentSavedState) {
       // If already saved, unsave it
       await handleUnsave();
       return;
     }
 
+    // 🚀 OPTIMISTIC UPDATE: Set saved state immediately for instant UI feedback
+    setOptimisticSaved(true);
     setIsSaving(true);
 
+    // Show success toast immediately (optimistic) with Go to Library action
+    setToastMessage(`"${title}" saved to library!`);
+    setToastActions([{
+      label: 'Go to Library',
+      onClick: () => {
+        window.location.href = '/profile';
+      },
+      variant: 'primary'
+    }]);
+    setShowToast(true);
+
     try {
+      // Validate that we have a proper book ID
+      if (!id) {
+        throw new Error(`Book save failed: Missing book ID for "${title}" by ${author}`);
+      }
+
       // Create book object from props
       const book: Book = {
-        id: id || `${title}-${author}`.replace(/\s+/g, '-').toLowerCase(),
+        id,
         title,
         author,
         coverImage: coverImage || '',
@@ -409,36 +382,47 @@ export const BookCard = ({
         ),
       };
 
+      // 🎯 CRITICAL: Database save (must complete for data consistency)
       await SavedBooksService.saveBook({
         bookId: book.id,
         bookData: book,
       });
 
-      // Note: UI state now managed by parent via props
-      
-      // 🎯 Record save action for reward tracking
-      await recordAction(
-        book.id,
-        'save',
-        undefined, // No value for save action
-        user?.id,
-        sessionId
-      );
-      
-      // 🤖 Record bandit learning for save action
-      onInteraction?.('save');
-      
-      // Show success toast
-      setToastMessage(`"${title}" saved to library!`);
-      setShowToast(true);
-      
-      // Show post-save survey modal (with slight delay for better UX)
+      // 🤖 BACKGROUND: ML operations (truly non-blocking - fire and forget)
       setTimeout(() => {
-        setShowSaveSurvey(true);
-      }, 1000);
+        // Execute ML operations in background without affecting UI
+        Promise.all([
+          recordAction(
+            book.id,
+            'save',
+            undefined, // No value for save action
+            user?.id,
+            sessionId
+          ).catch(error => console.warn('Background reward tracking failed:', error)),
+          
+          onInteraction?.('save')?.catch?.(error => console.warn('Background bandit learning failed:', error))
+        ]).catch(error => console.warn('Background ML operations failed:', error));
+      }, 0); // Defer to next tick
+      
+      // Clear optimistic state - let parent state take over
+      setOptimisticSaved(null);
+      
+      // DISABLED: Post-save survey modal for better UX
+      // setTimeout(() => {
+      //   setShowSaveSurvey(true);
+      // }, 1000);
       
     } catch (error: any) {
       console.error('Error saving book:', error);
+      
+      // 🔄 ROLLBACK: Revert optimistic state on failure
+      setOptimisticSaved(false);
+      
+      // Show error toast
+      setToastMessage(`Failed to save "${title}". Please try again.`);
+      setToastActions([]); // Clear any actions for error messages
+      setShowToast(true);
+      
       if (error.message.includes('already saved')) {
         // Note: UI state now managed by parent via props
       }
@@ -449,31 +433,100 @@ export const BookCard = ({
 
   // Handle unsave action
   const handleUnsave = async () => {
-    if (!user || !id) return;
+    if (!user) return;
+    
+    // Prevent rapid clicks - exit early if already saving
+    if (isSaving) {
+      console.log('Unsave already in progress, ignoring click');
+      return;
+    }
 
+    // 🚀 OPTIMISTIC UPDATE: Set unsaved state immediately for instant UI feedback
+    setOptimisticSaved(false);
     setIsSaving(true);
 
+    // Show success toast immediately (optimistic) with Undo action
+    setToastMessage(`"${title}" removed from library`);
+    setToastActions([{
+      label: 'Undo',
+      onClick: async () => {
+        try {
+          // Re-save the book
+          const book = {
+            id,
+            title,
+            author,
+            coverImage: coverImage || '',
+            description: description || '',
+            pace,
+            tone: tone || [],
+            themes: (themes || []).map(theme => 
+              typeof theme === 'string' ? theme : (theme as any)?.value || String(theme)
+            ),
+            bestFor: bestFor || [],
+            isExternal: isExternal || false,
+            pageCount: 0,
+            categories: (themes || []).map(theme => 
+              typeof theme === 'string' ? theme : (theme as any)?.value || String(theme)
+            ),
+          };
+          
+          await SavedBooksService.saveBook({
+            bookId: book.id,
+            bookData: book,
+          });
+          
+          // Update optimistic state back to saved
+          setOptimisticSaved(true);
+          
+          // Show confirmation
+          setToastMessage(`"${title}" restored to library!`);
+          setToastActions([]);
+          setShowToast(true);
+          
+        } catch (error) {
+          console.error('Error undoing unsave:', error);
+          setToastMessage(`Failed to restore "${title}". Please try again.`);
+          setToastActions([]);
+          setShowToast(true);
+        }
+      },
+      variant: 'primary'
+    }]);
+    setShowToast(true);
+
     try {
+      // 🎯 CRITICAL: Database unsave (must complete for data consistency)
       await SavedBooksService.unsaveBook(id);
-      // Note: UI state now managed by parent via props
       
-      // 🎯 Record unsave action for reward tracking
-      await recordAction(
-        id,
-        'unsave',
-        undefined,
-        user?.id,
-        sessionId
-      );
+      // 🤖 BACKGROUND: ML operations (truly non-blocking - fire and forget)
+      setTimeout(() => {
+        // Execute ML operations in background without affecting UI
+        Promise.all([
+          recordAction(
+            id,
+            'unsave',
+            undefined,
+            user?.id,
+            sessionId
+          ).catch(error => console.warn('Background reward tracking failed:', error)),
+          
+          onInteraction?.('unsave')?.catch?.(error => console.warn('Background bandit learning failed:', error))
+        ]).catch(error => console.warn('Background ML operations failed:', error));
+      }, 0); // Defer to next tick
       
-      // 🤖 Record bandit learning for unsave action
-      onInteraction?.('unsave');
-      
-      // Show success toast
-      setToastMessage(`"${title}" removed from library`);
-      setShowToast(true);
+      // Clear optimistic state - let parent state take over
+      setOptimisticSaved(null);
     } catch (error: any) {
       console.error('Error unsaving book:', error);
+      
+      // 🔄 ROLLBACK: Revert optimistic state on failure
+      setOptimisticSaved(true);
+      
+      // Show error toast
+      setToastMessage(`Failed to remove "${title}". Please try again.`);
+      setToastActions([]); // Clear any actions for error messages
+      setShowToast(true);
     } finally {
       setIsSaving(false);
     }
@@ -481,27 +534,25 @@ export const BookCard = ({
 
   // Handle card click navigation to book detail page
   const handleCardClick = async () => {
-    onBookClick(); // Track click for analytics
+    onBookClick(); // Track click for analytics (instant)
     
-    // 🎯 Record click action for reward tracking
-    const bookId = id || `${title}-${author}`.replace(/\s+/g, '-').toLowerCase();
-    await recordAction(
-      bookId,
-      'click',
-      undefined,
-      user?.id,
-      sessionId
-    );
+    // 🚀 IMMEDIATE: Navigate first for instant UX
+    navigate(`/books/${id}`);
     
-    // 🤖 Record bandit learning for click action
-    onInteraction?.('click');
-    
-    // Navigate to book detail page if we have an ID
-    if (id) {
-      navigate(`/books/${id}`);
-    } else {
-      console.warn('Book ID not provided for navigation');
-    }
+    // 🤖 BACKGROUND: ML operations (non-blocking - fire and forget)
+    setTimeout(() => {
+      Promise.all([
+        recordAction(
+          id,
+          'click',
+          undefined,
+          user?.id,
+          sessionId
+        ).catch(error => console.warn('Background reward tracking failed:', error)),
+        
+        onInteraction?.('click')?.catch?.(error => console.warn('Background bandit learning failed:', error))
+      ]).catch(error => console.warn('Background ML operations failed:', error));
+    }, 0); // Defer to next tick
   };
 
   // Color blending utilities
@@ -590,7 +641,7 @@ export const BookCard = ({
   const ContentSourceBadge = () => {
     // Only show for admin users
     const isAdmin = user?.email === 'abdullahsaghirahmad@gmail.com';
-    if (!isAdmin || (!description_source && !quote_source)) return null;
+    if (!isAdmin || !description_source) return null;
     
     const getSourceIcon = (source?: string) => {
       if (!source) return null;
@@ -628,21 +679,6 @@ export const BookCard = ({
             {description_quality_score && (
               <span className={`ml-1 font-bold ${getQualityColor(description_quality_score)}`}>
                 {description_quality_score}
-              </span>
-            )}
-          </div>
-        )}
-        {quote_source && quote_source !== description_source && (
-          <div className={`flex items-center px-2 py-1 rounded-full text-xs font-medium shadow-sm transition-all duration-200 ${
-            theme === 'light'
-              ? 'bg-white/90 border border-gray-200 backdrop-blur-sm'
-              : 'bg-gray-900/90 border border-gray-600 backdrop-blur-sm'
-          }`}>
-            <span className="mr-1">💬</span>
-            <span className="truncate">{getSourceLabel(quote_source)}</span>
-            {quote_quality_score && (
-              <span className={`ml-1 font-bold ${getQualityColor(quote_quality_score)}`}>
-                {quote_quality_score}
               </span>
             )}
           </div>
@@ -730,7 +766,7 @@ export const BookCard = ({
             onClick={handleSave}
             disabled={isSaving}
             className={`ml-2 p-1 transition-all duration-300 hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed ${
-              isSaved
+              currentSavedState
                 ? theme === 'light'
                   ? 'text-primary-600 hover:text-primary-700'
                   : theme === 'dark'
@@ -742,11 +778,11 @@ export const BookCard = ({
                 ? 'text-gray-500 hover:text-gray-300'
                 : 'text-purple-400 hover:text-purple-600'
             }`}
-            title={isSaved ? 'Remove from library' : 'Save to library'}
+            title={currentSavedState ? 'Remove from library' : 'Save to library'}
           >
             {isSaving ? (
               <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-            ) : isSaved ? (
+            ) : currentSavedState ? (
               <BookmarkIconSolid className="h-5 w-5" />
             ) : (
               <BookmarkIcon className="h-5 w-5" />
@@ -821,151 +857,45 @@ export const BookCard = ({
           </div>
         )}
 
-        {/* Description - Smooth text transition only on toggle */}
-        <div className={`text-sm mb-3 leading-relaxed transition-all duration-300 ease-out ${
+        {/* Description - AI-trimmed to perfect 2-line length */}
+        <div className={`text-sm mb-3 leading-relaxed ${
           theme === 'light'
             ? 'text-primary-600'
             : theme === 'dark'
             ? 'text-gray-300'
             : 'text-purple-600'
         }`}>
-          <p>{isExpanded ? bookDescription : truncatedDescription}</p>
+          <p>{description}</p>
         </div>
 
-        {/* Expanded Content */}
-        <AnimatePresence>
-          {isExpanded && bookQuote && (
-            <motion.div
-              initial={{ 
-                opacity: 0, 
-                height: 0,
-                marginBottom: 0
-              }}
-              animate={{ 
-                opacity: 1, 
-                height: 'auto',
-                marginBottom: 12 // mb-3 equivalent
-              }}
-              exit={{ 
-                opacity: 0, 
-                height: 0,
-                marginBottom: 0
-              }}
-              transition={{
-                duration: 0.3,
-                ease: [0.4, 0.0, 0.2, 1]
-              }}
-              className="overflow-hidden"
-            >
-              <motion.div 
-                className={`pl-3 border-l-2 italic text-sm ${
-                  theme === 'light'
-                    ? 'border-primary-300 text-primary-600'
-                    : theme === 'dark'
-                    ? 'border-gray-600 text-gray-300'
-                    : 'border-purple-300 text-purple-600'
-                }`}
-                initial={{ x: -10, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                transition={{ 
-                  duration: 0.2,
-                  delay: 0.15 // Stagger after height animation
-                }}
-              >
-                <p>"{bookQuote}"</p>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Action Button */}
+        {/* Find Similar Books Button - Always visible */}
         <motion.button
           onClick={(e) => {
             e.stopPropagation(); // Prevent card navigation
-            setIsExpanded(!isExpanded);
+            // Navigate to search results for similar books
+            navigate(`/books?query=${encodeURIComponent(`books like ${title}`)}&type=semantic`);
           }}
-          className={`self-start text-sm font-medium flex items-center transition-all duration-300 hover:scale-105 ${
+          className={`self-start text-sm font-medium flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-300 hover:scale-105 ${
             theme === 'light'
-              ? 'text-primary-500 hover:text-primary-700'
+              ? 'bg-primary-600 hover:bg-primary-700 text-white'
               : theme === 'dark'
-              ? 'text-blue-400 hover:text-blue-300'
-              : 'text-purple-500 hover:text-purple-700'
+              ? 'bg-blue-600 hover:bg-blue-700 text-white'
+              : 'bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white'
           }`}
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.98 }}
         >
-          <motion.div
-            animate={{ rotate: isExpanded ? 180 : 0 }}
-            transition={{ duration: 0.3, ease: [0.4, 0.0, 0.2, 1] }}
-            className="mr-1"
-          >
-            <BookOpenIcon className="h-4 w-4" />
-          </motion.div>
-          <span className="transition-all duration-200">
-            {isExpanded ? 'Show less' : 'Read more'}
-          </span>
+          <RectangleStackIcon className="h-4 w-4" />
+          <span>Find Similar Books</span>
         </motion.button>
-
-        {/* Start Reading Button (only in expanded state) */}
-        <AnimatePresence>
-          {isExpanded && (
-            <motion.div 
-              initial={{ 
-                opacity: 0, 
-                y: 10,
-                height: 0,
-                marginTop: 0
-              }}
-              animate={{ 
-                opacity: 1, 
-                y: 0,
-                height: 'auto',
-                marginTop: 12 // mt-3 equivalent
-              }}
-              exit={{ 
-                opacity: 0, 
-                y: -5,
-                height: 0,
-                marginTop: 0
-              }}
-              transition={{
-                duration: 0.3,
-                ease: [0.4, 0.0, 0.2, 1],
-                delay: 0.1 // Appear after quote
-              }}
-              className="overflow-hidden"
-            >
-              <motion.button 
-                className={`px-4 py-2 rounded-lg font-medium text-sm transition-all duration-300 hover:scale-105 ${
-                  theme === 'light'
-                    ? 'bg-primary-600 hover:bg-primary-700 text-white'
-                    : theme === 'dark'
-                    ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                    : 'bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white'
-                }`}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.98 }}
-                initial={{ scale: 0.9 }}
-                animate={{ scale: 1 }}
-                transition={{ 
-                  duration: 0.2,
-                  type: "spring",
-                  stiffness: 200
-                }}
-              >
-                📖 Start Reading
-              </motion.button>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
       
-      {/* Post-Save Survey Modal */}
+      {/* Post-Save Survey Modal - DISABLED for better UX */}
       <PostSaveSurveyModal
-        isOpen={showSaveSurvey}
-        onClose={() => setShowSaveSurvey(false)}
+        isOpen={false}
+        onClose={() => {}} // DISABLED
         bookTitle={title}
-        bookId={id || `${title}-${author}`.replace(/\s+/g, '-').toLowerCase()}
+        bookId={id}
         onComplete={() => {
           console.log('Survey completed for:', title);
           // Could add analytics or user preference updates here
@@ -978,7 +908,8 @@ export const BookCard = ({
         onClose={() => setShowToast(false)}
         message={toastMessage}
         type="success"
+        actions={toastActions}
       />
     </div>
   );
-}; 
+};

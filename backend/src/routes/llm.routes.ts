@@ -143,4 +143,37 @@ router.post('/analyze-query', async (req, res) => {
   }
 });
 
+/**
+ * Generate personalized bio for user profile
+ */
+router.post('/generate-bio', async (req, res) => {
+  try {
+    const { prompt } = req.body;
+
+    if (!prompt) {
+      return res.status(400).json({ 
+        error: 'Prompt is required',
+        success: false 
+      });
+    }
+
+    console.log(`[LLM_ROUTES] Generating bio from user profile data`);
+
+    const bio = await llmService.generateBio(prompt);
+
+    res.json({ 
+      bio,
+      success: true,
+      generated: true 
+    });
+
+  } catch (error) {
+    console.error('[LLM_ROUTES] Error generating bio:', error);
+    res.status(500).json({ 
+      error: 'Failed to generate bio',
+      success: false 
+    });
+  }
+});
+
 export default router;

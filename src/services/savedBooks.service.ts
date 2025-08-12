@@ -34,6 +34,9 @@ export class SavedBooksService {
       throw new Error(`Failed to save book: ${error.message}`);
     }
 
+    // Clear request deduplication cache to ensure fresh data on next check
+    requestDeduplicationService.clear();
+
     return this.transformSavedBook(data);
   }
 
@@ -54,6 +57,9 @@ export class SavedBooksService {
     if (error) {
       throw new Error(`Failed to unsave book: ${error.message}`);
     }
+
+    // Clear request deduplication cache to ensure fresh data on next check
+    requestDeduplicationService.clear();
   }
 
   // Check if a book is saved by the current user
@@ -118,7 +124,31 @@ export class SavedBooksService {
 
   // Get user's saved books by status
   static async getSavedBooks(status?: ReadingStatus): Promise<SavedBook[]> {
-    const { data: { user } } = await supabase.auth.getUser();
+    // Try to get user with a retry mechanism for auth issues
+    let user = null;
+    let attempts = 0;
+    const maxAttempts = 3;
+    
+    while (!user && attempts < maxAttempts) {
+      attempts++;
+      try {
+        const { data: { user: fetchedUser }, error: userError } = await supabase.auth.getUser();
+        if (userError) {
+          console.log(`Auth error attempt ${attempts}:`, userError.message);
+          if (attempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 500 * attempts)); // Exponential backoff
+            continue;
+          }
+          throw userError;
+        }
+        user = fetchedUser;
+      } catch (error) {
+        if (attempts >= maxAttempts) {
+          throw new Error('Must be logged in to view saved books');
+        }
+        await new Promise(resolve => setTimeout(resolve, 500 * attempts));
+      }
+    }
     
     if (!user) {
       throw new Error('Must be logged in to view saved books');

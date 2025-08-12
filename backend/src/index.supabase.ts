@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 import bookRoutesSupabase from './routes/book.routes.supabase';
 import threadRoutesSupabase from './routes/thread.routes.supabase';
 import authRoutesSupabase from './routes/auth.routes.supabase';
+import llmRoutes from './routes/llm.routes';
 
 // Load environment variables
 dotenv.config();
@@ -35,6 +36,7 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutesSupabase);
 app.use('/api/books', bookRoutesSupabase);
 app.use('/api/threads', threadRoutesSupabase);
+app.use('/api/llm', llmRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -45,6 +47,7 @@ app.get('/', (req, res) => {
       auth: '/api/auth',
       books: '/api/books',
       threads: '/api/threads'
+      // llm: '/api/llm' // Temporarily disabled
     }
   });
 });
