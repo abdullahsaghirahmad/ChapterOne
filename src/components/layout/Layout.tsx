@@ -298,39 +298,39 @@ export const Layout = ({ children }: LayoutProps) => {
               {loading ? (
                 <div className="w-8 h-8 border-2 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
               ) : user && currentUser ? (
-                // Unified Profile Section: Avatar + Menu Area
-                <div className={`flex items-center space-x-2 px-2 py-1 rounded-xl transition-all duration-200 ${
-                  theme === 'light'
-                    ? 'hover:bg-gray-50'
-                    : theme === 'dark'
-                    ? 'hover:bg-gray-700'
-                    : 'hover:bg-purple-50'
-                }`}>
-                  {/* Direct Profile Avatar */}
-                  <button
-                    onClick={() => navigate('/profile')}
-                    className="relative transition-all duration-200 hover:scale-105 rounded-full"
-                    title="View Profile"
-                  >
-                    <UserAvatar
-                      user={currentUser}
-                      size="sm"
-                    />
-                    {/* Notification badge on avatar when present - hidden when threads feature is OFF */}
-                    {isEnabled('threads_feature_enabled') && notifications.filter(n => !n.isRead).length > 0 && (
-                      <span className={`absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium ${
-                        notifications.filter(n => !n.isRead).length > 9 ? 'text-[10px]' : ''
-                      }`}>
-                        {notifications.filter(n => !n.isRead).length > 9 ? '9+' : notifications.filter(n => !n.isRead).length}
-                      </span>
-                    )}
-                  </button>
+                // Apple-Style Unified Profile Area: Single container with two click zones
+                <div className="relative">
+                  <div className={`flex items-center gap-2 px-2 py-1 rounded-full transition-all duration-200 ${
+                    theme === 'light'
+                      ? 'hover:bg-gray-50 hover:shadow-sm'
+                      : theme === 'dark'
+                      ? 'hover:bg-gray-800 hover:shadow-sm'
+                      : 'hover:bg-purple-50 hover:shadow-sm'
+                  }`}>
+                    {/* Avatar Click Zone - goes to profile */}
+                    <button
+                      onClick={() => navigate('/profile')}
+                      className="relative transition-transform duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 rounded-full"
+                      title="View Profile"
+                    >
+                      <UserAvatar
+                        user={currentUser}
+                        size="sm"
+                      />
+                      {/* Notification badge on avatar when present - hidden when threads feature is OFF */}
+                      {isEnabled('threads_feature_enabled') && notifications.filter(n => !n.isRead).length > 0 && (
+                        <span className={`absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium ${
+                          notifications.filter(n => !n.isRead).length > 9 ? 'text-[10px]' : ''
+                        }`}>
+                          {notifications.filter(n => !n.isRead).length > 9 ? '9+' : notifications.filter(n => !n.isRead).length}
+                        </span>
+                      )}
+                    </button>
 
-                  {/* Dropdown Arrow */}
-                  <div className="relative">
+                    {/* Menu Click Zone - opens dropdown */}
                     <button
                       onClick={() => setShowUserMenu(!showUserMenu)}
-                      className="p-1 transition-all duration-200"
+                      className="flex items-center gap-1 px-1 py-1 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 rounded"
                       title="Profile Options"
                     >
                       <ChevronDownIcon className={`w-4 h-4 transition-transform duration-200 ${
@@ -343,9 +343,11 @@ export const Layout = ({ children }: LayoutProps) => {
                           : 'text-purple-600'
                       }`} />
                     </button>
-                    
-                    {showUserMenu && (
-                      <div className={`absolute right-0 mt-2 w-72 rounded-xl shadow-xl z-50 overflow-hidden ${
+                  </div>
+                  
+                  {/* Dropdown Menu */}
+                  {showUserMenu && (
+                    <div className={`absolute right-0 mt-2 w-72 rounded-xl shadow-xl z-50 overflow-hidden ${
                         theme === 'light'
                           ? 'bg-white border border-gray-200'
                           : theme === 'dark'
@@ -619,9 +621,8 @@ export const Layout = ({ children }: LayoutProps) => {
                             Sign Out
                           </button>
                         </div>
-                      </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <button
