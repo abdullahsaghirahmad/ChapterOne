@@ -31,6 +31,9 @@ export type MLFeatureFlags = {
   'content_source_tracking': boolean;
   'ai_content_enhancement': boolean;
   'admin_content_dashboard': boolean;
+  
+  // Threads feature flag (OFF by default - threads hidden)
+  'threads_feature_enabled': boolean;
 };
 
 export class FeatureFlagService {
@@ -46,7 +49,13 @@ export class FeatureFlagService {
     flagName: keyof MLFeatureFlags,
     userId?: string
   ): Promise<boolean> {
-    // TEMPORARY: Skip all API calls and return true for all flags
+    // Special case: threads feature is OFF by default
+    if (flagName === 'threads_feature_enabled') {
+      console.log(`${this.LOG_PREFIX} Feature flag ${flagName} disabled (threads hidden)`);
+      return false;
+    }
+    
+    // TEMPORARY: Skip all API calls and return true for all other flags
     console.log(`${this.LOG_PREFIX} Feature flag ${flagName} enabled (performance override)`);
     return true;
   }
@@ -71,7 +80,10 @@ export class FeatureFlagService {
       hybrid_content_creation: true,
       content_source_tracking: true,
       ai_content_enhancement: true,
-      admin_content_dashboard: true
+      admin_content_dashboard: true,
+      
+      // Threads feature flag (OFF by default - threads hidden)
+      threads_feature_enabled: false
     };
   }
 
@@ -219,11 +231,18 @@ export const useFeatureFlags = () => {
     hybrid_content_creation: true,
     content_source_tracking: true,
     ai_content_enhancement: true,
-    admin_content_dashboard: true
+    admin_content_dashboard: true,
+    
+    // Threads feature flag (OFF by default - threads hidden)
+    threads_feature_enabled: false
   };
 
   const isEnabled = React.useCallback((flagName: keyof MLFeatureFlags): boolean => {
-    return true; // All flags enabled for performance
+    // Special case: threads feature is OFF by default
+    if (flagName === 'threads_feature_enabled') {
+      return false;
+    }
+    return true; // All other flags enabled for performance
   }, []);
 
   return {

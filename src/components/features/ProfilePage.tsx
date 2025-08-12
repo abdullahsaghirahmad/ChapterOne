@@ -25,6 +25,7 @@ import { User, FollowedThread, ReadingPreferences, SavedBook } from '../../types
 import { UserPreferencesService } from '../../services/userPreferences.service';
 import { SavedBooksService } from '../../services/savedBooks.service';
 import { ReadingContextPreferences } from './ReadingContextPreferences';
+import { useFeatureFlags } from '../../services/featureFlag.service';
 
 interface ProfilePageProps {}
 
@@ -45,6 +46,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = () => {
   const navigate = useNavigate();
   const { theme } = useTheme();
   const { user } = useAuth();
+  const { isEnabled } = useFeatureFlags();
   const [activeTab, setActiveTab] = useState<TabType>('books');
   const [showEditModal, setShowEditModal] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -448,7 +450,8 @@ export const ProfilePage: React.FC<ProfilePageProps> = () => {
 
   const tabs = [
     { id: 'books' as TabType, label: 'Books', icon: BookOpenIcon, count: readingStats.totalBooks },
-    { id: 'threads' as TabType, label: 'Threads', icon: ChatBubbleLeftIcon, count: profileUser?.threadCount || 0 },
+    // Threads tab - hidden when feature flag is OFF
+    ...(isEnabled('threads_feature_enabled') ? [{ id: 'threads' as TabType, label: 'Threads', icon: ChatBubbleLeftIcon, count: profileUser?.threadCount || 0 }] : []),
     { id: 'activity' as TabType, label: 'Activity', icon: ClockIcon },
     { id: 'insights' as TabType, label: 'Insights', icon: ChartBarIcon },
     ...(isOwnProfile ? [{ id: 'preferences' as TabType, label: 'Preferences', icon: Cog6ToothIcon }] : [])

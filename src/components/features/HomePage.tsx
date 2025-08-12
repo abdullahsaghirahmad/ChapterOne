@@ -319,47 +319,49 @@ export const HomePage = () => {
         </section>
       )}
 
-      {/* Popular Threads */}
-      <section>
-        <div className="flex justify-between items-center mb-6">
-          <h2 className={`text-2xl font-bold transition-colors duration-300 ${
-            theme === 'light'
-              ? 'text-primary-900'
-              : theme === 'dark'
-              ? 'text-white'
-              : 'bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent'
-          }`}>
-            Popular Threads
-          </h2>
-          <Link 
-            to="/threads" 
-            className={`flex items-center space-x-1 transition-all duration-300 hover:scale-105 ${
+      {/* Popular Threads - hidden when feature flag is OFF */}
+      {isEnabled('threads_feature_enabled') && (
+        <section>
+          <div className="flex justify-between items-center mb-6">
+            <h2 className={`text-2xl font-bold transition-colors duration-300 ${
               theme === 'light'
-                ? 'text-primary-600 hover:text-primary-800'
+                ? 'text-primary-900'
                 : theme === 'dark'
-                ? 'text-blue-400 hover:text-blue-300'
-                : 'text-purple-600 hover:text-purple-800'
-            }`}
-          >
-            <span>View All</span>
-            <ArrowRightIcon className="w-4 h-4" />
-          </Link>
-        </div>
-        <div className="grid gap-4 md:grid-cols-2">
-          {threads.slice(0, 4).map((thread) => (
-            <ThreadCard
-              key={thread.id}
-              id={thread.id}
-              title={thread.title}
-              description={thread.description}
-              upvotes={thread.upvotes}
-              comments={thread.comments}
-              timestamp={thread.timestamp || new Date(thread.createdAt).toLocaleDateString()}
-              tags={thread.tags}
-            />
-          ))}
-        </div>
-      </section>
+                ? 'text-white'
+                : 'bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent'
+            }`}>
+              Popular Threads
+            </h2>
+            <Link 
+              to="/threads" 
+              className={`flex items-center space-x-1 transition-all duration-300 hover:scale-105 ${
+                theme === 'light'
+                  ? 'text-primary-600 hover:text-primary-800'
+                  : theme === 'dark'
+                  ? 'text-blue-400 hover:text-blue-300'
+                  : 'text-purple-600 hover:text-purple-800'
+              }`}
+            >
+              <span>View All</span>
+              <ArrowRightIcon className="w-4 h-4" />
+            </Link>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            {threads.slice(0, 4).map((thread) => (
+              <ThreadCard
+                key={thread.id}
+                id={thread.id}
+                title={thread.title}
+                description={thread.description}
+                upvotes={thread.upvotes}
+                comments={thread.comments}
+                timestamp={thread.timestamp || new Date(thread.createdAt).toLocaleDateString()}
+                tags={thread.tags}
+              />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Contextual Prompt (after 2 interactions) */}
       {showContextualPrompt && !hasCompletedOnboarding && (

@@ -108,8 +108,8 @@ export const Layout = ({ children }: LayoutProps) => {
   const handleNotificationClick = (notification: Notification) => {
     console.log('Notification clicked:', notification);
     // TODO: Navigate to relevant thread/page based on notification data
-    if (notification.data?.threadId) {
-      // Navigate to thread
+    if (notification.data?.threadId && isEnabled('threads_feature_enabled')) {
+      // Navigate to thread (only if threads feature is enabled)
       window.location.href = `/threads/${notification.data.threadId}`;
     }
   };
@@ -276,20 +276,23 @@ export const Layout = ({ children }: LayoutProps) => {
               >
                 Books
               </Link>
-              <Link
-                to="/threads"
-                className={`transition-colors duration-300 ${
-                  isActive('/threads') ? 'font-medium' : ''
-                } ${
-                  theme === 'light'
-                    ? 'text-primary-600 hover:text-primary-900'
-                    : theme === 'dark'
-                    ? 'text-gray-300 hover:text-white'
-                    : 'text-purple-600 hover:text-purple-800'
-                }`}
-              >
-                Threads
-              </Link>
+              {/* Threads link - hidden when feature flag is OFF */}
+              {isEnabled('threads_feature_enabled') && (
+                <Link
+                  to="/threads"
+                  className={`transition-colors duration-300 ${
+                    isActive('/threads') ? 'font-medium' : ''
+                  } ${
+                    theme === 'light'
+                      ? 'text-primary-600 hover:text-primary-900'
+                      : theme === 'dark'
+                      ? 'text-gray-300 hover:text-white'
+                      : 'text-purple-600 hover:text-purple-800'
+                  }`}
+                >
+                  Threads
+                </Link>
+              )}
 
               {/* Auth Section - Apple Style Unified Menu */}
               {loading ? (
@@ -697,25 +700,28 @@ export const Layout = ({ children }: LayoutProps) => {
             <BookOpenIcon className="w-6 h-6" />
             <span className="text-xs mt-1">Books</span>
           </Link>
-          <Link
-            to="/threads"
-            className={`flex flex-col items-center justify-center transition-colors duration-300 ${
-              isActive('/threads') 
-                ? theme === 'light'
-                  ? 'text-primary-900'
+          {/* Threads navigation - hidden when feature flag is OFF */}
+          {isEnabled('threads_feature_enabled') && (
+            <Link
+              to="/threads"
+              className={`flex flex-col items-center justify-center transition-colors duration-300 ${
+                isActive('/threads') 
+                  ? theme === 'light'
+                    ? 'text-primary-900'
+                    : theme === 'dark'
+                    ? 'text-white'
+                    : 'text-purple-700'
+                  : theme === 'light'
+                  ? 'text-primary-600'
                   : theme === 'dark'
-                  ? 'text-white'
-                  : 'text-purple-700'
-                : theme === 'light'
-                ? 'text-primary-600'
-                : theme === 'dark'
-                ? 'text-gray-400'
-                : 'text-purple-500'
-            }`}
-          >
-            <ChatBubbleLeftIcon className="w-6 h-6" />
-            <span className="text-xs mt-1">Threads</span>
-          </Link>
+                  ? 'text-gray-400'
+                  : 'text-purple-500'
+              }`}
+            >
+              <ChatBubbleLeftIcon className="w-6 h-6" />
+              <span className="text-xs mt-1">Threads</span>
+            </Link>
+          )}
           <div className="flex flex-col items-center justify-center">
             <div className="scale-75">
               <ThemeSwitcher />

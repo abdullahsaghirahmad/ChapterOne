@@ -21,6 +21,7 @@ import { PostSaveSurveyModal } from '../ui/PostSaveSurveyModal';
 import { Toast } from '../ui/Toast';
 import { BookCard } from './BookCard';
 import { Book } from '../../types';
+import { useFeatureFlags } from '../../services/featureFlag.service';
 
 // UI filter themes (same as BookCard for consistency)
 const UI_FILTER_THEMES = [
@@ -56,6 +57,7 @@ export const BookDetailPage: React.FC<BookDetailPageProps> = () => {
   const { showAuthModal } = useAuthModal();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { isEnabled } = useFeatureFlags();
   
   const [book, setBook] = useState<Book | null>(null);
   const [loading, setLoading] = useState(true);
@@ -841,83 +843,87 @@ export const BookDetailPage: React.FC<BookDetailPageProps> = () => {
         </div>
       )}
 
-      {/* Book Discussions Section */}
-      <div className={`rounded-xl p-6 ${
-        theme === 'light'
-          ? 'bg-white border border-gray-200'
-          : theme === 'dark'
-          ? 'bg-gray-800 border border-gray-700'
-          : 'bg-gradient-to-br from-pink-50 to-purple-50 border border-purple-200'
-      }`}>
-        <div className="mb-6">
-          <h2 className={`text-xl font-semibold mb-2 ${
-            theme === 'light'
-              ? 'text-gray-900'
-              : theme === 'dark'
-              ? 'text-white'
-              : 'text-purple-900'
-          }`}>
-            Discussions About This Book
-          </h2>
-          <p className={`text-sm ${
+      {/* Book Discussions Section - hidden when feature flag is OFF */}
+      {isEnabled('threads_feature_enabled') && (
+        <div className={`rounded-xl p-6 ${
+          theme === 'light'
+            ? 'bg-white border border-gray-200'
+            : theme === 'dark'
+            ? 'bg-gray-800 border border-gray-700'
+            : 'bg-gradient-to-br from-pink-50 to-purple-50 border border-purple-200'
+        }`}>
+          <div className="mb-6">
+            <h2 className={`text-xl font-semibold mb-2 ${
+              theme === 'light'
+                ? 'text-gray-900'
+                : theme === 'dark'
+                ? 'text-white'
+                : 'text-purple-900'
+            }`}>
+              Discussions About This Book
+            </h2>
+            <p className={`text-sm ${
+              theme === 'light'
+                ? 'text-gray-600'
+                : theme === 'dark'
+                ? 'text-gray-400'
+                : 'text-purple-600'
+            }`}>
+              Connect with other readers and share your thoughts
+            </p>
+          </div>
+          
+          <div className={`text-center py-8 ${
             theme === 'light'
               ? 'text-gray-600'
               : theme === 'dark'
               ? 'text-gray-400'
               : 'text-purple-600'
           }`}>
-            Connect with other readers and share your thoughts
-          </p>
-        </div>
-        
-        <div className={`text-center py-8 ${
-          theme === 'light'
-            ? 'text-gray-600'
-            : theme === 'dark'
-            ? 'text-gray-400'
-            : 'text-purple-600'
-        }`}>
-          <ChatBubbleLeftIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
-          <h3 className={`text-lg font-medium mb-2 ${
-            theme === 'light'
-              ? 'text-gray-900'
-              : theme === 'dark'
-              ? 'text-white'
-              : 'text-purple-900'
-          }`}>
-            Start the conversation
-          </h3>
-          <p className="mb-6 max-w-md mx-auto">
-            Share your insights, ask questions, or discuss themes from "{book?.title}". 
-            Your discussion will help other readers discover new perspectives.
-          </p>
-          <button
-            onClick={handleStartDiscussion}
-            className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 hover:scale-105 mx-auto ${
+            <ChatBubbleLeftIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
+            <h3 className={`text-lg font-medium mb-2 ${
               theme === 'light'
-                ? 'bg-primary-600 hover:bg-primary-700 text-white shadow-lg'
+                ? 'text-gray-900'
                 : theme === 'dark'
-                ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg'
-                : 'bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white shadow-lg'
-            }`}
-          >
-            <ChatBubbleLeftIcon className="w-5 h-5" />
-            Start First Discussion
-          </button>
+                ? 'text-white'
+                : 'text-purple-900'
+            }`}>
+              Start the conversation
+            </h3>
+            <p className="mb-6 max-w-md mx-auto">
+              Share your insights, ask questions, or discuss themes from "{book?.title}". 
+              Your discussion will help other readers discover new perspectives.
+            </p>
+            <button
+              onClick={handleStartDiscussion}
+              className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 hover:scale-105 mx-auto ${
+                theme === 'light'
+                  ? 'bg-primary-600 hover:bg-primary-700 text-white shadow-lg'
+                  : theme === 'dark'
+                  ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg'
+                  : 'bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white shadow-lg'
+              }`}
+            >
+              <ChatBubbleLeftIcon className="w-5 h-5" />
+              Start First Discussion
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Enhanced Thread Creation Modal */}
-      <EnhancedThreadCreation
-        isOpen={showThreadCreation}
-        onClose={() => setShowThreadCreation(false)}
-        onSuccess={(threadId) => {
-          console.log('Thread created:', threadId);
-          navigate(`/threads/${threadId}`);
-        }}
-        prefilledBook={book}
-        mode="modal"
-      />
+      {/* Enhanced Thread Creation Modal - hidden when feature flag is OFF */}
+      {isEnabled('threads_feature_enabled') && (
+        <EnhancedThreadCreation
+          isOpen={showThreadCreation}
+          onClose={() => setShowThreadCreation(false)}
+          onSuccess={(threadId) => {
+            console.log('Thread created:', threadId);
+            navigate(`/threads/${threadId}`);
+          }}
+          prefilledBook={book}
+          mode="modal"
+        />
+      )}
 
       {/* Post-Save Survey Modal - DISABLED for better UX */}
       {book && (

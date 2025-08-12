@@ -3,14 +3,14 @@ import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-route
 import { AnimatePresence, motion } from 'framer-motion';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider } from './contexts/AuthContext';
-import { AuthModalProvider } from './contexts/AuthModalContext';
+import { AuthModalProvider } from './contexts/AuthModalProvider';
 import { Layout } from './components/layout/Layout';
 import { HomePage } from './components/features/HomePage';
 import { BooksPage } from './components/features/BooksPage';
 import { BookDetailPage } from './components/features/BookDetailPage';
 import { ThreadPage } from './components/features/ThreadPage';
 import { ThreadDetailPage } from './components/features/ThreadDetailPage';
-
+import { useFeatureFlags } from './services/featureFlag.service';
 import { ColorSearchPage } from './components/features/ColorSearchPage';
 import { ProfilePage } from './components/features/ProfilePage';
 import AuthCallback from './components/auth/AuthCallback';
@@ -20,6 +20,7 @@ import './styles/themes.css';
 // Animated Routes wrapper component
 const AnimatedRoutes = () => {
   const location = useLocation();
+  const { isEnabled } = useFeatureFlags();
   
   return (
     <AnimatePresence mode="wait">
@@ -63,32 +64,37 @@ const AnimatedRoutes = () => {
             <BookDetailPage />
           </motion.div>
         } />
-        <Route path="/threads" element={
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{
-              duration: 0.3,
-              ease: [0.4, 0.0, 0.2, 1]
-            }}
-          >
-            <ThreadPage />
-          </motion.div>
-        } />
-        <Route path="/threads/:id" element={
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{
-              duration: 0.3,
-              ease: [0.4, 0.0, 0.2, 1]
-            }}
-          >
-            <ThreadDetailPage />
-          </motion.div>
-        } />
+        {/* Thread routes - hidden when feature flag is OFF */}
+        {isEnabled('threads_feature_enabled') && (
+          <>
+            <Route path="/threads" element={
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{
+                  duration: 0.3,
+                  ease: [0.4, 0.0, 0.2, 1]
+                }}
+              >
+                <ThreadPage />
+              </motion.div>
+            } />
+            <Route path="/threads/:id" element={
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{
+                  duration: 0.3,
+                  ease: [0.4, 0.0, 0.2, 1]
+                }}
+              >
+                <ThreadDetailPage />
+              </motion.div>
+            } />
+          </>
+        )}
 
         <Route path="/profile" element={
           <motion.div
