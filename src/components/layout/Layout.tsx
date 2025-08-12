@@ -298,18 +298,18 @@ export const Layout = ({ children }: LayoutProps) => {
               {loading ? (
                 <div className="w-8 h-8 border-2 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
               ) : user && currentUser ? (
-                // Apple-Style Unified Profile Area: Avatar + Arrow
-                <div className="flex items-center space-x-1">
+                // Unified Profile Section: Avatar + Menu Area
+                <div className={`flex items-center space-x-2 px-2 py-1 rounded-xl transition-all duration-200 ${
+                  theme === 'light'
+                    ? 'hover:bg-gray-50'
+                    : theme === 'dark'
+                    ? 'hover:bg-gray-700'
+                    : 'hover:bg-purple-50'
+                }`}>
                   {/* Direct Profile Avatar */}
                   <button
                     onClick={() => navigate('/profile')}
-                    className={`relative transition-all duration-200 hover:scale-105 rounded-full ${
-                      theme === 'light'
-                        ? 'hover:ring-2 hover:ring-primary-200'
-                        : theme === 'dark'
-                        ? 'hover:ring-2 hover:ring-gray-600'
-                        : 'hover:ring-2 hover:ring-purple-200'
-                    }`}
+                    className="relative transition-all duration-200 hover:scale-105 rounded-full"
                     title="View Profile"
                   >
                     <UserAvatar
@@ -330,13 +330,7 @@ export const Layout = ({ children }: LayoutProps) => {
                   <div className="relative">
                     <button
                       onClick={() => setShowUserMenu(!showUserMenu)}
-                      className={`p-1 rounded-lg transition-all duration-200 hover:scale-105 ${
-                        theme === 'light'
-                          ? 'hover:bg-gray-100'
-                          : theme === 'dark'
-                          ? 'hover:bg-gray-700'
-                          : 'hover:bg-purple-100'
-                      }`}
+                      className="p-1 transition-all duration-200"
                       title="Profile Options"
                     >
                       <ChevronDownIcon className={`w-4 h-4 transition-transform duration-200 ${
