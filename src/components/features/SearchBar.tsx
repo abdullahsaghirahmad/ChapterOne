@@ -457,6 +457,15 @@ export const SearchBar = ({ onSearch, onMoodSelect, onColorSearch }: SearchBarPr
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Apple-style mobile search chips - one from each category
+  const mobileSearchChips = [
+    { label: 'Feeling overwhelmed', category: 'MOOD', type: 'mood' },
+    { label: 'Romance', category: 'THEME', type: 'theme' },
+    { label: 'Quick Read', category: 'STYLE', type: 'reading_style' },
+    { label: 'Technology', category: 'WORK', type: 'profession' },
+    { label: '', category: 'COLOR', type: 'color', isColorPill: true }, // Mystery red pill
+  ];
+
   return (
     <div className="relative w-full max-w-4xl mx-auto">
       {/* Main Search Bar */}
@@ -482,7 +491,7 @@ export const SearchBar = ({ onSearch, onMoodSelect, onColorSearch }: SearchBarPr
               value={searchQuery}
               onChange={handleInputChange}
               placeholder={currentPlaceholder}
-              className={`flex-1 px-4 py-3 bg-transparent border-none outline-none text-lg transition-all duration-300 ${
+              className={`flex-1 px-3 sm:px-4 py-2.5 sm:py-3 bg-transparent border-none outline-none text-base sm:text-lg transition-all duration-300 ${
                 theme === 'light'
                   ? 'text-gray-900 placeholder-gray-500'
                   : theme === 'dark'
@@ -496,7 +505,7 @@ export const SearchBar = ({ onSearch, onMoodSelect, onColorSearch }: SearchBarPr
               type="button"
               onClick={toggleFiltersSidebar}
               data-filters-toggle
-              className={`group mr-3 flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 ${
+              className={`group mr-3 flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 rounded-lg transition-all duration-200 ${
                 showFiltersSidebar
                   ? theme === 'light'
                     ? 'bg-primary-100 text-primary-700 shadow-sm'
@@ -520,7 +529,7 @@ export const SearchBar = ({ onSearch, onMoodSelect, onColorSearch }: SearchBarPr
               }}
             >
               <AdjustmentsHorizontalIcon className="w-5 h-5" />
-              <span className={`text-sm font-medium transition-all duration-200 whitespace-nowrap ${
+              <span className={`hidden sm:inline text-sm font-medium transition-all duration-200 whitespace-nowrap ${
                 showFiltersSidebar
                   ? theme === 'light'
                     ? 'text-primary-700'
@@ -578,6 +587,48 @@ export const SearchBar = ({ onSearch, onMoodSelect, onColorSearch }: SearchBarPr
             </ul>
           </div>
         )}
+      </div>
+
+      {/* Mobile Search Chips - Clean Apple Style (Mobile Only) */}
+      <div className="block md:hidden mt-2">
+        <div className="flex space-x-2 overflow-x-auto scrollbar-hide pb-2 px-1">
+          {mobileSearchChips.slice(0, 5).map((chip, index) => (
+            <button
+              key={chip.label || `color-pill-${index}`}
+              onClick={() => {
+                if (chip.isColorPill) {
+                  // Navigate directly to color search for the red (adventure) emotion
+                  navigate('/books?color=adventure');
+                } else {
+                  handleFilterClick(chip.label, chip.type);
+                }
+              }}
+              className={`
+                flex-shrink-0 px-4 py-2.5 rounded-full border transition-all duration-200 
+                hover:scale-105 active:scale-95 shadow-sm hover:shadow-md font-medium text-sm
+                ${chip.isColorPill 
+                  ? 'bg-red-500 border-red-600 hover:bg-red-600 text-white min-w-[44px] justify-center items-center flex' // Mystery red pill
+                  : theme === 'light' 
+                    ? 'bg-primary-50 text-primary-700 border-primary-200 hover:bg-primary-100'
+                    : theme === 'dark'
+                    ? 'bg-gray-700 text-gray-200 border-gray-600 hover:bg-gray-600'
+                    : 'bg-purple-100/80 text-purple-800 border-purple-200/80 hover:bg-purple-200/80'
+                }
+              `}
+              style={{
+                // Apple-style subtle shadows - enhanced for red pill
+                boxShadow: chip.isColorPill 
+                  ? '0 2px 8px rgba(239, 68, 68, 0.15), 0 1px 3px rgba(0, 0, 0, 0.1)'
+                  : theme === 'light' 
+                  ? '0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06)' 
+                  : 'none'
+              }}
+              title={chip.isColorPill ? "Discover color search" : undefined}
+            >
+              {chip.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Apple-style: No filter pills - search results show immediately */}

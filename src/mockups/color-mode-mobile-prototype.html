@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Color Mode Mobile Prototype</title>
+    <style>
+      :root {
+        --bg: #f8fafc;
+        --card: #ffffff;
+        --text: #0f172a;
+        --muted: #64748b;
+        --border: #e2e8f0;
+        --shadow: 0 6px 24px rgba(15, 23, 42, 0.06), 0 2px 8px rgba(15, 23, 42, 0.04);
+        --radius: 14px;
+        --primary: #2563eb;
+      }
+
+      html, body { height: 100%; }
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+        background: var(--bg);
+        color: var(--text);
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+
+      .wrap {
+        max-width: 420px;
+        margin: 0 auto;
+        padding: 16px 16px 80px;
+      }
+
+      .section {
+        margin-top: 16px;
+      }
+
+      .title {
+        font-weight: 800;
+        font-size: 24px;
+        letter-spacing: -0.02em;
+        margin: 8px 0 4px;
+      }
+      .subtitle {
+        font-size: 14px;
+        color: var(--muted);
+        margin: 0 0 12px;
+      }
+
+      .searchCard {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 10px 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        box-shadow: var(--shadow);
+      }
+      .searchCard input {
+        border: 0; outline: 0; background: transparent;
+        font-size: 15px; flex: 1;
+      }
+
+      .chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; }
+      .chip {
+        background: #eff6ff;
+        color: #1d4ed8;
+        border: 1px solid #bfdbfe;
+        padding: 8px 12px;
+        border-radius: 999px;
+        font-size: 13px;
+        white-space: nowrap;
+      }
+
+      /* Sticky bar */
+      .stickyOuter { position: sticky; top: 0; z-index: 50; padding-top: 8px; }
+      .stickyBar {
+        display: flex; align-items: center; gap: 10px;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 10px 12px;
+        box-shadow: var(--shadow);
+      }
+      .swatchRow { display: flex; align-items: center; gap: 8px; overflow: hidden; }
+      .swatch { width: 28px; height: 28px; border-radius: 8px; border: 2px solid #fff; box-shadow: 0 1px 2px rgba(0,0,0,0.06); position: relative; cursor: pointer; }
+      .intensityDots { position: absolute; right: 2px; top: 2px; display: flex; gap: 2px; }
+      .dot { width: 4px; height: 4px; border-radius: 999px; background: rgba(255,255,255,0.9); opacity: .5; }
+      .dot.active { opacity: 1; }
+      .addSwatch { width: 28px; height: 28px; border-radius: 8px; border: 1px dashed var(--border); color: var(--muted); display:flex; align-items:center; justify-content:center; background:#fff; cursor:pointer; }
+      .spacer { flex: 1; }
+      .iconBtn { background:#f1f5f9; border:1px solid #e2e8f0; color:#334155; border-radius:10px; padding:8px 10px; font-size:12px; cursor:pointer; }
+
+      /* Expanded sheet */
+      .sheetBack { position: fixed; inset: 0; background: rgba(0,0,0,0.35); display:none; }
+      .sheet { position: fixed; left: 0; right: 0; bottom: -100%; transition: bottom .25s ease; }
+      .sheetInner {
+        max-width: 420px; margin: 0 auto 0; background: var(--card);
+        border-top-left-radius: 16px; border-top-right-radius: 16px;
+        box-shadow: 0 -10px 24px rgba(15,23,42,0.12);
+        border:1px solid var(--border);
+        padding: 12px 16px 16px;
+      }
+      .handle { width: 46px; height: 4px; border-radius: 999px; background:#cbd5e1; margin: 6px auto 10px; }
+      .sheetHeader { display:flex; align-items:center; justify-content: space-between; }
+      .badge { font-size: 11px; padding: 4px 6px; background:#e2e8f0; color:#475569; border-radius: 8px; }
+      .sectionTitle { font-size: 13px; color: #334155; margin: 10px 0 6px; font-weight: 600; }
+      .swatchGrid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 8px; }
+      .actions { display:flex; gap: 8px; margin-top: 10px; }
+      .btnSecondary { flex:1; background:#f1f5f9; border:1px solid #e2e8f0; border-radius: 10px; padding:10px; font-weight:600; }
+      .btnPrimary { flex:1; background:#1d4ed8; color:#fff; border:1px solid #1d4ed8; border-radius: 10px; padding:10px; font-weight:700; }
+
+      /* Book list stub */
+      .card { background:var(--card); border:1px solid var(--border); border-radius: var(--radius); padding:12px; box-shadow: var(--shadow); height: 96px; }
+      .list { display: grid; gap: 12px; }
+
+      @media (prefers-color-scheme: dark) {
+        :root { --bg:#0b1220; --card:#0f172a; --text:#e2e8f0; --muted:#94a3b8; --border:#1e293b; }
+        .chip { background:#111827; color:#c7d2fe; border-color:#374151; }
+        .searchCard { box-shadow: none; }
+        .stickyBar { box-shadow: none; }
+        .iconBtn { background:#111827; border-color:#1f2937; color:#cbd5e1; }
+        .btnSecondary { background:#111827; border-color:#1f2937; color:#e2e8f0; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="title">Book Recommendations</div>
+      <div class="subtitle">Discover books that match your interests and reading style</div>
+
+      <div class="searchCard section">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <input placeholder="Search books, authors, moods, or themes" />
+      </div>
+
+      <div class="chips section">
+        <div class="chip">Feeling overwhelmed</div>
+        <div class="chip">Romance</div>
+        <div class="chip">Quick Read</div>
+        <div class="chip" style="background:#fee2e2;color:#b91c1c;border-color:#fecaca;">&nbsp;</div>
+      </div>
+
+      <div class="stickyOuter section">
+        <div class="stickyBar" id="stickyBar">
+          <div class="swatchRow" id="activeRow"></div>
+          <div class="addSwatch" id="addBtn">+</div>
+          <div class="spacer"></div>
+          <button class="iconBtn" id="clearBtn">Clear</button>
+          <button class="iconBtn" id="exitBtn">Exit</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="list">
+          <div class="card"></div>
+          <div class="card"></div>
+          <div class="card"></div>
+          <div class="card"></div>
+          <div class="card"></div>
+          <div class="card"></div>
+          <div class="card"></div>
+          <div class="card"></div>
+          <div class="card"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Expanded Sheet -->
+    <div class="sheetBack" id="sheetBack"></div>
+    <div class="sheet" id="sheet">
+      <div class="sheetInner">
+        <div class="handle"></div>
+        <div class="sheetHeader">
+          <div style="font-weight:700">Color Mood</div>
+          <div class="badge">Blending on</div>
+        </div>
+
+        <div class="sectionTitle">Active Colors</div>
+        <div class="swatchRow" id="activeRowSheet" style="margin-bottom:6px"></div>
+
+        <div class="sectionTitle">Add More Colors</div>
+        <div class="swatchGrid" id="grid"></div>
+
+        <div class="actions">
+          <button class="btnSecondary" id="clearAll">Clear All</button>
+          <button class="btnPrimary" id="doneBtn">Done</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const COLORS = [
+        { name: 'Overwhelmed', value: '#64748b', emotion: 'overwhelmed' },
+        { name: 'Inspiration', value: '#f59e0b', emotion: 'inspiration' },
+        { name: 'Escape', value: '#14b8a6', emotion: 'escape' },
+        { name: 'Adventure', value: '#dc2626', emotion: 'adventure' },
+        { name: 'Nostalgic', value: '#b45309', emotion: 'nostalgic' },
+        { name: 'Learning', value: '#059669', emotion: 'learning' },
+        { name: 'Humor', value: '#eab308', emotion: 'humor' },
+        { name: 'Romantic', value: '#ec4899', emotion: 'romantic' },
+        { name: 'Mysterious', value: '#7c3aed', emotion: 'mysterious' },
+        { name: 'Serene', value: '#2563eb', emotion: 'serene' },
+        { name: 'Passionate', value: '#ea580c', emotion: 'passionate' },
+        { name: 'Sophisticated', value: '#4338ca', emotion: 'sophisticated' }
+      ];
+
+      const state = {
+        active: [{ emotion: 'adventure', value: '#dc2626', intensity: 2 }]
+      };
+
+      const sheet = document.getElementById('sheet');
+      const sheetBack = document.getElementById('sheetBack');
+      const stickyBar = document.getElementById('stickyBar');
+      const activeRow = document.getElementById('activeRow');
+      const activeRowSheet = document.getElementById('activeRowSheet');
+      const grid = document.getElementById('grid');
+
+      const openSheet = () => {
+        sheetBack.style.display = 'block';
+        requestAnimationFrame(() => { sheet.style.bottom = '0'; });
+      };
+      const closeSheet = () => {
+        sheet.style.bottom = '-100%';
+        sheetBack.style.display = 'none';
+      };
+
+      document.getElementById('addBtn').addEventListener('click', openSheet);
+      document.getElementById('doneBtn').addEventListener('click', closeSheet);
+      sheetBack.addEventListener('click', closeSheet);
+
+      document.getElementById('exitBtn').addEventListener('click', () => {
+        state.active = [];
+        render();
+      });
+      document.getElementById('clearBtn').addEventListener('click', () => {
+        state.active = [];
+        render();
+      });
+      document.getElementById('clearAll').addEventListener('click', () => {
+        state.active = [];
+        render();
+      });
+
+      function cycleIntensity(item) {
+        item.intensity = ((item.intensity || 1) % 3) + 1;
+      }
+
+      function removeActive(emotion) {
+        state.active = state.active.filter(c => c.emotion !== emotion);
+      }
+
+      function addActive(color) {
+        if (!state.active.some(c => c.emotion === color.emotion)) {
+          state.active.push({ emotion: color.emotion, value: color.value, intensity: 2 });
+        }
+      }
+
+      function swatchEl({ value, intensity, emotion }, withDots = true, longPressRemove = true) {
+        const el = document.createElement('div');
+        el.className = 'swatch';
+        el.style.background = value;
+        if (withDots) {
+          const dots = document.createElement('div');
+          dots.className = 'intensityDots';
+          for (let i = 1; i <= 3; i++) {
+            const d = document.createElement('div');
+            d.className = 'dot' + (i <= intensity ? ' active' : '');
+            dots.appendChild(d);
+          }
+          el.appendChild(dots);
+        }
+        let pressTimer;
+        el.addEventListener('click', () => { cycleIntensity(state.active.find(a => a.emotion === emotion)); render(); });
+        if (longPressRemove) {
+          el.addEventListener('mousedown', () => pressTimer = setTimeout(() => { removeActive(emotion); render(); }, 550));
+          el.addEventListener('mouseup', () => clearTimeout(pressTimer));
+          el.addEventListener('mouseleave', () => clearTimeout(pressTimer));
+          el.addEventListener('touchstart', () => pressTimer = setTimeout(() => { removeActive(emotion); render(); }, 650));
+          el.addEventListener('touchend', () => clearTimeout(pressTimer));
+        }
+        return el;
+      }
+
+      function render() {
+        // Sticky active row
+        activeRow.innerHTML = '';
+        state.active.forEach(c => activeRow.appendChild(swatchEl(c)));
+
+        // Active row in sheet
+        activeRowSheet.innerHTML = '';
+        state.active.forEach(c => activeRowSheet.appendChild(swatchEl(c)));
+
+        // Grid
+        grid.innerHTML = '';
+        COLORS.forEach(color => {
+          const btn = document.createElement('div');
+          btn.className = 'swatch';
+          btn.style.background = color.value;
+          btn.title = color.name;
+          btn.addEventListener('click', () => { addActive(color); render(); });
+          grid.appendChild(btn);
+        });
+
+        // Hint visibility (disable sticky actions if no active)
+        document.getElementById('clearBtn').disabled = state.active.length === 0;
+        document.getElementById('exitBtn').disabled = state.active.length === 0;
+      }
+
+      // Initial render
+      render();
+      // Open once on load to demonstrate
+      setTimeout(openSheet, 300);
+    </script>
+  </body>
+</html>
+
+

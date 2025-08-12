@@ -207,24 +207,26 @@ export const HomePage = () => {
   return (
     <div className="space-y-12">
       {/* Hero Section */}
-      <section className="text-center space-y-4">
-        <h1 className={`text-4xl font-bold transition-colors duration-300 ${
+      <section className="text-center space-y-3 sm:space-y-4">
+        <h1 className={`text-2xl sm:text-4xl font-bold leading-tight sm:leading-normal transition-colors duration-300 ${
           theme === 'light'
             ? 'text-primary-900'
             : theme === 'dark'
             ? 'text-white'
             : 'bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent'
         }`}>
-          Discover Your Next Great Read
+          <span className="hidden sm:inline">Discover Your Next Great Read</span>
+          <span className="sm:hidden">Find Your Next Read</span>
         </h1>
-        <p className={`text-xl max-w-2xl mx-auto transition-colors duration-300 ${
+        <p className={`text-base sm:text-xl max-w-2xl mx-auto leading-snug sm:leading-relaxed transition-colors duration-300 ${
           theme === 'light'
             ? 'text-primary-600'
             : theme === 'dark'
             ? 'text-gray-300'
             : 'text-purple-600'
         }`}>
-          Get personalized book recommendations based on your mood, interests, and reading style
+          <span className="hidden sm:inline">Get personalized book recommendations based on your mood, interests, and reading style</span>
+          <span className="sm:hidden">Personalized recommendations for you</span>
         </p>
         <div className="max-w-3xl mx-auto">
           <SearchBar 

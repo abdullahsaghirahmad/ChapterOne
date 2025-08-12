@@ -122,4 +122,14 @@
 
 .transition-opacity-200 {
   @apply transition-opacity duration-200;
+}
+
+/* Mobile scrolling utilities */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* Internet Explorer 10+ */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Safari and Chrome */
 } 

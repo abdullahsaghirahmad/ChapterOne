@@ -29,6 +29,7 @@ export const Layout = ({ children }: LayoutProps) => {
   const { isEnabled, loading: flagsLoading } = useFeatureFlags();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showMobileProfileMenu, setShowMobileProfileMenu] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [hasCheckedOnboarding, setHasCheckedOnboarding] = useState(false);
 
@@ -656,26 +657,7 @@ export const Layout = ({ children }: LayoutProps) => {
           ? 'bg-gray-800 border-gray-700'
           : 'bg-gradient-to-r from-pink-100 via-purple-100 to-indigo-100 border-purple-200'
       }`}>
-        <div className="grid grid-cols-4 h-16">
-          <Link
-            to="/"
-            className={`flex flex-col items-center justify-center transition-colors duration-300 ${
-              isActive('/') 
-                ? theme === 'light'
-                  ? 'text-primary-900'
-                  : theme === 'dark'
-                  ? 'text-white'
-                  : 'text-purple-700'
-                : theme === 'light'
-                ? 'text-primary-600'
-                : theme === 'dark'
-                ? 'text-gray-400'
-                : 'text-purple-500'
-            }`}
-          >
-            <HomeIcon className="w-6 h-6" />
-            <span className="text-xs mt-1">Home</span>
-          </Link>
+        <div className={`grid h-20 sm:h-16 ${isEnabled('threads_feature_enabled') ? 'grid-cols-3' : 'grid-cols-2'}`}>
           <Link
             to="/books"
             className={`flex flex-col items-center justify-center transition-colors duration-300 ${
@@ -693,9 +675,9 @@ export const Layout = ({ children }: LayoutProps) => {
             }`}
           >
             <BookOpenIcon className="w-6 h-6" />
-            <span className="text-xs mt-1">Books</span>
+            <span className="text-sm sm:text-xs mt-1">Books</span>
           </Link>
-          {/* Threads navigation - hidden when feature flag is OFF */}
+          {/* Threads navigation - only show when feature flag is ON */}
           {isEnabled('threads_feature_enabled') && (
             <Link
               to="/threads"
@@ -714,16 +696,191 @@ export const Layout = ({ children }: LayoutProps) => {
               }`}
             >
               <ChatBubbleLeftIcon className="w-6 h-6" />
-              <span className="text-xs mt-1">Threads</span>
+              <span className="text-sm sm:text-xs mt-1">Threads</span>
             </Link>
           )}
-          <div className="flex flex-col items-center justify-center">
-            <div className="scale-75">
-              <ThemeSwitcher />
-            </div>
-          </div>
+          {/* Profile tab - shows sign in prompt or profile menu */}
+          <button
+            onClick={() => {
+              if (user) {
+                setShowMobileProfileMenu(true);
+              } else {
+                openAuthModal('signup');
+              }
+            }}
+            className={`flex flex-col items-center justify-center transition-colors duration-300 ${
+              showMobileProfileMenu 
+                ? theme === 'light'
+                  ? 'text-primary-900'
+                  : theme === 'dark'
+                  ? 'text-white'
+                  : 'text-purple-700'
+                : theme === 'light'
+                ? 'text-primary-600'
+                : theme === 'dark'
+                ? 'text-gray-400'
+                : 'text-purple-500'
+            }`}
+          >
+            {user ? (
+              <UserIcon className="w-6 h-6" />
+            ) : (
+              <UserIcon className="w-6 h-6" />
+            )}
+            <span className="text-sm sm:text-xs mt-1">{user ? 'Profile' : 'Sign In'}</span>
+          </button>
         </div>
       </nav>
+
+            {/* Mobile Profile Menu - Bottom Sheet Style */}
+      {showMobileProfileMenu && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm" 
+            onClick={() => setShowMobileProfileMenu(false)}
+          />
+          
+          {/* Bottom Sheet */}
+          <div className={`fixed bottom-0 left-0 right-0 rounded-t-2xl shadow-2xl transition-transform duration-300 ${
+            theme === 'light'
+              ? 'bg-white'
+              : theme === 'dark'
+              ? 'bg-gray-800'
+              : 'bg-gradient-to-br from-pink-50 to-purple-50'
+          }`}>
+            {/* Handle */}
+            <div className="flex justify-center py-3">
+              <div className={`w-10 h-1 rounded-full ${
+                theme === 'light'
+                  ? 'bg-gray-300'
+                  : theme === 'dark'
+                  ? 'bg-gray-600'
+                  : 'bg-purple-300'
+              }`} />
+            </div>
+            
+            {/* User Info Header */}
+            {user && (
+              <div className={`px-6 pb-4 border-b ${
+                theme === 'light'
+                  ? 'border-gray-200'
+                  : theme === 'dark'
+                  ? 'border-gray-700'
+                  : 'border-purple-200'
+              }`}>
+                <div className="flex items-center space-x-3">
+                  {currentUser && <UserAvatar user={currentUser} size="md" />}
+                  <div>
+                    <p className={`font-medium ${
+                      theme === 'light'
+                        ? 'text-gray-900'
+                        : theme === 'dark'
+                        ? 'text-white'
+                        : 'text-purple-900'
+                    }`}>
+                      {user.user_metadata?.full_name || user.user_metadata?.username || 'User'}
+                    </p>
+                    <p className={`text-sm ${
+                      theme === 'light'
+                        ? 'text-gray-500'
+                        : theme === 'dark'
+                        ? 'text-gray-400'
+                        : 'text-purple-500'
+                    }`}>
+                      @{user.user_metadata?.username || 'username'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* Menu Options */}
+            <div className="py-2">
+              {/* View Profile */}
+              <button
+                onClick={() => {
+                  navigate('/profile');
+                  setShowMobileProfileMenu(false);
+                }}
+                className={`w-full flex items-center px-6 py-4 text-left transition-colors ${
+                  theme === 'light'
+                    ? 'text-gray-900 hover:bg-gray-50'
+                    : theme === 'dark'
+                    ? 'text-white hover:bg-gray-700'
+                    : 'text-purple-900 hover:bg-purple-50'
+                }`}
+              >
+                <UserIcon className="w-5 h-5 mr-3" />
+                <span className="font-medium">View Profile</span>
+              </button>
+              
+              {/* Edit Profile */}
+              <button
+                onClick={() => {
+                  setShowProfileModal(true);
+                  setShowMobileProfileMenu(false);
+                }}
+                className={`w-full flex items-center px-6 py-4 text-left transition-colors ${
+                  theme === 'light'
+                    ? 'text-gray-900 hover:bg-gray-50'
+                    : theme === 'dark'
+                    ? 'text-white hover:bg-gray-700'
+                    : 'text-purple-900 hover:bg-purple-50'
+                }`}
+              >
+                <Cog6ToothIcon className="w-5 h-5 mr-3" />
+                <span className="font-medium">Edit Profile</span>
+              </button>
+              
+              {/* Theme Settings */}
+              <div className={`flex items-center px-6 py-4 border-t ${
+                theme === 'light'
+                  ? 'border-gray-100'
+                  : theme === 'dark'
+                  ? 'border-gray-700'
+                  : 'border-purple-100'
+              }`}>
+                <div className="w-5 h-5 mr-3 flex items-center justify-center">
+            <div className="scale-75">
+              <ThemeSwitcher />
+                  </div>
+                </div>
+                <span className={`font-medium ${
+                  theme === 'light'
+                    ? 'text-gray-900'
+                    : theme === 'dark'
+                    ? 'text-white'
+                    : 'text-purple-900'
+                }`}>
+                  Theme
+                </span>
+              </div>
+              
+              {/* Sign Out */}
+              <button
+                onClick={() => {
+                  handleSignOut();
+                  setShowMobileProfileMenu(false);
+                }}
+                className={`w-full flex items-center px-6 py-4 text-left font-medium transition-colors border-t ${
+                  theme === 'light'
+                    ? 'text-red-600 hover:bg-red-50 border-gray-100'
+                    : theme === 'dark'
+                    ? 'text-red-400 hover:bg-red-900/20 border-gray-700'
+                    : 'text-red-600 hover:bg-red-50 border-purple-100'
+                }`}
+              >
+                <ArrowUpIcon className="w-5 h-5 mr-3 rotate-45" />
+                Sign Out
+              </button>
+            </div>
+            
+            {/* Safe area padding for mobile devices */}
+            <div className="h-8" />
+          </div>
+        </div>
+      )}
 
       {/* Auth Modal */}
               <AuthModal

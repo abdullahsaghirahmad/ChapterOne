@@ -10,6 +10,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { User } from '../../types';
 import { UserAvatar } from './UserAvatar';
+import { ThemeSwitcher } from './ThemeSwitcher';
 import { UserPreferencesService } from '../../services/userPreferences.service';
 import { SavedBooksService } from '../../services/savedBooks.service';
 
@@ -550,6 +551,36 @@ Generate only the bio text, no quotes or additional formatting:`;
               </p>
             </div>
 
+            {/* Theme Settings */}
+            <div className={`border-t pt-4 ${
+              theme === 'light'
+                ? 'border-gray-200'
+                : theme === 'dark'
+                ? 'border-gray-600'
+                : 'border-purple-200'
+            }`}>
+              <label className={`text-sm font-medium block mb-3 ${
+                theme === 'light'
+                  ? 'text-gray-700'
+                  : theme === 'dark'
+                  ? 'text-gray-300'
+                  : 'text-purple-700'
+              }`}>
+                Appearance
+              </label>
+              <div className="flex items-center space-x-3">
+                <ThemeSwitcher />
+                <span className={`text-sm ${
+                  theme === 'light'
+                    ? 'text-gray-600'
+                    : theme === 'dark'
+                    ? 'text-gray-300'
+                    : 'text-purple-600'
+                }`}>
+                  Switch between Light, Dark, and Rainbow themes
+                </span>
+              </div>
+            </div>
 
           </div>
 

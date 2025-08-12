@@ -93,6 +93,12 @@ export const AnonymousUserOnboardingModal: React.FC<AnonymousUserOnboardingModal
     }
   };
 
+  const handleBack = () => {
+    if (step > 1) {
+      setStep(step - 1);
+    }
+  };
+
   const handleComplete = async () => {
     try {
       // Update anonymous session with preferences
@@ -129,132 +135,139 @@ export const AnonymousUserOnboardingModal: React.FC<AnonymousUserOnboardingModal
     switch (step) {
       case 1:
         return (
-          <div className="space-y-6">
-            <div className="text-center">
-              <BookOpenIcon className="h-16 w-16 mx-auto mb-4 text-blue-500" />
-              <h3 className={`text-xl font-bold mb-2 ${
-                theme === 'dark' ? 'text-white' : 'text-gray-900'
-              }`}>
-                What do you love to read?
-              </h3>
-              <p className={`text-sm ${
-                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-              }`}>
-                Pick up to 3 genres you enjoy (we'll find more as you explore!)
-              </p>
+          <div className="flex flex-col h-full justify-between">
+            <div>
+              <div className="text-center mb-6">
+                <BookOpenIcon className="h-14 w-14 mx-auto mb-4 text-blue-500" />
+                <h3 className={`text-xl font-bold mb-2 ${
+                  theme === 'dark' ? 'text-white' : 'text-gray-900'
+                }`}>
+                  What do you love to read?
+                </h3>
+                <p className={`text-sm ${
+                  theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                }`}>
+                  Pick up to 3 genres you enjoy (we'll find more as you explore!)
+                </p>
+                <div className="mt-2">
+                  <span className={`text-xs ${
+                    theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                  }`}>
+                    Selected: {preferences.favoriteGenres.length}/3
+                  </span>
+                </div>
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              {GENRE_OPTIONS.map((genre) => (
-                <button
-                  key={genre.id}
-                  onClick={() => handleGenreToggle(genre.id)}
-                  className={`p-3 rounded-lg border text-left transition-all ${
-                    preferences.favoriteGenres.includes(genre.id)
-                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                      : theme === 'dark'
-                      ? 'border-gray-600 hover:border-gray-500'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="flex items-center space-x-2">
-                    <span className="text-lg">{genre.icon}</span>
-                    <span className={`text-sm font-medium ${
-                      theme === 'dark' ? 'text-white' : 'text-gray-900'
-                    }`}>
-                      {genre.label}
-                    </span>
-                  </div>
-                </button>
-              ))}
-            </div>
-
-            <div className="text-center">
-              <span className={`text-xs ${
-                theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
-              }`}>
-                Selected: {preferences.favoriteGenres.length}/3
-              </span>
+            <div className="flex-1 min-h-0">
+              <div className="grid grid-cols-2 gap-2 h-full overflow-y-auto">
+                {GENRE_OPTIONS.map((genre) => (
+                  <button
+                    key={genre.id}
+                    onClick={() => handleGenreToggle(genre.id)}
+                    className={`p-3 rounded-lg border text-left transition-all ${
+                      preferences.favoriteGenres.includes(genre.id)
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                        : theme === 'dark'
+                        ? 'border-gray-600 hover:border-gray-500'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <span className="text-lg">{genre.icon}</span>
+                      <span className={`text-sm font-medium ${
+                        theme === 'dark' ? 'text-white' : 'text-gray-900'
+                      }`}>
+                        {genre.label}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         );
 
       case 2:
         return (
-          <div className="space-y-6">
-            <div className="text-center">
-              <SparklesIcon className="h-16 w-16 mx-auto mb-4 text-purple-500" />
-              <h3 className={`text-xl font-bold mb-2 ${
-                theme === 'dark' ? 'text-white' : 'text-gray-900'
-              }`}>
-                What's your reading goal & mood?
-              </h3>
-              <p className={`text-sm ${
-                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-              }`}>
-                Tell us why you're reading and how you're feeling
-              </p>
-            </div>
-
-            {/* Reading Goals */}
+          <div className="flex flex-col h-full justify-between">
             <div>
-              <h4 className={`text-sm font-semibold mb-3 ${
-                theme === 'dark' ? 'text-gray-200' : 'text-gray-700'
-              }`}>
-                Reading Goal
-              </h4>
-              <div className="grid grid-cols-2 gap-3">
-                {READING_GOALS.map((goal) => (
-                  <button
-                    key={goal.id}
-                    onClick={() => setPreferences(prev => ({ ...prev, readingGoal: goal.id }))}
-                    className={`p-3 rounded-lg border text-center transition-all ${
-                      preferences.readingGoal === goal.id
-                        ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
-                        : theme === 'dark'
-                        ? 'border-gray-600 hover:border-gray-500'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <div className="text-xl mb-1">{goal.icon}</div>
-                    <div className={`text-xs font-medium ${
-                      theme === 'dark' ? 'text-white' : 'text-gray-900'
-                    }`}>
-                      {goal.label}
-                    </div>
-                  </button>
-                ))}
+              <div className="text-center mb-6">
+                <SparklesIcon className="h-14 w-14 mx-auto mb-4 text-purple-500" />
+                <h3 className={`text-xl font-bold mb-2 ${
+                  theme === 'dark' ? 'text-white' : 'text-gray-900'
+                }`}>
+                  What's your reading goal & mood?
+                </h3>
+                <p className={`text-sm ${
+                  theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                }`}>
+                  Tell us why you're reading and how you're feeling
+                </p>
               </div>
             </div>
 
-            {/* Current Mood */}
-            <div>
-              <h4 className={`text-sm font-semibold mb-3 ${
-                theme === 'dark' ? 'text-gray-200' : 'text-gray-700'
-              }`}>
-                Current Mood
-              </h4>
-              <div className="grid grid-cols-2 gap-3">
-                {MOOD_OPTIONS.map((mood) => (
-                  <button
-                    key={mood.id}
-                    onClick={() => setPreferences(prev => ({ ...prev, preferredMood: mood.id }))}
-                    className={`p-3 rounded-lg border text-center transition-all ${
-                      preferences.preferredMood === mood.id
-                        ? 'border-pink-500 bg-pink-50 dark:bg-pink-900/20'
-                        : theme === 'dark'
-                        ? 'border-gray-600 hover:border-gray-500'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <div className="text-xl mb-1">{mood.icon}</div>
-                    <div className={`text-xs font-medium ${
-                      theme === 'dark' ? 'text-white' : 'text-gray-900'
-                    }`}>
-                      {mood.label}
-                    </div>
-                  </button>
-                ))}
+            <div className="flex-1 min-h-0 overflow-y-auto space-y-6">
+              {/* Reading Goals */}
+              <div>
+                <h4 className={`text-sm font-semibold mb-2 ${
+                  theme === 'dark' ? 'text-gray-200' : 'text-gray-700'
+                }`}>
+                  Reading Goal
+                </h4>
+                <div className="grid grid-cols-2 gap-2">
+                  {READING_GOALS.map((goal) => (
+                    <button
+                      key={goal.id}
+                      onClick={() => setPreferences(prev => ({ ...prev, readingGoal: goal.id }))}
+                      className={`p-3 rounded-lg border text-center transition-all ${
+                        preferences.readingGoal === goal.id
+                          ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
+                          : theme === 'dark'
+                          ? 'border-gray-600 hover:border-gray-500'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="text-xl mb-1">{goal.icon}</div>
+                      <div className={`text-xs font-medium ${
+                        theme === 'dark' ? 'text-white' : 'text-gray-900'
+                      }`}>
+                        {goal.label}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Current Mood */}
+              <div>
+                <h4 className={`text-sm font-semibold mb-2 ${
+                  theme === 'dark' ? 'text-gray-200' : 'text-gray-700'
+                }`}>
+                  Current Mood
+                </h4>
+                <div className="grid grid-cols-2 gap-2">
+                  {MOOD_OPTIONS.map((mood) => (
+                    <button
+                      key={mood.id}
+                      onClick={() => setPreferences(prev => ({ ...prev, preferredMood: mood.id }))}
+                      className={`p-3 rounded-lg border text-center transition-all ${
+                        preferences.preferredMood === mood.id
+                          ? 'border-pink-500 bg-pink-50 dark:bg-pink-900/20'
+                          : theme === 'dark'
+                          ? 'border-gray-600 hover:border-gray-500'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="text-xl mb-1">{mood.icon}</div>
+                      <div className={`text-xs font-medium ${
+                        theme === 'dark' ? 'text-white' : 'text-gray-900'
+                      }`}>
+                        {mood.label}
+                      </div>
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -262,39 +275,41 @@ export const AnonymousUserOnboardingModal: React.FC<AnonymousUserOnboardingModal
 
       case 3:
         return (
-          <div className="space-y-6">
-            <div className="text-center">
-              <BookOpenIcon className="h-16 w-16 mx-auto mb-4 text-green-500" />
-              <h3 className={`text-xl font-bold mb-2 ${
-                theme === 'dark' ? 'text-white' : 'text-gray-900'
-              }`}>
-                What's your reading style?
-              </h3>
-              <p className={`text-sm ${
-                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-              }`}>
-                Help us match your preferred reading pace and complexity
-              </p>
+          <div className="flex flex-col h-full justify-between">
+            <div>
+              <div className="text-center mb-6">
+                <BookOpenIcon className="h-14 w-14 mx-auto mb-4 text-green-500" />
+                <h3 className={`text-xl font-bold mb-2 ${
+                  theme === 'dark' ? 'text-white' : 'text-gray-900'
+                }`}>
+                  What's your reading style?
+                </h3>
+                <p className={`text-sm ${
+                  theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+                }`}>
+                  Help us match your preferred reading pace and complexity
+                </p>
+              </div>
             </div>
 
-            <div className="space-y-3">
-              {READING_STYLES.map((style) => (
-                <button
-                  key={style.id}
-                  onClick={() => setPreferences(prev => ({ ...prev, readingStyle: style.id }))}
-                  className={`w-full p-4 rounded-lg border text-left transition-all ${
-                    preferences.readingStyle === style.id
-                      ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
-                      : theme === 'dark'
-                      ? 'border-gray-600 hover:border-gray-500'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
+            <div className="flex-1 min-h-0">
+              <div className="space-y-2 h-full overflow-y-auto">
+                {READING_STYLES.map((style) => (
+                  <button
+                    key={style.id}
+                    onClick={() => setPreferences(prev => ({ ...prev, readingStyle: style.id }))}
+                    className={`w-full p-3 rounded-lg border text-left transition-all ${
+                      preferences.readingStyle === style.id
+                        ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
+                        : theme === 'dark'
+                        ? 'border-gray-600 hover:border-gray-500'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
                     <div className="flex items-center space-x-3">
-                      <span className="text-2xl">{style.icon}</span>
+                      <span className="text-xl">{style.icon}</span>
                       <div>
-                        <div className={`font-medium ${
+                        <div className={`text-sm font-medium ${
                           theme === 'dark' ? 'text-white' : 'text-gray-900'
                         }`}>
                           {style.label}
@@ -306,9 +321,9 @@ export const AnonymousUserOnboardingModal: React.FC<AnonymousUserOnboardingModal
                         </div>
                       </div>
                     </div>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         );
@@ -337,7 +352,7 @@ export const AnonymousUserOnboardingModal: React.FC<AnonymousUserOnboardingModal
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.95 }}
-          className={`relative w-full max-w-md p-6 rounded-xl shadow-xl ${
+          className={`relative w-full max-w-md h-[720px] p-6 rounded-xl shadow-xl flex flex-col ${
             theme === 'dark' ? 'bg-gray-800' : 'bg-white'
           }`}
         >
@@ -352,42 +367,60 @@ export const AnonymousUserOnboardingModal: React.FC<AnonymousUserOnboardingModal
             <XMarkIcon className="h-5 w-5" />
           </button>
 
-          <div className="mb-6">
-            <div className="flex justify-between items-center mb-4">
-              <span className={`text-sm font-medium ${
-                theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
-              }`}>
-                Step {step} of 4
-              </span>
-              <div className="flex space-x-1">
-                {[1, 2, 3, 4].map((stepNum) => (
-                  <div
-                    key={stepNum}
-                    className={`w-2 h-2 rounded-full ${
-                      stepNum <= step 
-                        ? 'bg-blue-500' 
-                        : theme === 'dark' ? 'bg-gray-600' : 'bg-gray-200'
-                    }`}
-                  />
-                ))}
-              </div>
+          {/* Fixed Header */}
+          <div className="flex justify-between items-center mb-4 pr-10 flex-shrink-0">
+            <span className={`text-sm font-medium ${
+              theme === 'dark' ? 'text-gray-400' : 'text-gray-600'
+            }`}>
+              Step {step} of 3
+            </span>
+            <div className="flex space-x-1">
+              {[1, 2, 3].map((stepNum) => (
+                <div
+                  key={stepNum}
+                  className={`w-2 h-2 rounded-full ${
+                    stepNum <= step 
+                      ? 'bg-blue-500' 
+                      : theme === 'dark' ? 'bg-gray-600' : 'bg-gray-200'
+                  }`}
+                />
+              ))}
             </div>
-            
+          </div>
+          
+          {/* Flexible Content Area */}
+          <div className="flex-1 min-h-0 mb-6">
             {renderStep()}
           </div>
 
-          <div className="flex justify-between">
-            <button
-              onClick={onClose}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                theme === 'dark'
-                  ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-              }`}
-            >
-              Skip for now
-            </button>
+          {/* Fixed Footer */}
+          <div className="flex justify-between flex-shrink-0">
+            {/* Left side - Back or Skip */}
+            {step === 1 ? (
+              <button
+                onClick={onClose}
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                  theme === 'dark'
+                    ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}
+              >
+                Skip for now
+              </button>
+            ) : (
+              <button
+                onClick={handleBack}
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                  theme === 'dark'
+                    ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}
+              >
+                Back
+              </button>
+            )}
 
+            {/* Right side - Next/Complete */}
             <button
               onClick={handleNext}
               disabled={!canProceed()}

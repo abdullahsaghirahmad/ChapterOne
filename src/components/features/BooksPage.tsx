@@ -393,6 +393,7 @@ export const BooksPage = () => {
   const [selectedColor, setSelectedColor] = useState<any>(null);
   const [selectedColors, setSelectedColors] = useState<any[]>([]);
   const [colorIntensity, setColorIntensity] = useState(1);
+  const [showMobileColorSheet, setShowMobileColorSheet] = useState(false);
   
   // Track processed URLs to prevent duplicate processing
   const processedUrlRef = useRef<string>('');
@@ -948,6 +949,28 @@ export const BooksPage = () => {
     }
   };
 
+  // Mobile color controls helpers
+  const handleCycleIntensity = (emotion: string) => {
+    const updated = selectedColors.map(sc =>
+      sc.emotion === emotion ? { ...sc, intensity: ((sc.intensity || 1) % 3) + 1 } : sc
+    );
+    setSelectedColors(updated);
+    setTimeout(() => refreshColorSearchWithColors(updated), 50);
+  };
+
+  const handleClearAllColors = () => {
+    setSelectedColors([]);
+    setBooks(allBooks);
+  };
+
+  const handleExitColorMode = () => {
+    setSelectedColors([]);
+    setIsColorSearchMode(false);
+    setSelectedColor(null);
+    setBooks(allBooks);
+    navigate('/books');
+  };
+
   const refreshColorSearch = () => {
     if (selectedColors.length === 0) return;
     
@@ -1024,6 +1047,69 @@ export const BooksPage = () => {
           onMoodSelect={handleMoodSelect}
           onColorSearch={handleColorSearch}
         />
+        {/* Mobile sticky color bar (only in color mode) */}
+        {isColorSearchMode && (
+          <div className="block md:hidden mt-2 sticky top-2 z-20">
+            <div
+              className={`flex items-center gap-2 rounded-xl border px-3 py-2 shadow-sm ${
+                theme === 'light'
+                  ? 'bg-white border-gray-200'
+                  : theme === 'dark'
+                  ? 'bg-gray-800 border-gray-700'
+                  : 'bg-gradient-to-r from-pink-50 to-purple-50 border-purple-200'
+              }`}
+            >
+              <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
+                {selectedColors.map((c) => (
+                  <button
+                    key={c.emotion}
+                    onClick={() => handleCycleIntensity(c.emotion)}
+                    onContextMenu={(e) => { e.preventDefault(); handleColorRemove(c.emotion); }}
+                    className={`relative w-7 h-7 rounded-md border ${
+                      theme === 'light' ? 'border-white' : theme === 'dark' ? 'border-gray-700' : 'border-purple-200'
+                    }`}
+                    style={{ backgroundColor: c.value }}
+                    title={`${c.name} — tap to adjust, long-press to remove`}
+                  >
+                    <div className="absolute right-0.5 top-0.5 flex gap-0.5">
+                      {[1,2,3].map(i => (
+                        <span key={i} className={`w-1 h-1 rounded-full ${i <= (c.intensity||1) ? 'bg-white/90' : 'bg-white/40'}`} />
+                      ))}
+                    </div>
+                  </button>
+                ))}
+                <button
+                  onClick={() => setShowMobileColorSheet(true)}
+                  className={`w-7 h-7 rounded-md border text-xs ${
+                    theme === 'light' ? 'border-gray-300 text-gray-600' : theme === 'dark' ? 'border-gray-600 text-gray-300' : 'border-purple-300 text-purple-700'
+                  }`}
+                  aria-label="Add color"
+                >
+                  +
+                </button>
+              </div>
+              <div className="ml-auto flex items-center gap-2">
+                <button
+                  onClick={handleClearAllColors}
+                  disabled={selectedColors.length === 0}
+                  className={`text-xs px-2 py-1 rounded-md border ${
+                    theme === 'light' ? 'border-gray-200 text-gray-700 disabled:opacity-40' : theme === 'dark' ? 'border-gray-700 text-gray-200 disabled:opacity-40' : 'border-purple-200 text-purple-800 disabled:opacity-40'
+                  }`}
+                >
+                  Clear
+                </button>
+                <button
+                  onClick={handleExitColorMode}
+                  className={`text-xs px-2 py-1 rounded-md ${
+                    theme === 'light' ? 'bg-gray-100 text-gray-800' : theme === 'dark' ? 'bg-gray-700 text-white' : 'bg-purple-100 text-purple-800'
+                  }`}
+                >
+                  Exit
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         
         {/* External API Toggle */}
         <div className="flex items-center justify-end mt-4 space-x-2">
@@ -1131,9 +1217,9 @@ export const BooksPage = () => {
             </AnimatePresence>
           </div>
 
-          {/* Color Sidebar - Only show in color search mode */}
+          {/* Color Sidebar - desktop only */}
           {isColorSearchMode && (
-            <div className="w-[275px] flex-shrink-0">
+            <div className="w-[275px] flex-shrink-0 hidden md:block">
               <div className={`rounded-lg shadow-lg p-6 sticky top-4 transition-colors duration-300 border ${
                 theme === 'light'
                   ? 'bg-white border-gray-200'
@@ -1317,6 +1403,45 @@ export const BooksPage = () => {
               </div>
             </div>
           )}
+        </div>
+      )}
+      {/* Mobile color sheet */}
+      {isColorSearchMode && showMobileColorSheet && (
+        <div className="md:hidden">
+          <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setShowMobileColorSheet(false)} />
+          <div className={`fixed left-0 right-0 bottom-0 z-50 rounded-t-2xl border-t p-4 ${
+            theme === 'light' ? 'bg-white border-gray-200' : theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gradient-to-br from-pink-50 to-purple-50 border-purple-200'
+          }`}>
+            <div className="mx-auto h-1.5 w-12 rounded-full bg-gray-300/80 mb-3" />
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-sm font-semibold">Color Mood</div>
+              <button onClick={() => setShowMobileColorSheet(false)} className={`${theme==='light'?'bg-gray-100':'bg-gray-700 text-white'} text-xs px-2 py-1 rounded-md`}>Done</button>
+            </div>
+            {selectedColors.length > 0 && (
+              <div className="mb-3">
+                <div className="text-xs font-medium mb-1">Active Colors</div>
+                <div className="flex items-center gap-2">
+                  {selectedColors.map(c => (
+                    <button key={c.emotion} onClick={() => handleCycleIntensity(c.emotion)} className="relative w-8 h-8 rounded-md border" style={{backgroundColor:c.value}}>
+                      <div className="absolute right-1 top-1 flex gap-0.5">
+                        {[1,2,3].map(i => (<span key={i} className={`w-1.5 h-1.5 rounded-full ${i <= (c.intensity||1)?'bg-white/90':'bg-white/40'}`} />))}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="text-xs font-medium mb-1">Add More Colors</div>
+            <div className="grid grid-cols-8 gap-2">
+              {colors.map(color => (
+                <button key={color.emotion} onClick={() => handleColorAdd(color)} className="w-7 h-7 rounded-md border" style={{backgroundColor:color.value}} title={color.name} />
+              ))}
+            </div>
+            <div className="flex items-center gap-2 mt-3">
+              <button onClick={handleClearAllColors} className={`flex-1 text-sm px-3 py-2 rounded-md border ${theme==='light'?'border-gray-200 text-gray-800':theme==='dark'?'border-gray-700 text-white':'border-purple-200 text-purple-900'}`}>Clear All</button>
+              <button onClick={handleExitColorMode} className={`flex-1 text-sm px-3 py-2 rounded-md ${theme==='light'?'bg-gray-100 text-gray-900':theme==='dark'?'bg-gray-700 text-white':'bg-purple-100 text-purple-900'}`}>Exit Mode</button>
+            </div>
+          </div>
         </div>
       )}
     </div>

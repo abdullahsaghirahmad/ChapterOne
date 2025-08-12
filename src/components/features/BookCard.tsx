@@ -753,7 +753,7 @@ export const BookCard = ({
       <div className="flex-1 flex flex-col p-4">
         {/* Title and Save Button */}
         <div className="flex justify-between items-start mb-1">
-          <h3 className={`font-semibold text-lg leading-tight ${
+          <h3 className={`font-semibold text-base sm:text-lg leading-tight ${
             theme === 'light'
               ? 'text-primary-900'
               : theme === 'dark'
@@ -765,7 +765,7 @@ export const BookCard = ({
           <button 
             onClick={handleSave}
             disabled={isSaving}
-            className={`ml-2 p-1 transition-all duration-300 hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed ${
+            className={`ml-2 p-2 sm:p-1 transition-all duration-300 hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed ${
               currentSavedState
                 ? theme === 'light'
                   ? 'text-primary-600 hover:text-primary-700'
@@ -791,7 +791,7 @@ export const BookCard = ({
         </div>
 
         {/* Author */}
-        <p className={`text-sm mb-2 ${
+        <p className={`text-xs sm:text-sm mb-2 ${
           theme === 'light'
             ? 'text-primary-600'
             : theme === 'dark'
@@ -802,7 +802,7 @@ export const BookCard = ({
         </p>
 
         {/* Pace and Color Match */}
-        <div className={`flex items-center justify-between mb-2 text-sm ${
+        <div className={`flex items-center justify-between mb-2 text-xs sm:text-sm ${
           theme === 'light'
             ? 'text-primary-700'
             : theme === 'dark'
@@ -858,7 +858,7 @@ export const BookCard = ({
         )}
 
         {/* Description - AI-trimmed to perfect 2-line length */}
-        <div className={`text-sm mb-3 leading-relaxed ${
+        <div className={`text-xs sm:text-sm mb-3 leading-relaxed ${
           theme === 'light'
             ? 'text-primary-600'
             : theme === 'dark'
@@ -875,7 +875,7 @@ export const BookCard = ({
             // Navigate to search results for similar books
             navigate(`/books?query=${encodeURIComponent(`books like ${title}`)}&type=semantic`);
           }}
-          className={`self-start text-sm font-medium flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-300 hover:scale-105 ${
+          className={`self-start text-xs sm:text-sm font-medium flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg transition-all duration-300 hover:scale-105 ${
             theme === 'light'
               ? 'bg-primary-600 hover:bg-primary-700 text-white'
               : theme === 'dark'
