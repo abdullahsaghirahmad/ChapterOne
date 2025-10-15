@@ -2,6 +2,8 @@
 
 A full-stack book discovery platform built as a hands-on exercise to learn practical ML and cutting-edge user personalization.
 
+https://github.com/abdullahsaghirahmad/ChapterOne/blob/main/ChapterOne-ezgif.com-optimize.gif
+
 ## Live Demo
 [chapterone-theta.vercel.app](https://chapterone-theta.vercel.app/)
 
